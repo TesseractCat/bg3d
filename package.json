@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "description": "An open source THREE.js based multiplayer board game simulator",
   "dependencies": {
+    "cannon-es": "^0.18.0",
     "esbuild": "^0.13.6",
-    "three": "^0.132.2"
+    "three": "^0.132.2",
+    "troika-three-text": "^0.43.0"
   },
   "devDependencies": {
     "@types/three": "^0.131.0",

@@ -5,6 +5,7 @@ body, html {
 
 body {
     margin:0px;
+    background: linear-gradient(0deg, #E5DEC8, #F9F8F4);
 }
 
 canvas {

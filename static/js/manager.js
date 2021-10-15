@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import Stats from '../deps/libs/stats.module';
+import * as CANNON from 'cannon-es'
 
+import Stats from '../deps/libs/stats.module';
 import { EffectComposer } from '../deps/postprocessing/EffectComposer';
 import { RenderPass } from '../deps/postprocessing/RenderPass';
 import { ShaderPass } from '../deps/postprocessing/ShaderPass';
 import { SAOPass } from '../deps/postprocessing/SAOPass';
 import { SSAOPass } from '../deps/postprocessing/SSAOPass';
 import { PixelShader } from '../deps/shaders/PixelShader';
-
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 
@@ -18,11 +18,17 @@ export default class Manager {
     composer;
     controls;
     stats;
+    world;
+    
+    static physicsTimestep = 1/60;
+    lastCallTime;
     
     constructor() {
         this.buildScene();
         this.buildRenderer();
         this.buildControls();
+        this.buildPhysics();
+        
         this.resize();
         
         this.loader = new GLTFLoader().setPath('../models/');
@@ -32,11 +38,20 @@ export default class Manager {
         this.composer.render();
         this.controls.update();
         this.stats.update();
+        
+        const time = performance.now() / 1000; // seconds
+        if (!this.lastCallTime) {
+            this.world.step(Manager.physicsTimestep);
+        } else {
+            const dt = time - this.lastCallTime;
+            this.world.step(Manager.physicsTimestep, dt);
+        }
+        this.lastCallTime = time;
     }
     resize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth/2, window.innerHeight/2);
+        this.renderer.setSize(window.innerWidth/1.5, window.innerHeight/1.5);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
         this.composer.setSize(window.innerWidth, window.innerHeight);
@@ -44,7 +59,8 @@ export default class Manager {
     
     buildScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xdddddd);
+        //this.scene.background = new THREE.Color(0xdddddd);
+        this.scene.background = null;
         
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.castShadow = true;
@@ -77,11 +93,12 @@ export default class Manager {
         this.camera.position.z = 15;
         this.camera.position.y = 8;
         
-        this.renderer = new THREE.WebGLRenderer({canvas: display});
+        this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true});
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         //this.renderer.shadowMap.type = THREE.BasicShadowMap;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        //this.renderer.shadowMap.type = THREE.VSMShadowMap;
         
         this.composer = new EffectComposer(this.renderer);
 
@@ -109,5 +126,10 @@ export default class Manager {
         this.controls.screenSpacePanning = false;
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.15;
+    }
+    buildPhysics() {
+        this.world = new CANNON.World({
+            gravity: new CANNON.Vec3(0, -10.0, 0),
+        });
     }
 }
