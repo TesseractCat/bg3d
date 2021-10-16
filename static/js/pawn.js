@@ -24,18 +24,18 @@ export default class Pawn {
         if (id == null) {
             this.id = Pawn.NEXT_ID;
             Pawn.NEXT_ID += 1;
+        } else {
+            this.id = id;
         }
         this.manager = manager;
         
         this.physicsBody = physicsBody;
         this.physicsBody.position.copy(position);
+        if (!this.manager.host) //Disable physics for non-hosts
+            this.physicsBody.type = CANNON.Body.Static
         this.manager.world.addBody(this.physicsBody);
 
         // MESH
-        /*this.mesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial());
-        this.mesh.castShadow = true;
-        this.manager.scene.add(this.mesh);*/
-        
         this.meshUrl = mesh;
         this.manager.loader.load(mesh, (gltf) => {
             gltf.scene.traverse(function (child) {
@@ -49,19 +49,6 @@ export default class Pawn {
         });
         
         this.position.copy(position);
-        
-        /*let dragged = false;
-        document.addEventListener('mousedown', () => { dragged = false });
-        document.addEventListener('mousemove', () => { dragged = true });
-        document.addEventListener("mouseup", () => {
-            if (!this.moveable || dragged)
-                return;
-            if (this.hovered && !this.selected) {
-                this.selected = true;
-            } else if (this.selected) {
-                this.selected = false;
-            }
-        });*/
     }
     
     animate(dt) {
@@ -73,11 +60,6 @@ export default class Pawn {
         }
         
         // Raycast to mesh
-        //if (this.mesh) {
-        //    let hits = this.manager.raycaster.intersectObject(this.mesh, true);
-        //    this.hovered = hits.length > 0;
-        //}
-        
         if (this.selected) {
             let raycastableObjects = Array.from(this.manager.pawns.values()).filter(x => x != this).map(x => x.mesh);
             raycastableObjects.push(this.manager.plane);
@@ -106,6 +88,14 @@ export default class Pawn {
         }
     }
     
+    setOwned(owned) {
+        this.owned = owned;
+        if (owned) {
+            //TODO
+        } else {
+            
+        }
+    }
     setPosition(position) {
         this.position.copy(position);
         this.physicsBody.position.copy(position);

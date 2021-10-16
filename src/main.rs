@@ -64,10 +64,13 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     // Track user
     {
         let mut lobbies_write_lock = lobbies.write().await;
+        let mut host: bool = false;
         if lobbies_write_lock.get(&lobby_name).is_none() {
             lobbies_write_lock.insert(lobby_name.clone(), Lobby::new());
+            host = true;
         }
         let mut lobby = lobbies_write_lock.get_mut(&lobby_name).unwrap();
+        if host { lobby.host = user_id; }
         lobby.users.insert(user_id, User::new(user_id, buffer_tx));
     }
     
@@ -92,6 +95,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "join" => user_joined(user_id, data, &lobby_name, &lobbies).await,
             "add_pawn" => add_pawn(user_id, data, &lobby_name, &lobbies).await,
             "update_pawns" => update_pawns(user_id, data, &lobby_name, &lobbies).await,
+            "request_update_pawn" => request_update_pawn(user_id, data, &lobby_name, &lobbies).await,
             _ => (),
         }
     }
@@ -141,6 +145,18 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
             u.tx.send(Message::text(response.to_string()));
         }
     }
+}
+
+async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_write_lock = lobbies.write().await;
+    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    
+    // Forward to host
+    let response = json!({
+        "type":"request_update_pawn",
+        "pawn":data["pawn"]
+    });
+    lobby.users[&lobby.host].tx.send(Message::text(response.to_string()));
 }
 
 async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {

@@ -17,11 +17,13 @@ pub struct Pawn {
     pub position: Vec3,
     pub rotation: Vec3,
     pub mass: f64,
+    pub moveable: bool,
     pub shapes: serde_json::Value
 }
 
 pub struct Lobby {
     pub name: String,
+    pub host: usize,
     pub users: HashMap<usize, User>,
     pub pawns: HashMap<u64, Pawn>,
 }
@@ -30,6 +32,7 @@ impl Lobby {
     pub fn new() -> Lobby {
         Lobby {
             name: "".to_string(),
+            host: 0,
             users: HashMap::new(),
             pawns: HashMap::new(),
         }

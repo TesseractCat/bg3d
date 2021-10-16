@@ -63,6 +63,7 @@ export default class Manager {
     host = false;
     
     static physicsTimestep = 1/60;
+    static networkTimestep = 1000/10;
     lastCallTime;
     
     constructor() {
@@ -117,25 +118,29 @@ export default class Manager {
                 position:{x:pawn.position.x, y:pawn.position.y, z:pawn.position.z},
                 rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
                 mass:pawn.physicsBody.mass,
+                moveable:pawn.moveable,
                 shapes:pawn.physicsBody.shapes.map(x => x.serialize()),
             }
         }));
     }
     loadPawn(pawnJSON) {
         let pawn = new Pawn(this, pawnJSON.position, pawnJSON.mesh, new CANNON.Body({
-            mass: this.host ? pawnJSON.mass : 0,
+            mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         }), pawnJSON.id);
         pawn.rotation.setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
+        pawn.moveable = pawnJSON.moveable;
         this.pawns.set(pawnJSON.id, pawn);
     }
     updatePawn(pawnJSON) {
         let pawn = this.pawns.get(pawnJSON.id);
+        if (pawn.selected) // We own selected pawns
+            return;
         pawn.setPosition(pawnJSON.position);
         pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
     }
     
-    tick() {
+    tickHost() {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
         if (to_update.length > 0) {
             this.socket.send(JSON.stringify({
@@ -148,6 +153,23 @@ export default class Manager {
                         rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
                     };
                 })
+            }));
+            to_update.forEach(p => p.dirty = false);
+        }
+    }
+    tickClient() {
+        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty && p.selected);
+        if (to_update.length > 0) {
+            this.socket.send(JSON.stringify({
+                type:"request_update_pawn",
+                pawn:to_update.map(p => {
+                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
+                    return {
+                        id:p.id,
+                        position:{x:p.position.x, y:p.position.y, z:p.position.z},
+                        rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
+                    };
+                })[0]
             }));
             to_update.forEach(p => p.dirty = false);
         }
@@ -290,18 +312,20 @@ export default class Manager {
             console.log('Message from server: ' + e.data);
             let msg = JSON.parse(e.data);
             if (msg["type"] == "start") {
-                // We have initiated a connectio
+                // We have initiated a connection
                 this.host = msg["host"];
                 callback(this.host);
                 if (this.host) {
-                    // If we are the host, let's start our networked physics ticks
-                    setInterval(() => this.tick(), 1000/10);
+                    setInterval(() => this.tickHost(), Manager.networkTimestep);
                 } else {
+                    setInterval(() => this.tickClient(), Manager.networkTimestep);
                     // If we aren't the host, let's deserialize the pawns recieved
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
             } else if (msg["type"] == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
+            } else if (msg["type"] == "request_update_pawn" && this.host) {
+                this.updatePawn(msg.pawn);
             }
         });
     }
