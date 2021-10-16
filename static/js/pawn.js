@@ -79,7 +79,7 @@ export default class Pawn {
         //}
         
         if (this.selected) {
-            let raycastableObjects = this.manager.pawns.filter(x => x != this).map(x => x.mesh);
+            let raycastableObjects = Array.from(this.manager.pawns.values()).filter(x => x != this).map(x => x.mesh);
             raycastableObjects.push(this.manager.plane);
             let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
             
@@ -99,8 +99,10 @@ export default class Pawn {
         if (!this.dirty) {
             this.dirty = this.position.distanceToSquared(this.lastPosition) > 0.01 ||
                 this.rotation.angleTo(this.lastRotation) > 0.01;
-            this.lastPosition.copy(this.position);
-            this.lastRotation.copy(this.rotation);
+            if (this.dirty) {
+                this.lastPosition.copy(this.position);
+                this.lastRotation.copy(this.rotation);
+            }
         }
     }
     

@@ -54,7 +54,7 @@ export default class Manager {
     world;
     socket;
     
-    pawns = [];
+    pawns = new Map();
     plane;
     
     raycaster = new THREE.Raycaster();
@@ -86,7 +86,7 @@ export default class Manager {
         document.addEventListener('mousedown', () => { dragged = false });
         document.addEventListener('mousemove', () => { dragged = true });
         document.addEventListener("mouseup", () => {
-            let toSelect = this.pawns.filter(p => 
+            let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
             );
             if (toSelect.length == 0 || dragged)
@@ -106,9 +106,9 @@ export default class Manager {
     addPawn(pawn) {
         console.assert(this.host);
         
-        this.pawns.push(pawn);
-        let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         console.log("Adding pawn with ID: " + pawn.id);
+        this.pawns.set(pawn.id, pawn);
+        let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         this.socket.send(JSON.stringify({
             type:"add_pawn",
             pawn:{
@@ -123,16 +123,20 @@ export default class Manager {
     }
     loadPawn(pawnJSON) {
         let pawn = new Pawn(this, pawnJSON.position, pawnJSON.mesh, new CANNON.Body({
-            mass: pawnJSON.mass,
+            mass: this.host ? pawnJSON.mass : 0,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         }), pawnJSON.id);
-        let euler = 
-        pawn.rotation.setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation, 'XYZ'));
-        this.pawns.push(pawn);
+        pawn.rotation.setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
+        this.pawns.set(pawnJSON.id, pawn);
+    }
+    updatePawn(pawnJSON) {
+        let pawn = this.pawns.get(pawnJSON.id);
+        pawn.setPosition(pawnJSON.position);
+        pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
     }
     
     tick() {
-        let to_update = this.pawns.filter(p => p.dirty);
+        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
         if (to_update.length > 0) {
             this.socket.send(JSON.stringify({
                 type:"update_pawns",
@@ -165,18 +169,18 @@ export default class Manager {
         }
         this.lastCallTime = time;
         
-        for (var i = 0; i < this.pawns.length; i++) {
-            this.pawns[i].animate(dt);
+        for (const [key, value] of this.pawns) {
+            value.animate(dt);
         }
         
-        let raycastableObjects = this.pawns.filter(x => x.mesh).map(x => x.mesh);
+        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
         let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
         if (hovered.length > 0) {
-            this.pawns.forEach(p => p.hovered = false);
+            this.pawns.forEach((p, k) => p.hovered = false);
             hovered[0].object.traverseAncestors((a) => {
-                for (var i = 0; i < this.pawns.length; i++) {
-                    if (this.pawns[i].mesh == a) {
-                        this.pawns[i].hovered = true;
+                for (const [key, value] of this.pawns) {
+                    if (value.mesh == a) {
+                        value.hovered = true;
                         return;
                     }
                 }
@@ -273,12 +277,12 @@ export default class Manager {
         });
     }
     buildWebSocket(callback) {
-        this.socket = new WebSocket("ws://" + window.location.host + "/ws");
+        let lobby = window.location.pathname.substring(1);
+        this.socket = new WebSocket("ws://" + window.location.host + "/ws/" + lobby);
         
         this.socket.addEventListener('open', (e) => {
             this.socket.send(JSON.stringify({
-                type: "join",
-                lobby: window.location.pathname
+                type: "join"
             }));
             console.log('Connected!');
         });
@@ -296,6 +300,8 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns recieved
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
+            } else if (msg["type"] == "update_pawns") {
+                msg.pawns.forEach(p => this.updatePawn(p));
             }
         });
     }
