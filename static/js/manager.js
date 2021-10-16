@@ -11,6 +11,39 @@ import { PixelShader } from '../deps/shaders/PixelShader';
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 
+import Pawn from './pawn';
+
+CANNON.Shape.prototype.serialize = function() {
+    var shape = {};
+    shape.type = this.type;
+    switch (shape.type) {
+        case CANNON.Shape.types.BOX:
+            shape.halfExtents = {x: this.halfExtents.x, y: this.halfExtents.y, z: this.halfExtents.z};
+            break;
+        case CANNON.Shape.types.CYLINDER:
+            shape.radiusTop = this.radiusTop;
+            shape.radiusBottom = this.radiusBottom;
+            shape.height = this.height;
+            shape.numSegments = this.numSegments;
+            break;
+        default:
+            console.error("Attempting to serialize unhandled shape!");
+            break;
+    }
+    return shape;
+}
+CANNON.Shape.prototype.deserialize = function(shape) {
+    switch (shape.type) {
+        case CANNON.Shape.types.BOX:
+            return new CANNON.Box(new CANNON.Vec3().copy(shape.halfExtents));
+        case CANNON.Shape.types.CYLINDER:
+            return new CANNON.Cylinder(shape.radiusTop, shape.radiusBottom, shape.height, shape.numSegments);
+        default:
+            console.error("Attempting to deserialize unhandled shape!");
+            break;
+    }
+}
+
 export default class Manager {
     scene;
     camera;
@@ -19,11 +52,24 @@ export default class Manager {
     controls;
     stats;
     world;
+    socket;
+    
+    pawns = [];
+    plane;
+    
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+    
+    host = false;
     
     static physicsTimestep = 1/60;
     lastCallTime;
     
     constructor() {
+        this.loader = new GLTFLoader().setPath('../models/');
+    }
+    
+    init(callback) {
         this.buildScene();
         this.buildRenderer();
         this.buildControls();
@@ -31,22 +77,111 @@ export default class Manager {
         
         this.resize();
         
-        this.loader = new GLTFLoader().setPath('../models/');
+        document.addEventListener("mousemove", (e) => {
+            this.mouse.x = (event.clientX / window.innerWidth)*2 - 1;
+            this.mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
+        });
+        
+        let dragged = false;
+        document.addEventListener('mousedown', () => { dragged = false });
+        document.addEventListener('mousemove', () => { dragged = true });
+        document.addEventListener("mouseup", () => {
+            let toSelect = this.pawns.filter(p => 
+                p.moveable && (p.hovered || p.selected)
+            );
+            if (toSelect.length == 0 || dragged)
+                return;
+            for (var i = 0; i < toSelect.length; i++) {
+                if (toSelect[i].selected) {
+                    toSelect[i].selected = false;
+                    return;
+                }
+            }
+            toSelect[0].selected = true;
+        });
+        
+        this.buildWebSocket(callback);
     }
     
+    addPawn(pawn) {
+        console.assert(this.host);
+        
+        this.pawns.push(pawn);
+        let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
+        console.log("Adding pawn with ID: " + pawn.id);
+        this.socket.send(JSON.stringify({
+            type:"add_pawn",
+            pawn:{
+                id:pawn.id,
+                mesh:pawn.meshUrl,
+                position:{x:pawn.position.x, y:pawn.position.y, z:pawn.position.z},
+                rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
+                mass:pawn.physicsBody.mass,
+                shapes:pawn.physicsBody.shapes.map(x => x.serialize()),
+            }
+        }));
+    }
+    loadPawn(pawnJSON) {
+        let pawn = new Pawn(this, pawnJSON.position, pawnJSON.mesh, new CANNON.Body({
+            mass: pawnJSON.mass,
+            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
+        }), pawnJSON.id);
+        let euler = 
+        pawn.rotation.setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation, 'XYZ'));
+        this.pawns.push(pawn);
+    }
+    
+    tick() {
+        let to_update = this.pawns.filter(p => p.dirty);
+        if (to_update.length > 0) {
+            this.socket.send(JSON.stringify({
+                type:"update_pawns",
+                pawns:to_update.map(p => {
+                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
+                    return {
+                        id:p.id,
+                        position:{x:p.position.x, y:p.position.y, z:p.position.z},
+                        rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
+                    };
+                })
+            }));
+            to_update.forEach(p => p.dirty = false);
+        }
+    }
     animate() {
         this.composer.render();
         this.controls.update();
         this.stats.update();
         
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        
         const time = performance.now() / 1000; // seconds
+        let dt = 0;
         if (!this.lastCallTime) {
             this.world.step(Manager.physicsTimestep);
         } else {
-            const dt = time - this.lastCallTime;
+            dt = time - this.lastCallTime;
             this.world.step(Manager.physicsTimestep, dt);
         }
         this.lastCallTime = time;
+        
+        for (var i = 0; i < this.pawns.length; i++) {
+            this.pawns[i].animate(dt);
+        }
+        
+        let raycastableObjects = this.pawns.filter(x => x.mesh).map(x => x.mesh);
+        let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
+        if (hovered.length > 0) {
+            this.pawns.forEach(p => p.hovered = false);
+            hovered[0].object.traverseAncestors((a) => {
+                for (var i = 0; i < this.pawns.length; i++) {
+                    if (this.pawns[i].mesh == a) {
+                        this.pawns[i].hovered = true;
+                        return;
+                    }
+                }
+            });
+        }
     }
     resize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -78,15 +213,15 @@ export default class Manager {
         const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
         this.scene.add(ambientLight);
         
-        // TABLE
-        const plane = new THREE.PlaneGeometry( 100, 100 );
-        plane.rotateX(- Math.PI/2);
+        // PLANE
+        const geom = new THREE.PlaneGeometry( 100, 100 );
+        geom.rotateX(- Math.PI/2);
         const material = new THREE.ShadowMaterial();
         material.opacity = 0.3;
-        const table = new THREE.Mesh(plane, material);
-        table.position.y = 0;
-        table.receiveShadow = true;
-        this.scene.add(table);
+        this.plane = new THREE.Mesh(geom, material);
+        this.plane.position.y = 0;
+        this.plane.receiveShadow = true;
+        this.scene.add(this.plane);
     }
     buildRenderer() {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -126,10 +261,42 @@ export default class Manager {
         this.controls.screenSpacePanning = false;
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.15;
+        this.controls.maxPolarAngle = Math.PI/2.2;
+        
+        this.controls.keyPanSpeed = 20;
+        this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
+        this.controls.listenToKeyEvents(document);
     }
     buildPhysics() {
         this.world = new CANNON.World({
-            gravity: new CANNON.Vec3(0, -10.0, 0),
+            gravity: new CANNON.Vec3(0, -15.0, 0),
+        });
+    }
+    buildWebSocket(callback) {
+        this.socket = new WebSocket("ws://" + window.location.host + "/ws");
+        
+        this.socket.addEventListener('open', (e) => {
+            this.socket.send(JSON.stringify({
+                type: "join",
+                lobby: window.location.pathname
+            }));
+            console.log('Connected!');
+        });
+        this.socket.addEventListener('message', (e) => {
+            console.log('Message from server: ' + e.data);
+            let msg = JSON.parse(e.data);
+            if (msg["type"] == "start") {
+                // We have initiated a connectio
+                this.host = msg["host"];
+                callback(this.host);
+                if (this.host) {
+                    // If we are the host, let's start our networked physics ticks
+                    setInterval(() => this.tick(), 1000/10);
+                } else {
+                    // If we aren't the host, let's deserialize the pawns recieved
+                    msg.pawns.forEach(p => this.loadPawn(p));
+                }
+            }
         });
     }
 }
