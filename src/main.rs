@@ -96,10 +96,14 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "add_pawn" => add_pawn(user_id, data, &lobby_name, &lobbies).await,
             "update_pawns" => update_pawns(user_id, data, &lobby_name, &lobbies).await,
             "request_update_pawn" => request_update_pawn(user_id, data, &lobby_name, &lobbies).await,
+            "send_cursor" => update_cursor(user_id, data, &lobby_name, &lobbies).await,
             _ => (),
         }
+        relay_cursors(user_id, &lobby_name, &lobbies).await
     }
 }
+
+// --- PAWN EVENTS ---
 
 async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
     let mut lobby_write_lock = lobbies.write().await;
@@ -157,8 +161,11 @@ async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobb
         "type":"request_update_pawn",
         "pawn":data["pawn"]
     });
+    //FIXME handle reassigning host
     lobby.users[&lobby.host].tx.send(Message::text(response.to_string()));
 }
+
+// --- USER EVENTS ---
 
 async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
     let mut lobby_write_lock = lobbies.write().await;
@@ -172,7 +179,15 @@ async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lo
     
     let response = json!({
         "type":"start",
+        "id":user_id,
         "host":(lobby.users.len() == 1),
+        "color":user.color,
+        "users":lobby.users.values().map(|u| {
+            json!({
+                "id":u.id,
+                "color":u.color
+            })
+        }).collect::<Vec<Value>>(),
         "pawns":lobby.pawns.values().collect::<Vec<&Pawn>>()
     });
     user.tx.send(Message::text(response.to_string()));
@@ -180,6 +195,7 @@ async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lo
     // Tell all other users that this user has joined
     let response = json!({
         "type":"connect",
+        "color":user.color,
         "id":user_id
     });
     for u in lobby.users.values() {
@@ -208,5 +224,31 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     lobby.users.remove(&user_id);
     if lobby.users.len() == 0 {
         lobby_write_lock.remove(lobby_name);
+    }
+}
+
+// -- CURSOR EVENTS --
+async fn update_cursor(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_write_lock = lobbies.write().await;
+    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    
+    let mut user = lobby.users.get_mut(&user_id).unwrap();
+    user.cursor_position = serde_json::from_value(data["position"].clone()).unwrap();
+}
+async fn relay_cursors(user_id: usize, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_write_lock = lobbies.write().await;
+    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    
+    let response = json!({
+        "type":"relay_cursors",
+        "cursors":lobby.users.iter().map(|(k, v)| {
+            json!({
+                "id":k,
+                "position":v.cursor_position
+            })
+        }).collect::<Vec<Value>>()
+    });
+    for u in lobby.users.values() {
+        u.tx.send(Message::text(response.to_string()));
     }
 }

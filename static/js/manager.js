@@ -60,7 +60,11 @@ export default class Manager {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
     
+    cursorPosition = new THREE.Vector3();
+    lobbyCursorObjects = new Map();
+    
     host = false;
+    id;
     
     static physicsTimestep = 1/60;
     static networkTimestep = 1000/20;
@@ -149,6 +153,35 @@ export default class Manager {
         pawn.networkLastSynced = performance.now();
     }
     
+    addUser(id, color) {
+        // Create element
+        let playerElement = document.createElement("h2");
+        playerElement.innerText = id;
+        playerElement.style.color = color;
+        playerElement.classList.add("player");
+        playerElement.classList.add("p" + id);
+        
+        if (id == this.id)
+            playerElement.innerText += " (You)";
+        
+        overlay.appendChild(playerElement);
+        
+        // Create cursor entry/object
+        if (id != this.id) {
+            const cursorGeometry = new THREE.SphereGeometry(0.32, 10, 10);
+            const cursorMaterial = new THREE.MeshBasicMaterial( {color: new THREE.Color(color)} );
+            const cursorObject = new THREE.Mesh(cursorGeometry, cursorMaterial);
+            this.scene.add(cursorObject);
+            this.lobbyCursorObjects.set(id, cursorObject);
+        }
+    }
+    
+    sendCursor() {
+        this.socket.send(JSON.stringify({
+            type:"send_cursor",
+            position:{x:this.cursorPosition.x, y:this.cursorPosition.y, z:this.cursorPosition.z}
+        }));
+    }
     tickHost() {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
         if (to_update.length > 0) {
@@ -166,6 +199,7 @@ export default class Manager {
             }));
             to_update.forEach(p => p.dirty = false);
         }
+        this.sendCursor()
     }
     tickClient() {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
@@ -184,14 +218,17 @@ export default class Manager {
             }));
             to_update[0].dirty = false;
         }
+        this.sendCursor()
     }
     animate() {
+        // Render loop
         this.composer.render();
         this.controls.update();
         this.stats.update();
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
         
+        // Physics simulation
         const time = performance.now() / 1000; // seconds
         let dt = 0;
         if (!this.lastCallTime) {
@@ -202,11 +239,14 @@ export default class Manager {
         }
         this.lastCallTime = time;
         
+        // Call pawn update loops
         for (const [key, value] of this.pawns) {
             value.animate(dt);
         }
         
+        // Raycast all objects for selectable/cursor
         let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
+        raycastableObjects.push(this.plane);
         let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
         if (hovered.length > 0) {
             this.pawns.forEach((p, k) => p.hovered = false);
@@ -218,12 +258,20 @@ export default class Manager {
                     }
                 }
             });
+            this.cursorPosition.copy(hovered[0].point);
         }
+        
+        // Lerp all cursors
+        this.lobbyCursorObjects.forEach((c) => {
+            if (c.networkPosition) {
+                c.position.lerp(c.networkPosition, dt * 10);
+            }
+        });
     }
     resize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth/1.5, window.innerHeight/1.5);
+        this.renderer.setSize(window.innerWidth/1.2, window.innerHeight/1.2);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
         this.composer.setSize(window.innerWidth, window.innerHeight);
@@ -322,9 +370,11 @@ export default class Manager {
         this.socket.addEventListener('message', (e) => {
             console.log('Message from server: ' + e.data);
             let msg = JSON.parse(e.data);
+            
             if (msg["type"] == "start") {
                 // We have initiated a connection
                 this.host = msg["host"];
+                this.id = msg.id;
                 callback(this.host);
                 if (this.host) {
                     setInterval(() => this.tickHost(), Manager.networkTimestep);
@@ -333,10 +383,33 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns recieved
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
-            } else if (msg["type"] == "update_pawns") {
+                msg.users.forEach(u => {
+                    this.addUser(u.id, u.color)
+                });
+            }
+            
+            if (msg["type"] == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
             } else if (msg["type"] == "request_update_pawn" && this.host) {
                 this.updatePawn(msg.pawn);
+            }
+            
+            if (msg["type"] == "connect") {
+                // Add the connected player to the player list
+                this.addUser(msg.id, msg.color);
+            } else if (msg["type"] == "disconnect") {
+                // Add the connected player to the player list
+                document.querySelector(".player.p" + msg.id).remove();
+            }
+            
+            if (msg["type"] == "relay_cursors") {
+                msg.cursors.forEach((cursor) => {
+                    if (cursor.id == this.id)
+                        return;
+                    
+                    let newPosition = new THREE.Vector3().copy(cursor.position).add(new THREE.Vector3(0, 0.25, 0));
+                    this.lobbyCursorObjects.get(cursor.id).networkPosition = newPosition;
+                });
             }
         });
     }
