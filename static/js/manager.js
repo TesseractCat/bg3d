@@ -63,7 +63,7 @@ export default class Manager {
     host = false;
     
     static physicsTimestep = 1/60;
-    static networkTimestep = 1000/10;
+    static networkTimestep = 1000/20;
     lastCallTime;
     
     constructor() {
@@ -95,10 +95,16 @@ export default class Manager {
             for (var i = 0; i < toSelect.length; i++) {
                 if (toSelect[i].selected) {
                     toSelect[i].selected = false;
+                    toSelect[i].networkPosition.copy(toSelect[i].position);
+                    toSelect[i].networkRotation.copy(toSelect[i].rotation);
+                    toSelect[i].dirty = true;
                     return;
                 }
             }
+            if (toSelect[0].networkSelected)
+                return;
             toSelect[0].selected = true;
+            toSelect[0].dirty = true;
         });
         
         this.buildWebSocket(callback);
@@ -114,6 +120,7 @@ export default class Manager {
             type:"add_pawn",
             pawn:{
                 id:pawn.id,
+                selected:false,
                 mesh:pawn.meshUrl,
                 position:{x:pawn.position.x, y:pawn.position.y, z:pawn.position.z},
                 rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
@@ -136,8 +143,10 @@ export default class Manager {
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawn.selected) // We own selected pawns
             return;
-        pawn.setPosition(pawnJSON.position);
-        pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+        pawn.networkSelected = pawnJSON.selected;
+        pawn.networkPosition.copy(pawnJSON.position);
+        pawn.networkRotation.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+        pawn.networkLastSynced = performance.now();
     }
     
     tickHost() {
@@ -149,6 +158,7 @@ export default class Manager {
                     let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
                     return {
                         id:p.id,
+                        selected:p.selected,
                         position:{x:p.position.x, y:p.position.y, z:p.position.z},
                         rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
                     };
@@ -158,7 +168,7 @@ export default class Manager {
         }
     }
     tickClient() {
-        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty && p.selected);
+        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
         if (to_update.length > 0) {
             this.socket.send(JSON.stringify({
                 type:"request_update_pawn",
@@ -166,12 +176,13 @@ export default class Manager {
                     let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
                     return {
                         id:p.id,
+                        selected:p.selected,
                         position:{x:p.position.x, y:p.position.y, z:p.position.z},
                         rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
                     };
                 })[0]
             }));
-            to_update.forEach(p => p.dirty = false);
+            to_update[0].dirty = false;
         }
     }
     animate() {

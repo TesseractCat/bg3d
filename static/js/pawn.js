@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es'
 
+import Manager from './manager';
+
 // Local instance of moveable object with mesh
 export default class Pawn {
     position = new THREE.Vector3(0,0,0);
@@ -17,6 +19,11 @@ export default class Pawn {
     dirty = false;
     lastPosition = new THREE.Vector3(0,0,0);
     lastRotation = new THREE.Quaternion();
+    
+    networkSelected = false;
+    networkPosition = new THREE.Vector3(0,0,0);
+    networkRotation = new THREE.Quaternion();
+    networkLastSynced = 0;
     
     static NEXT_ID = 0;
     
@@ -49,6 +56,7 @@ export default class Pawn {
         });
         
         this.position.copy(position);
+        this.networkPosition.copy(position);
     }
     
     animate(dt) {
@@ -78,9 +86,25 @@ export default class Pawn {
             }
         }
         
+        // Handle network interpolation
+        if (!this.selected && (!this.manager.host || this.networkSelected)) {
+            let progress = (performance.now()-this.networkLastSynced)/Manager.networkTimestep;
+            progress = Math.max(Math.min(progress, 1), 0);
+            
+            let newPosition = this.position.clone();
+            newPosition.lerp(this.networkPosition, progress);
+            
+            let newRotation = this.rotation.clone();
+            newRotation.slerp(this.networkRotation, progress);
+            
+            this.setPosition(newPosition);
+            this.setRotation(newRotation);
+        }
+        
         if (!this.dirty) {
-            this.dirty = this.position.distanceToSquared(this.lastPosition) > 0.01 ||
-                this.rotation.angleTo(this.lastRotation) > 0.01;
+            if (this.manager.host || this.selected)
+                this.dirty = this.position.distanceToSquared(this.lastPosition) > 0.01 ||
+                    this.rotation.angleTo(this.lastRotation) > 0.01;
             if (this.dirty) {
                 this.lastPosition.copy(this.position);
                 this.lastRotation.copy(this.rotation);
@@ -88,14 +112,6 @@ export default class Pawn {
         }
     }
     
-    setOwned(owned) {
-        this.owned = owned;
-        if (owned) {
-            //TODO
-        } else {
-            
-        }
-    }
     setPosition(position) {
         this.position.copy(position);
         this.physicsBody.position.copy(position);

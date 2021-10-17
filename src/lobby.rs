@@ -18,6 +18,7 @@ pub struct Pawn {
     pub rotation: Vec3,
     pub mass: f64,
     pub moveable: bool,
+    pub selected: bool,
     pub shapes: serde_json::Value
 }
 

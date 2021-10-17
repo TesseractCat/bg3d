@@ -44,7 +44,7 @@ async fn main() {
         index.or(default).or(ws).or(game)
     );
 
-    warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 8080)).await;
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
@@ -131,6 +131,7 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
         let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap()).unwrap();
         let position: Vec3 = serde_json::from_value(pawns[i]["position"].clone()).unwrap();
         let rotation: Vec3 = serde_json::from_value(pawns[i]["rotation"].clone()).unwrap();
+        pawn.selected = pawns[i]["selected"].clone().as_bool().unwrap();
         pawn.position = position;
         pawn.rotation = rotation;
     }
