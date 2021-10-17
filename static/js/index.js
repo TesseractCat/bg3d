@@ -69,6 +69,9 @@ window.onload = function() {
         setup();
         animate();
     });
+    
+    document.getElementById("game-link").innerText = window.location.href;
+    document.getElementById("game-link").href = window.location.href;
 };
 window.onresize = function() {
     manager.resize();

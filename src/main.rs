@@ -99,7 +99,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "send_cursor" => update_cursor(user_id, data, &lobby_name, &lobbies).await,
             _ => (),
         }
-        relay_cursors(user_id, &lobby_name, &lobbies).await
+        relay_cursors(user_id, &lobby_name, &lobbies).await //FIXME Run in own loop
     }
 }
 

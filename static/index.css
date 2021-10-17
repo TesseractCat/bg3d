@@ -25,7 +25,7 @@ canvas {
     top: 20px;
     right: 20px;
     text-align: center;
-    width: 200px;
+    width: 240px;
     padding: 20px;
     background-color: rgba(0,0,0,0.1);
     border-radius: 10px;
@@ -33,6 +33,14 @@ canvas {
 #overlay h1 {
     font-size:2.3em;
 }
-#overlay h1, h2 {
+#overlay h1, h2, a, p {
     margin:0px;
+}
+#overlay hr {
+    border:none;
+    border-top:1px solid gray;
+}
+
+a, a:visited {
+    color:#444;
 }

@@ -340,6 +340,21 @@ export default class Manager {
         
         this.stats = Stats();
         document.body.appendChild(this.stats.dom);
+        
+        // Allow plugins to be dropped
+        display.addEventListener("dragenter", (e) => e.preventDefault());
+        display.addEventListener("dragleave", (e) => e.preventDefault());
+        display.addEventListener("dragover", (e) => e.preventDefault());
+        display.addEventListener("drop", (e) => {
+            e.preventDefault();
+            
+            if (e.dataTransfer.items && e.dataTransfer.items.length == 1) {
+                let item = e.dataTransfer.items[0];
+                let file = item.getAsFile();
+                
+                console.log("FILE DROPPED", file.name);
+            }
+        });
     }
     buildControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -368,7 +383,7 @@ export default class Manager {
             console.log('Connected!');
         });
         this.socket.addEventListener('message', (e) => {
-            console.log('Message from server: ' + e.data);
+            //console.log('Message from server: ' + e.data);
             let msg = JSON.parse(e.data);
             
             if (msg["type"] == "start") {
