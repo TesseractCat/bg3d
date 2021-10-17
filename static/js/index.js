@@ -38,7 +38,9 @@ function setupPawns() {
     manager.addPawn(board);
     for (let x = 0; x < 8; x++) {
         for (let y = 0; y < 8; y++) {
-            checker = new Pawn(manager, new THREE.Vector3(-7.7 + x * 2.2,1.5,-7.7 + y * 2.2), 'checker.gltf',
+            if ((x + y) % 2 != 0 || y == 4 || y == 3)
+                continue;
+            checker = new Pawn(manager, new THREE.Vector3(-7.7 + x * 2.2,1.5,-7.7 + y * 2.2), y < 4 ? 'checker_red.gltf' : 'checker_black.gltf',
                 new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.1, 1.1, 0.6, 6)//new CANNON.Vec3(1.0,0.2,1.0))
