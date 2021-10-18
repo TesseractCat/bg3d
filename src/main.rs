@@ -103,11 +103,12 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         let data: Value = serde_json::from_str(&text).unwrap();
         
         match data["type"].as_str().unwrap() {
-            "join" => user_joined(user_id, data, &lobby_name, &lobbies).await,
-            "add_pawn" => add_pawn(user_id, data, &lobby_name, &lobbies).await,
-            "update_pawns" => update_pawns(user_id, data, &lobby_name, &lobbies).await,
-            "request_update_pawn" => request_update_pawn(user_id, data, &lobby_name, &lobbies).await,
-            "send_cursor" => update_cursor(user_id, data, &lobby_name, &lobbies).await,
+            "join" => {user_joined(user_id, data, &lobby_name, &lobbies).await;},
+            "add_pawn" => {add_pawn(user_id, data, &lobby_name, &lobbies).await;},
+            "remove_pawn" => {remove_pawn(user_id, data, &lobby_name, &lobbies).await;},
+            "update_pawns" => {update_pawns(user_id, data, &lobby_name, &lobbies).await;},
+            "request_update_pawn" => {request_update_pawn(user_id, data, &lobby_name, &lobbies).await;},
+            "send_cursor" => {update_cursor(user_id, data, &lobby_name, &lobbies).await;},
             _ => (),
         }
         //relay_cursors(user_id, &lobby_name, &lobbies).await //FIXME Run in own loop
@@ -136,6 +137,24 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
         }
     }
 }
+async fn remove_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
+    
+    let pid: u64 = serde_json::from_value(data["id"].clone()).unwrap();
+    
+    // Remove pawn from lobby
+    lobby.pawns.remove(&pid);
+    
+    // Tell other users that this was added
+    let response = json!({
+        "type":"remove_pawn",
+        "id":pid
+    });
+    for u in lobby.users.values() {
+        u.tx.send(Message::text(response.to_string()));
+    }
+}
 macro_rules! update_from_serde {
     ($to_update:ident, $value:expr, $key:ident) => {
         if !$value.get(stringify!($key)).is_none() {
@@ -143,14 +162,14 @@ macro_rules! update_from_serde {
         }
     }
 }
-async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) -> Option<()> {
     let mut lobby_wl = lobbies.write().await;
     let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     // Iterate through and update pawns
     let pawns = data["pawns"].as_array().unwrap();
     for i in 0..pawns.len() {
-        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap()).unwrap();
+        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap())?;
         
         update_from_serde!(pawn, pawns[i], selected);
         update_from_serde!(pawn, pawns[i], position);
@@ -168,6 +187,7 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
             u.tx.send(Message::text(response.to_string()));
         }
     }
+    Some(())
 }
 
 async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {

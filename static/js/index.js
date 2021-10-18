@@ -53,14 +53,15 @@ function setupPawns() {
         }
     }
     let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
-    let suits = "C,S,D,H".split(",");
+    let suits = "Clubs,Spades,Diamonds,Hearts".split(",");
     let cards = [];
     for (let rank of ranks) {
         for (let suit of suits) {
-            cards.push("./images/cards/" + rank + suit + ".jpg");
+            cards.push("./images/cards_k/card" + suit + rank + ".png");
         }
     }
-    let deck = new Deck(manager, new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(3.75, 5.25), cards);
+    let deck = new Deck(manager, "standard_deck",
+        new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(3.75, 5.25), cards);
     deck.moveable = true;
     manager.addPawn(deck);
 }
@@ -83,7 +84,7 @@ window.onload = function() {
         animate();
     });
     
-    document.getElementById("game-link").innerText = window.location.href;
+    document.getElementById("game-link").innerText = window.location.host + window.location.pathname;
     document.getElementById("game-link").href = window.location.href;
 };
 window.onresize = function() {

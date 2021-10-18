@@ -123,6 +123,11 @@ export default class Manager {
             pawn:pawn.serialize()
         }));
     }
+    removePawn(id) {
+        this.scene.remove(this.pawns.get(id).mesh);
+        this.world.removeBody(this.pawns.get(id).physicsBody);
+        this.pawns.delete(id);
+    }
     loadPawn(pawnJSON) {
         let pawn;
         switch (pawnJSON.class) {
@@ -434,6 +439,8 @@ export default class Manager {
             
             if (type == "add_pawn") {
                 this.loadPawn(msg.pawn);
+            } else if (type == "remove_pawn") {
+                this.removePawn(msg.id);
             }
             
             if (type == "update_pawns") {

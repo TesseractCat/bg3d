@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "An open source THREE.js based multiplayer board game simulator",
   "dependencies": {
+    "array-shuffle": "^3.0.0",
     "cannon-es": "^0.18.0",
     "esbuild": "^0.13.6",
     "three": "^0.132.2",

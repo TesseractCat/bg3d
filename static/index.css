@@ -42,6 +42,15 @@ canvas {
     border:none;
     border-top:1px solid gray;
 }
+#instructions {
+    width:95%;
+    margin:auto;
+    text-align: left;
+    padding-bottom:5px;
+}
+#instructions p {
+    line-height:20px;
+}
 
 a, a:visited {
     color:#444;
