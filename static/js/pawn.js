@@ -303,6 +303,9 @@ export class Deck extends Pawn {
         
         this.data.contents.shift();
         this.dirty.add("data");
+        // Flush dirty and prevent race condition
+        // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
+        this.manager.tick();
         
         this.updateDeck();
         
@@ -338,12 +341,13 @@ export class Deck extends Pawn {
                 } else {
                     belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
                 }
-                belowPawn.updateDeck();
-                belowPawn.dirty.add("data"); //FIXME: Not always being sent?
+                belowPawn.dirty.add("data");
+                this.manager.tick();
                 this.manager.socket.send(JSON.stringify({
                     type:"remove_pawn",
                     id:this.id
                 }));
+                belowPawn.updateDeck();
             }
         }
     }
@@ -435,6 +439,7 @@ export class Deck extends Pawn {
     }
     
     processData() {
+        console.log(this.data.contents);
         this.selectRotation.x = this.data.flipped ? Math.PI : 0;
         this.updateDeck();
     }
