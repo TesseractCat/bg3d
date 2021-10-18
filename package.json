@@ -6,6 +6,7 @@
     "array-shuffle": "^3.0.0",
     "cannon-es": "^0.18.0",
     "esbuild": "^0.13.6",
+    "nanoid": "^3.1.30",
     "three": "^0.132.2",
     "troika-three-text": "^0.43.0"
   },

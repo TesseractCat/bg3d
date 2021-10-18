@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
+import * as CANNON from 'cannon-es';
+import { nanoid } from 'nanoid';
 
 import Stats from '../deps/libs/stats.module';
 import { EffectComposer } from '../deps/postprocessing/EffectComposer';
@@ -148,9 +149,9 @@ export default class Manager {
     }
     updatePawn(pawnJSON) {
         let pawn = this.pawns.get(pawnJSON.id);
-        if (pawn.selected) // We own selected pawns
-            return;
         pawn.networkLastSynced = performance.now();
+        /*if (pawn.selected)
+            return;*/
         if (pawnJSON.hasOwnProperty('selected'))
             pawn.networkSelected = pawnJSON.selected;
         if (pawnJSON.hasOwnProperty('position'))
@@ -184,6 +185,11 @@ export default class Manager {
             this.scene.add(cursorObject);
             this.lobbyCursorObjects.set(id, cursorObject);
         }
+    }
+    removeUser(id) {
+        document.querySelector(".player.p" + id).remove();
+        this.scene.remove(this.lobbyCursorObjects.get(id));
+        this.lobbyCursorObjects.delete(id);
     }
     
     sendCursor() {
@@ -310,6 +316,56 @@ export default class Manager {
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
+    pendingEvents = new Map();
+    sendEvent(name, target, data, callback) {
+        //target = true (target host only), false (target all)
+        let uuid = nanoid(6);
+        let event = {
+            type:"event",
+            sender:this.id,
+            uuid:uuid,
+            name:name,
+            target:target,
+            callback:(callback !== undefined),
+            data:data
+        };
+        
+        if (target == true && this.host) {
+            // We are sending an event to ourselves, no need to use websockets, let's just detour
+            if (callback !== undefined)
+                this.pendingEvents.set(uuid, callback);
+            this.receiveEvent(event);
+        } else {
+            if (callback !== undefined)
+                this.pendingEvents.set(uuid, callback);
+            this.socket.send(JSON.stringify(event));
+        }
+    }
+    receiveEvent(eventJSON) {
+        let name = eventJSON.name;
+        let response = {};
+        
+        switch (eventJSON.name) {
+            case "pawn":
+                response = this.pawns.get(eventJSON.data.id).handleEvent(eventJSON.data);
+                break;
+        }
+        
+        // Callback 
+        if (eventJSON.callback) {
+            this.socket.send(JSON.stringify({
+                type:"event_callback",
+                receiver:eventJSON.sender,
+                data:response,
+                uuid:eventJSON.uuid,
+            }));
+        }
+    }
+    eventCallback(callbackJSON) {
+        this.pendingEvents.get(callbackJSON.uuid)(callbackJSON.data);
+        this.pendingEvents.delete(callbackJSON.uuid);
+    }
+    
     buildScene() {
         // Create scene
         this.scene = new THREE.Scene();
@@ -351,27 +407,14 @@ export default class Manager {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        //this.renderer.shadowMap.type = THREE.BasicShadowMap;
-        //this.renderer.shadowMap.type = THREE.VSMShadowMap;
+        //THREE.BasicShadowMap;
+        //THREE.VSMShadowMap;
         
         this.composer = new EffectComposer(this.renderer);
 
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
 
-        /*const saoPass = new SAOPass(scene, camera, false, true);
-        saoPass.params.saoIntensity = 0.001;
-        composer.addPass(saoPass);
-        const ssaoPass = new SSAOPass(scene, camera, window.innerWIDTH, window.innerHeight);
-        ssaoPass.kernelRadius = 16;
-        composer.addPass(ssaoPass);*/
-
-        const pixelPass = new ShaderPass(PixelShader);
-        pixelPass.uniforms["resolution"].value = new THREE.Vector2( window.innerWidth, window.innerHeight );
-        pixelPass.uniforms["resolution"].value.multiplyScalar( window.devicePixelRatio );
-        pixelPass.uniforms["pixelSize"].value = 3;
-        //this.composer.addPass(pixelPass);
-        
         this.stats = Stats();
         document.body.appendChild(this.stats.dom);
         
@@ -429,12 +472,18 @@ export default class Manager {
                     setInterval(() => this.tickHost(), Manager.networkTimestep);
                 } else {
                     setInterval(() => this.tickClient(), Manager.networkTimestep);
-                    // If we aren't the host, let's deserialize the pawns recieved
+                    // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
                 msg.users.forEach(u => {
                     this.addUser(u.id, u.color)
                 });
+            }
+            
+            if (type == "event") {
+                this.receiveEvent(msg);
+            } else if (type == "event_callback") {
+                this.eventCallback(msg);
             }
             
             if (type == "add_pawn") {
@@ -454,7 +503,7 @@ export default class Manager {
                 this.addUser(msg.id, msg.color);
             } else if (type == "disconnect") {
                 // Add the connected player to the player list
-                document.querySelector(".player.p" + msg.id).remove();
+                this.removeUser(msg.id);
             }
             
             if (type == "relay_cursors") {

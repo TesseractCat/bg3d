@@ -31,6 +31,7 @@ canvas {
     border-radius: 10px;
     box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
     user-select:none;
+    overflow-x:hidden;
 }
 #overlay h1 {
     font-size:2.3em;
@@ -41,6 +42,9 @@ canvas {
 #overlay hr {
     border:none;
     border-top:1px solid gray;
+}
+#overlay a {
+    white-space:nowrap;
 }
 #instructions {
     width:95%;

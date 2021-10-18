@@ -104,15 +104,48 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         
         match data["type"].as_str().unwrap() {
             "join" => {user_joined(user_id, data, &lobby_name, &lobbies).await;},
+            
             "add_pawn" => {add_pawn(user_id, data, &lobby_name, &lobbies).await;},
             "remove_pawn" => {remove_pawn(user_id, data, &lobby_name, &lobbies).await;},
             "update_pawns" => {update_pawns(user_id, data, &lobby_name, &lobbies).await;},
             "request_update_pawn" => {request_update_pawn(user_id, data, &lobby_name, &lobbies).await;},
+            
             "send_cursor" => {update_cursor(user_id, data, &lobby_name, &lobbies).await;},
+            
+            "event" => {event(user_id, data, &lobby_name, &lobbies).await;},
+            "event_callback" => {event_callback(user_id, data, &lobby_name, &lobbies).await;},
             _ => (),
         }
-        //relay_cursors(user_id, &lobby_name, &lobbies).await //FIXME Run in own loop
     }
+}
+
+// --- GENERIC EVENTS ---
+
+async fn event(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
+    
+    let target_host: bool = serde_json::from_value(data["target"].clone()).unwrap();
+    
+    // Relay event
+    if target_host {
+        lobby.users.get(&lobby.host).unwrap().tx.send(Message::text(data.to_string()));
+        return;
+    }
+    for u in lobby.users.values() {
+        if u.id != user_id {
+            u.tx.send(Message::text(data.to_string()));
+        }
+    }
+}
+async fn event_callback(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
+    
+    let target: usize = serde_json::from_value(data["receiver"].clone()).unwrap();
+    
+    // Relay callback
+    lobby.users.get(&target).unwrap().tx.send(Message::text(data.to_string()));
 }
 
 // --- PAWN EVENTS ---
@@ -146,7 +179,7 @@ async fn remove_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lo
     // Remove pawn from lobby
     lobby.pawns.remove(&pid);
     
-    // Tell other users that this was added
+    // Tell other users that this was removed
     let response = json!({
         "type":"remove_pawn",
         "id":pid

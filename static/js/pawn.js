@@ -12,7 +12,6 @@ export class Pawn {
     selected = false;
     
     selectRotation = new THREE.Euler();
-    flipped = false;
     
     id = null;
     
@@ -154,6 +153,10 @@ export class Pawn {
         }
     }
     
+    handleEvent(data) {
+        return {};
+    }
+    
     grab(button) {
         // If we are trying to select something that is already selected
         if (this.networkSelected) 
@@ -171,7 +174,6 @@ export class Pawn {
     }
     flip() {
         this.selectRotation.x += Math.PI;
-        this.flipped = !this.flipped;
     }
     shake() { }
     
@@ -210,10 +212,10 @@ export class Pawn {
     serializeState() {
         let rotation = new THREE.Euler().setFromQuaternion(this.rotation);
         return {
-                id:this.id,
-                selected:this.selected,
-                position:{x:this.position.x, y:this.position.y, z:this.position.z},
-                rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
+            id:this.id,
+            selected:this.selected,
+            position:{x:this.position.x, y:this.position.y, z:this.position.z},
+            rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
         };
     }
     static deserialize(manager, pawnJSON) {
@@ -233,10 +235,12 @@ export class Deck extends Pawn {
     data = {
         name: "",
         contents: [],
-        size: new THREE.Vector2()
+        size: new THREE.Vector2(),
+        flipped: false
     }
     
     static cardThickness = 0.01;//0.005;
+    static textureCache = new Map();
     
     box;
     faceMaterial;
@@ -261,32 +265,49 @@ export class Deck extends Pawn {
         this.box = box;
         mesh.add(box);
         
+        Deck.textureCache.set("./images/cards_k/cardBack_red5.png",
+            new THREE.TextureLoader().load("./images/cards_k/cardBack_red5.png"));
+        
         this.updateDeck();
         
         this.data.size.copy(size);
-        
     }
     
-    grab(button) {
-        if (button == 0 || this.data.contents.length == 1) {
-            super.grab();
-        } else if (button == 2/* && this.manager.host*/ && this.data.contents.length > 1) {
-            //Create a new deck of length 1 and grab that instead
-            let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
-                this.data.size, [this.data.contents[0]]);
-            cardPawn.selectRotation.copy(this.selectRotation);
-            cardPawn.flipped = this.flipped;
-            
-            cardPawn.moveable = true;
-            this.manager.addPawn(cardPawn);
-            cardPawn.grab(0);
-            
-            this.data.contents.shift();
-            this.dirty.add("data");
-            this.updateDeck();
+    handleEvent(data) {
+        let out = {};
+        switch (data.name) {
+            case "try_merge":
+                this.tryMerge();
+                break;
+            case "grab_card":
+                let card = this.spawnCard();
+                out = card.id;
+                break;
+            case "shuffle":
+                this.shuffle();
+                break;
         }
+        return out;
     }
-    release() {
+    
+    spawnCard() {
+        //Create a new deck of length 1 and grab that instead
+        let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
+            this.data.size, [this.data.contents[0]]);
+        cardPawn.moveable = true;
+        cardPawn.selectRotation.copy(this.selectRotation);
+        cardPawn.data.flipped = this.data.flipped;
+        
+        this.manager.addPawn(cardPawn);
+        
+        this.data.contents.shift();
+        this.dirty.add("data");
+        
+        this.updateDeck();
+        
+        return cardPawn;
+    }
+    tryMerge() {
         let raycaster = new THREE.Raycaster();
         raycaster.set(this.position, new THREE.Vector3(0, -1, 0));
         let pawnMeshes = Array.from(this.manager.pawns.values()).filter(p => p.mesh).map(p => p.mesh);
@@ -306,12 +327,12 @@ export class Deck extends Pawn {
                 if (belowPawn != this)
                     break;
             }
-            
-            if (belowPawn.constructor.name == this.constructor.name
+            if (belowPawn != this
+                && belowPawn.constructor.name == this.constructor.name
                 && belowPawn.data.name == this.data.name
-                && belowPawn.flipped == this.flipped) {
+                && belowPawn.data.flipped == this.data.flipped) {
                 
-                if (this.flipped) {
+                if (this.data.flipped) {
                     belowPawn.data.contents = [...belowPawn.data.contents, ...this.data.contents];
                 } else {
                     belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
@@ -324,23 +345,44 @@ export class Deck extends Pawn {
                 }));
             }
         }
+    }
+    grab(button) {
+        if (this.selected || this.networkSelected)
+            return;
+        if (button == 0 || this.data.contents.length == 1) {
+            super.grab();
+        } else if (button == 2 && this.data.contents.length > 1) {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                this.updateDeck();
+                this.manager.pawns.get(card_id).grab(0);
+            });
+        }
+    }
+    release() {
+        this.manager.sendEvent("pawn", true, {id: this.id, name: "try_merge"});
         super.release();
     }
     
     updateDeck() {
         // Resize
-        this.mesh.scale.setComponent(1, Deck.cardThickness * this.data.contents.length);
+        let thickness = Deck.cardThickness * this.data.contents.length;
+        this.mesh.scale.setComponent(1, thickness);
         this.physicsBody.shapes[0].halfExtents.set(
             this.physicsBody.shapes[0].halfExtents.x,
-            (Deck.cardThickness * this.data.contents.length * 1.15)/2,
+            (Math.max(thickness, Deck.cardThickness * 5) * 1.15)/2,
             this.physicsBody.shapes[0].halfExtents.z);
         this.physicsBody.shapes[0].updateConvexPolyhedronRepresentation();
         this.physicsBody.shapes[0].updateBoundingSphereRadius();
         this.physicsBody.updateBoundingRadius();
         
         // Load textures
-        let faceTexture = new THREE.TextureLoader().load(this.data.contents[0]);
-        let backTexture = new THREE.TextureLoader().load("./images/cards_k/cardBack_red5.png");
+        let faceTexture;
+        if (!Deck.textureCache.has(this.data.contents[0])) {
+            Deck.textureCache.set(this.data.contents[0],
+                new THREE.TextureLoader().load(this.data.contents[0]));
+        }
+        faceTexture = Deck.textureCache.get(this.data.contents[0]);
+        let backTexture = Deck.textureCache.get("./images/cards_k/cardBack_red5.png");
         faceTexture.generateMipmaps = false;
         faceTexture.magFilter = THREE.LinearFilter;
         faceTexture.minFilter = THREE.LinearFilter;
@@ -359,20 +401,22 @@ export class Deck extends Pawn {
     }
     
     shuffle() {
-        if (this.manager.host && this.data.contents.length > 1) {
+        console.assert(this.manager.host);
+        if (this.data.contents.length > 1) {
             //Shuffle
             this.data.contents = arrayShuffle(this.data.contents);
             this.updateDeck();
             this.dirty.add("data");
-        } else {
-            //TODO: Ask host to shuffle
         }
     }
     
     shake() {
-        if (this.data.contents.length > 1) {
-            this.shuffle();
-        }
+        this.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
+    }
+    flip() {
+        super.flip();
+        this.data.flipped = !this.data.flipped;
+        this.dirty.add("data");
     }
     
     serialize() {
@@ -390,6 +434,7 @@ export class Deck extends Pawn {
     }
     
     processData() {
+        this.selectRotation.x = this.data.flipped ? Math.PI : 0;
         this.updateDeck();
     }
 }
