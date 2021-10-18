@@ -7,7 +7,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use warp::{http::Uri, Filter};
 use warp::ws::{Message, WebSocket};
 use names::Generator;
-use serde_json::{Result, Value, json};
+use serde_json::{Value, json};
 
 mod lobby;
 mod user;
@@ -28,7 +28,8 @@ async fn main() {
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
     
-    let game = warp::get().and(warp::fs::file("./static/index.html"));
+    let game = warp::get()
+        .and(warp::fs::file("./static/index.html"));
     
     let lobbies = Lobbies::default();
     let lobbies = warp::any().map(move || lobbies.clone());
@@ -63,16 +64,26 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     
     // Track user
     {
-        let mut lobbies_write_lock = lobbies.write().await;
+        let mut lobbies_wl = lobbies.write().await;
         let mut host: bool = false;
-        if lobbies_write_lock.get(&lobby_name).is_none() {
-            lobbies_write_lock.insert(lobby_name.clone(), Lobby::new());
+        if lobbies_wl.get(&lobby_name).is_none() {
+            lobbies_wl.insert(lobby_name.clone(), Lobby::new());
             host = true;
         }
-        let mut lobby = lobbies_write_lock.get_mut(&lobby_name).unwrap();
+        let mut lobby = lobbies_wl.get_mut(&lobby_name).unwrap();
         if host { lobby.host = user_id; }
         lobby.users.insert(user_id, User::new(user_id, buffer_tx));
     }
+    
+    // Set up loop to relay cursor positions
+    let lobbies_clone = lobbies.clone();
+    let lobby_name_clone = lobby_name.clone();
+    tokio::task::spawn(async move {
+        loop {
+            relay_cursors(user_id, &lobby_name_clone, &lobbies_clone).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000/10)).await;
+        }
+    });
     
     // Continually process received messages
     while let Some(result) = rx.next().await {
@@ -99,15 +110,15 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "send_cursor" => update_cursor(user_id, data, &lobby_name, &lobbies).await,
             _ => (),
         }
-        relay_cursors(user_id, &lobby_name, &lobbies).await //FIXME Run in own loop
+        //relay_cursors(user_id, &lobby_name, &lobbies).await //FIXME Run in own loop
     }
 }
 
 // --- PAWN EVENTS ---
 
 async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     let pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
     
@@ -125,22 +136,29 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
         }
     }
 }
+macro_rules! update_from_serde {
+    ($to_update:ident, $value:expr, $key:ident) => {
+        if !$value.get(stringify!($key)).is_none() {
+            $to_update.$key = serde_json::from_value($value[stringify!($key)].clone()).unwrap();
+        }
+    }
+}
 async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     // Iterate through and update pawns
     let pawns = data["pawns"].as_array().unwrap();
     for i in 0..pawns.len() {
         let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap()).unwrap();
-        let position: Vec3 = serde_json::from_value(pawns[i]["position"].clone()).unwrap();
-        let rotation: Vec3 = serde_json::from_value(pawns[i]["rotation"].clone()).unwrap();
-        pawn.selected = pawns[i]["selected"].clone().as_bool().unwrap();
-        pawn.position = position;
-        pawn.rotation = rotation;
+        
+        update_from_serde!(pawn, pawns[i], selected);
+        update_from_serde!(pawn, pawns[i], position);
+        update_from_serde!(pawn, pawns[i], rotation);
+        update_from_serde!(pawn, pawns[i], data);
     }
     
-    // Tell other users that these pawns were changed
+    // Relay to other users that these pawns were changed
     let response = json!({
         "type":"update_pawns",
         "pawns":data["pawns"]
@@ -153,8 +171,8 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
 }
 
 async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let lobby_rl = lobbies.read().await;
+    let lobby = lobby_rl.get(lobby_name).unwrap();
     
     // Forward to host
     let response = json!({
@@ -168,8 +186,8 @@ async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobb
 // --- USER EVENTS ---
 
 async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     // Get user
     let user = lobby.users.get(&user_id).unwrap();
@@ -206,8 +224,8 @@ async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lo
 }
 
 async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     // Tell all other users that this user has disconnected
     let response = json!({
@@ -223,21 +241,21 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     // Remove user from lobby, delete lobby if last user
     lobby.users.remove(&user_id);
     if lobby.users.len() == 0 {
-        lobby_write_lock.remove(lobby_name);
+        lobby_wl.remove(lobby_name);
     }
 }
 
 // -- CURSOR EVENTS --
 async fn update_cursor(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
     let mut user = lobby.users.get_mut(&user_id).unwrap();
     user.cursor_position = serde_json::from_value(data["position"].clone()).unwrap();
 }
-async fn relay_cursors(user_id: usize, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobby_write_lock = lobbies.write().await;
-    let mut lobby = lobby_write_lock.get_mut(lobby_name).unwrap();
+async fn relay_cursors(user_id: usize, lobby_name: &str, lobbies: &Lobbies) -> Option<()> {
+    let lobby_rl = lobbies.read().await;
+    let lobby = lobby_rl.get(lobby_name)?;
     
     let response = json!({
         "type":"relay_cursors",
@@ -248,7 +266,8 @@ async fn relay_cursors(user_id: usize, lobby_name: &str, lobbies: &Lobbies) {
             })
         }).collect::<Vec<Value>>()
     });
-    for u in lobby.users.values() {
-        u.tx.send(Message::text(response.to_string()));
+    if lobby.users.contains_key(&user_id) {
+        lobby.users.get(&user_id).unwrap().tx.send(Message::text(response.to_string()));
     }
+    Some(())
 }

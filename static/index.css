@@ -29,6 +29,8 @@ canvas {
     padding: 20px;
     background-color: rgba(0,0,0,0.1);
     border-radius: 10px;
+    box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
+    user-select:none;
 }
 #overlay h1 {
     font-size:2.3em;

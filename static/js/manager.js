@@ -11,7 +11,7 @@ import { PixelShader } from '../deps/shaders/PixelShader';
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 
-import Pawn from './pawn';
+import { Pawn, Deck, Dice } from './pawn';
 
 CANNON.Shape.prototype.serialize = function() {
     var shape = {};
@@ -82,6 +82,7 @@ export default class Manager {
         
         this.resize();
         
+        // Track mouse position
         document.addEventListener("mousemove", (e) => {
             this.mouse.x = (event.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
@@ -90,25 +91,22 @@ export default class Manager {
         let dragged = false;
         document.addEventListener('mousedown', () => { dragged = false });
         document.addEventListener('mousemove', () => { dragged = true });
-        document.addEventListener("mouseup", () => {
+        document.addEventListener("mouseup", (e) => {
+            if (dragged)
+                return;
             let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
             );
-            if (toSelect.length == 0 || dragged)
+            if (toSelect.length == 0)
                 return;
             for (var i = 0; i < toSelect.length; i++) {
+                // Release currently selected object
                 if (toSelect[i].selected) {
-                    toSelect[i].selected = false;
-                    toSelect[i].networkPosition.copy(toSelect[i].position);
-                    toSelect[i].networkRotation.copy(toSelect[i].rotation);
-                    toSelect[i].dirty = true;
+                    toSelect[i].release();
                     return;
                 }
             }
-            if (toSelect[0].networkSelected)
-                return;
-            toSelect[0].selected = true;
-            toSelect[0].dirty = true;
+            toSelect[0].grab(e.button);
         });
         
         this.buildWebSocket(callback);
@@ -122,35 +120,42 @@ export default class Manager {
         let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         this.socket.send(JSON.stringify({
             type:"add_pawn",
-            pawn:{
-                id:pawn.id,
-                selected:false,
-                mesh:pawn.meshUrl,
-                position:{x:pawn.position.x, y:pawn.position.y, z:pawn.position.z},
-                rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
-                mass:pawn.physicsBody.mass,
-                moveable:pawn.moveable,
-                shapes:pawn.physicsBody.shapes.map(x => x.serialize()),
-            }
+            pawn:pawn.serialize()
         }));
     }
     loadPawn(pawnJSON) {
-        let pawn = new Pawn(this, pawnJSON.position, pawnJSON.mesh, new CANNON.Body({
-            mass: pawnJSON.mass,
-            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        }), pawnJSON.id);
-        pawn.rotation.setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        pawn.moveable = pawnJSON.moveable;
+        let pawn;
+        switch (pawnJSON.class) {
+            case "Pawn":
+                pawn = Pawn.deserialize(this, pawnJSON);
+                break;
+            case "Deck":
+                pawn = Deck.deserialize(this, pawnJSON);
+                break;
+            case "Dice":
+                pawn = Dice.deserialize(this, pawnJSON);
+                break;
+            default:
+                console.error("Encountered unknown pawn type!");
+                return;
+        }
         this.pawns.set(pawnJSON.id, pawn);
     }
     updatePawn(pawnJSON) {
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawn.selected) // We own selected pawns
             return;
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.networkPosition.copy(pawnJSON.position);
-        pawn.networkRotation.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
         pawn.networkLastSynced = performance.now();
+        if (pawnJSON.hasOwnProperty('selected'))
+            pawn.networkSelected = pawnJSON.selected;
+        if (pawnJSON.hasOwnProperty('position'))
+            pawn.networkPosition.copy(pawnJSON.position);
+        if (pawnJSON.hasOwnProperty('rotation'))
+            pawn.networkRotation.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+        if (pawnJSON.hasOwnProperty('data')) {
+            pawn.data = pawnJSON.data;
+            pawn.processData();
+        }
     }
     
     addUser(id, color) {
@@ -183,40 +188,60 @@ export default class Manager {
         }));
     }
     tickHost() {
-        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
+        // Send all dirty pawns (even the ones selected by a client)
+        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
             this.socket.send(JSON.stringify({
                 type:"update_pawns",
                 pawns:to_update.map(p => {
                     let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
-                    return {
-                        id:p.id,
-                        selected:p.selected,
-                        position:{x:p.position.x, y:p.position.y, z:p.position.z},
-                        rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
-                    };
+                    let update = {id: p.id};
+                    for (let dirtyParam of p.dirty) {
+                        switch (dirtyParam) {
+                            case "position":
+                                update[dirtyParam] = {x:p.position.x,y:p.position.y,z:p.position.z};
+                                break;
+                            case "rotation":
+                                update[dirtyParam] = {x:rotation.x,y:rotation.y,z:rotation.z};
+                                break;
+                            default:
+                                update[dirtyParam] = p[dirtyParam];
+                                break;
+                        }
+                    }
+                    return update;
                 })
             }));
-            to_update.forEach(p => p.dirty = false);
+            to_update.forEach(p => p.dirty.clear());
         }
         this.sendCursor()
     }
     tickClient() {
-        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty);
+        // Send all dirty pawns (even the ones selected by a client)
+        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
             this.socket.send(JSON.stringify({
-                type:"request_update_pawn",
-                pawn:to_update.map(p => {
+                type:"update_pawns",
+                pawns:to_update.map(p => {
                     let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
-                    return {
-                        id:p.id,
-                        selected:p.selected,
-                        position:{x:p.position.x, y:p.position.y, z:p.position.z},
-                        rotation:{x:rotation.x, y:rotation.y, z:rotation.z}
-                    };
-                })[0]
+                    let update = {id: p.id};
+                    for (let dirtyParam of p.dirty) {
+                        switch (dirtyParam) {
+                            case "position":
+                                update[dirtyParam] = {x:p.position.x,y:p.position.y,z:p.position.z};
+                                break;
+                            case "rotation":
+                                update[dirtyParam] = {x:rotation.x,y:rotation.y,z:rotation.z};
+                                break;
+                            default:
+                                update[dirtyParam] = p[dirtyParam];
+                                break;
+                        }
+                    }
+                    return update;
+                })
             }));
-            to_update[0].dirty = false;
+            to_update.forEach(p => p.dirty.clear());
         }
         this.sendCursor()
     }
@@ -269,19 +294,23 @@ export default class Manager {
         });
     }
     resize() {
+        // Update camera aspect ratio
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
+        // Update domElement size
         this.renderer.setSize(window.innerWidth/1.2, window.innerHeight/1.2);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
+        // Update composer size
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
     buildScene() {
+        // Create scene
         this.scene = new THREE.Scene();
-        //this.scene.background = new THREE.Color(0xdddddd);
         this.scene.background = null;
         
+        // Setup light
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.castShadow = true;
         directionalLight.position.y = 25;
@@ -298,7 +327,7 @@ export default class Manager {
         const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
         this.scene.add(ambientLight);
         
-        // PLANE
+        // Setup ground plane
         const geom = new THREE.PlaneGeometry( 100, 100 );
         geom.rotateX(- Math.PI/2);
         const material = new THREE.ShadowMaterial();
@@ -316,8 +345,8 @@ export default class Manager {
         this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true});
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
-        //this.renderer.shadowMap.type = THREE.BasicShadowMap;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        //this.renderer.shadowMap.type = THREE.BasicShadowMap;
         //this.renderer.shadowMap.type = THREE.VSMShadowMap;
         
         this.composer = new EffectComposer(this.renderer);
@@ -383,10 +412,10 @@ export default class Manager {
             console.log('Connected!');
         });
         this.socket.addEventListener('message', (e) => {
-            //console.log('Message from server: ' + e.data);
             let msg = JSON.parse(e.data);
+            let type = msg.type;
             
-            if (msg["type"] == "start") {
+            if (type == "start") {
                 // We have initiated a connection
                 this.host = msg["host"];
                 this.id = msg.id;
@@ -403,27 +432,32 @@ export default class Manager {
                 });
             }
             
-            if (msg["type"] == "update_pawns") {
+            if (type == "add_pawn") {
+                this.loadPawn(msg.pawn);
+            }
+            
+            if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
-            } else if (msg["type"] == "request_update_pawn" && this.host) {
+            } else if (type == "request_update_pawn" && this.host) {
                 this.updatePawn(msg.pawn);
             }
             
-            if (msg["type"] == "connect") {
+            if (type == "connect") {
                 // Add the connected player to the player list
                 this.addUser(msg.id, msg.color);
-            } else if (msg["type"] == "disconnect") {
+            } else if (type == "disconnect") {
                 // Add the connected player to the player list
                 document.querySelector(".player.p" + msg.id).remove();
             }
             
-            if (msg["type"] == "relay_cursors") {
+            if (type == "relay_cursors") {
                 msg.cursors.forEach((cursor) => {
                     if (cursor.id == this.id)
                         return;
                     
                     let newPosition = new THREE.Vector3().copy(cursor.position).add(new THREE.Vector3(0, 0.25, 0));
-                    this.lobbyCursorObjects.get(cursor.id).networkPosition = newPosition;
+                    if (this.lobbyCursorObjects.has(cursor.id))
+                        this.lobbyCursorObjects.get(cursor.id).networkPosition = newPosition;
                 });
             }
         });

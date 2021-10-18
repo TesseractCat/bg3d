@@ -13,13 +13,17 @@ pub struct Vec3 {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pawn {
     pub id: u64,
+    pub class: String,
     pub mesh: String,
-    pub position: Vec3,
-    pub rotation: Vec3,
     pub mass: f64,
     pub moveable: bool,
+    
+    pub position: Vec3,
+    pub rotation: Vec3,
     pub selected: bool,
-    pub shapes: serde_json::Value
+    
+    pub shapes: serde_json::Value,
+    pub data: serde_json::Value
 }
 
 pub struct Lobby {
