@@ -139,7 +139,8 @@ export class Pawn {
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
         if (!this.dirty.has("position")) {
-            if (this.manager.host || this.selected) {
+            if ((this.manager.host && !this.networkSelected) || this.selected) {
+            //if (this.manager.host || this.selected) {
                 if (this.position.distanceToSquared(this.lastPosition) > 0.01 ||
                     this.rotation.angleTo(this.lastRotation) > 0.01) {
                     
@@ -338,7 +339,7 @@ export class Deck extends Pawn {
                     belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
                 }
                 belowPawn.updateDeck();
-                belowPawn.dirty.add("data");
+                belowPawn.dirty.add("data"); //FIXME: Not always being sent?
                 this.manager.socket.send(JSON.stringify({
                     type:"remove_pawn",
                     id:this.id
@@ -369,7 +370,7 @@ export class Deck extends Pawn {
         this.mesh.scale.setComponent(1, thickness);
         this.physicsBody.shapes[0].halfExtents.set(
             this.physicsBody.shapes[0].halfExtents.x,
-            (Math.max(thickness, Deck.cardThickness * 5) * 1.15)/2,
+            (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
             this.physicsBody.shapes[0].halfExtents.z);
         this.physicsBody.shapes[0].updateConvexPolyhedronRepresentation();
         this.physicsBody.shapes[0].updateBoundingSphereRadius();

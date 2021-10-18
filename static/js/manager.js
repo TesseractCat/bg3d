@@ -148,6 +148,10 @@ export default class Manager {
         this.pawns.set(pawnJSON.id, pawn);
     }
     updatePawn(pawnJSON) {
+        if (!this.pawns.has(pawnJSON.id)) {
+            console.warn("Attempting to update non existent pawn");
+            return;
+        }
         let pawn = this.pawns.get(pawnJSON.id);
         pawn.networkLastSynced = performance.now();
         /*if (pawn.selected)
@@ -198,13 +202,12 @@ export default class Manager {
             position:{x:this.cursorPosition.x, y:this.cursorPosition.y, z:this.cursorPosition.z}
         }));
     }
-    tickHost() {
+    tick() {
         // Send all dirty pawns (even the ones selected by a client)
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
-            this.socket.send(JSON.stringify({
-                type:"update_pawns",
-                pawns:to_update.map(p => {
+            this.sendEvent("request_update_pawns", true,
+                {pawns: to_update.map(p => {
                     let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
                     let update = {id: p.id};
                     for (let dirtyParam of p.dirty) {
@@ -221,37 +224,8 @@ export default class Manager {
                         }
                     }
                     return update;
-                })
-            }));
-            to_update.forEach(p => p.dirty.clear());
-        }
-        this.sendCursor()
-    }
-    tickClient() {
-        // Send all dirty pawns (even the ones selected by a client)
-        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
-        if (to_update.length > 0) {
-            this.socket.send(JSON.stringify({
-                type:"update_pawns",
-                pawns:to_update.map(p => {
-                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
-                    let update = {id: p.id};
-                    for (let dirtyParam of p.dirty) {
-                        switch (dirtyParam) {
-                            case "position":
-                                update[dirtyParam] = {x:p.position.x,y:p.position.y,z:p.position.z};
-                                break;
-                            case "rotation":
-                                update[dirtyParam] = {x:rotation.x,y:rotation.y,z:rotation.z};
-                                break;
-                            default:
-                                update[dirtyParam] = p[dirtyParam];
-                                break;
-                        }
-                    }
-                    return update;
-                })
-            }));
+                }
+            )});
             to_update.forEach(p => p.dirty.clear());
         }
         this.sendCursor()
@@ -334,20 +308,27 @@ export default class Manager {
             // We are sending an event to ourselves, no need to use websockets, let's just detour
             if (callback !== undefined)
                 this.pendingEvents.set(uuid, callback);
-            this.receiveEvent(event);
+            this.handleEvent(event);
         } else {
             if (callback !== undefined)
                 this.pendingEvents.set(uuid, callback);
             this.socket.send(JSON.stringify(event));
         }
     }
-    receiveEvent(eventJSON) {
+    handleEvent(eventJSON) {
         let name = eventJSON.name;
         let response = {};
         
         switch (eventJSON.name) {
             case "pawn":
                 response = this.pawns.get(eventJSON.data.id).handleEvent(eventJSON.data);
+                break;
+            case "request_update_pawns":
+                eventJSON.data.pawns.forEach(p => this.updatePawn(p));
+                this.socket.send(JSON.stringify({
+                    "type":"update_pawns",
+                    "pawns":eventJSON.data.pawns
+                }));
                 break;
         }
         
@@ -469,9 +450,9 @@ export default class Manager {
                 this.id = msg.id;
                 callback(this.host);
                 if (this.host) {
-                    setInterval(() => this.tickHost(), Manager.networkTimestep);
+                    setInterval(() => this.tick(), Manager.networkTimestep);
                 } else {
-                    setInterval(() => this.tickClient(), Manager.networkTimestep);
+                    setInterval(() => this.tick(), Manager.networkTimestep);
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
@@ -481,7 +462,7 @@ export default class Manager {
             }
             
             if (type == "event") {
-                this.receiveEvent(msg);
+                this.handleEvent(msg);
             } else if (type == "event_callback") {
                 this.eventCallback(msg);
             }
@@ -494,8 +475,6 @@ export default class Manager {
             
             if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
-            } else if (type == "request_update_pawn" && this.host) {
-                this.updatePawn(msg.pawn);
             }
             
             if (type == "connect") {

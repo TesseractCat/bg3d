@@ -108,7 +108,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "add_pawn" => {add_pawn(user_id, data, &lobby_name, &lobbies).await;},
             "remove_pawn" => {remove_pawn(user_id, data, &lobby_name, &lobbies).await;},
             "update_pawns" => {update_pawns(user_id, data, &lobby_name, &lobbies).await;},
-            "request_update_pawn" => {request_update_pawn(user_id, data, &lobby_name, &lobbies).await;},
             
             "send_cursor" => {update_cursor(user_id, data, &lobby_name, &lobbies).await;},
             
@@ -221,19 +220,6 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
         }
     }
     Some(())
-}
-
-async fn request_update_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let lobby_rl = lobbies.read().await;
-    let lobby = lobby_rl.get(lobby_name).unwrap();
-    
-    // Forward to host
-    let response = json!({
-        "type":"request_update_pawn",
-        "pawn":data["pawn"]
-    });
-    //FIXME handle reassigning host
-    lobby.users[&lobby.host].tx.send(Message::text(response.to_string()));
 }
 
 // --- USER EVENTS ---
