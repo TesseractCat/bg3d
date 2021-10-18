@@ -293,15 +293,16 @@ export class Deck extends Pawn {
     
     spawnCard() {
         //Create a new deck of length 1 and grab that instead
+        let idx = this.data.flipped ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
-            this.data.size, [this.data.contents[0]]);
+            this.data.size, [this.data.contents[idx]]);
         cardPawn.moveable = true;
         cardPawn.selectRotation.copy(this.selectRotation);
         cardPawn.data.flipped = this.data.flipped;
         
         this.manager.addPawn(cardPawn);
         
-        this.data.contents.shift();
+        this.data.contents.splice(idx, 1);
         this.dirty.add("data");
         // Flush dirty and prevent race condition
         // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
@@ -435,6 +436,8 @@ export class Deck extends Pawn {
         let pawn = new Deck(manager, pawnJSON.data.name, pawnJSON.position, rotation, pawnJSON.data.size, pawnJSON.data.contents, pawnJSON.id);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
+        pawn.data = pawnJSON.data;
+        pawn.processData();
         return pawn;
     }
     
