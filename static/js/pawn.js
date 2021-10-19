@@ -25,8 +25,7 @@ export class Pawn {
     lastRotation = new THREE.Quaternion();
     
     networkSelected = false;
-    networkPosition = new THREE.Vector3(0,0,0);
-    networkRotation = new THREE.Quaternion();
+    networkBuffer = [];
     networkLastSynced = 0;
     
     static NEXT_ID = 0;
@@ -39,6 +38,9 @@ export class Pawn {
             this.id = id;
         }
         this.manager = manager;
+        
+        // Flush networkBuffer
+        this.flushBuffer(position, rotation);
         
         // Create and register physics body
         this.physicsBody = physicsBody;
@@ -72,8 +74,6 @@ export class Pawn {
         // Apply transform
         this.position.copy(position);
         this.rotation.copy(rotation);
-        this.networkPosition.copy(position);
-        this.networkRotation.copy(rotation);
         
         // Events
         document.addEventListener('keydown', (e) => {
@@ -124,24 +124,23 @@ export class Pawn {
         
         // Handle network interpolation
         if (!this.selected && (!this.manager.host || this.networkSelected)) {
-            let progress = (performance.now()-this.networkLastSynced)/Manager.networkTimestep;
+            let diff = this.networkBuffer[1].time - this.networkBuffer[0].time;
+            let progress = (performance.now()-this.networkLastSynced)/diff;
             progress = Math.max(Math.min(progress, 1), 0);
-            progress = dt*20;
             
-            let newPosition = this.position.clone();
-            newPosition.lerp(this.networkPosition, progress);
+            let newPosition = this.networkBuffer[0].position.clone();
+            newPosition.lerp(this.networkBuffer[1].position.clone(), progress);
             
-            let newRotation = this.rotation.clone();
-            newRotation.slerp(this.networkRotation, progress);
+            let newRotation = this.networkBuffer[0].rotation.clone();
+            newRotation.slerp(this.networkBuffer[1].rotation.clone(), progress);
             
             //FIXME: Do some sort of check for when to lerp, otherwise simulate physics locally (for smoothness)
             if (this.networkSelected || true) {
                 // Lerp directly
-                this.setPosition(newPosition, this.networkSelected);
-                this.setRotation(newRotation, this.networkSelected);
-                //this.setPosition(this.networkPosition);
-                //this.setRotation(this.networkRotation);
+                this.setPosition(newPosition);//, this.networkSelected);
+                this.setRotation(newRotation);//, this.networkSelected);
             } else {
+                /*
                 // 'Nudge' into place using physics forces
                 //this.setPosition(this.position.clone().lerp(this.networkPosition, dt * 5));
                 //this.setRotation(this.rotation.clone().slerp(this.networkRotation.clone(), dt * 5));
@@ -151,7 +150,7 @@ export class Pawn {
                 let torque = new THREE.Quaternion().multiply(this.networkRotation, this.rotation.inverse());
                 torque = new THREE.Euler().setFromQuaternion(torque).toVector3();
                 this.physicsBody.applyTorque(
-                    new CANNON.Vec3().copy(torque).scale(100));
+                    new CANNON.Vec3().copy(torque).scale(100));*/
             }
         }
         
@@ -185,9 +184,8 @@ export class Pawn {
     }
     release() {
         this.selected = false;
-        // Locally apply position as networkPosition
-        this.networkPosition.copy(this.position);
-        this.networkRotation.copy(this.rotation);
+        // Locally apply position as networked position
+        this.flushBuffer(this.position, this.rotation);
         // Mark as dirty (so as to share that we have released)
         this.dirty.add("position");
         this.dirty.add("rotation");
@@ -213,6 +211,22 @@ export class Pawn {
             this.physicsBody.angularVelocity.set(0,0,0);
         
         this.updateMeshTransform();
+    }
+    flushBuffer(position, rotation) {
+        this.networkBuffer.push({
+            time:performance.now(),
+            position:new THREE.Vector3().copy(position),
+            rotation:new THREE.Quaternion().copy(rotation)
+        });
+        if (this.networkBuffer.length > 2)
+            this.networkBuffer.shift();
+        this.networkBuffer.push({
+            time:performance.now() + 1,
+            position:new THREE.Vector3().copy(position),
+            rotation:new THREE.Quaternion().copy(rotation)
+        });
+        if (this.networkBuffer.length > 2)
+            this.networkBuffer.shift();
     }
     
     updateMeshTransform() {

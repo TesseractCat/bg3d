@@ -110,7 +110,16 @@ export default class Manager {
             toSelect[0].grab(e.button);
         });
         
+        // Finally make websocket connection
         this.buildWebSocket(callback);
+        
+        // Create webworker to manage animate() when page not focused
+        let animateWorker = new Worker('js/loop.js');
+        animateWorker.onmessage = (e) => {
+            if (document.hidden) {
+                this.animate();
+            }
+        };
     }
     
     clear() {
@@ -167,10 +176,15 @@ export default class Manager {
             }
             pawn.networkSelected = pawnJSON.selected;
         }
-        if (pawnJSON.hasOwnProperty('position'))
-            pawn.networkPosition.copy(pawnJSON.position);
-        if (pawnJSON.hasOwnProperty('rotation'))
-            pawn.networkRotation.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+        if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
+            pawn.networkBuffer.push({
+                time:performance.now(),
+                position:new THREE.Vector3().copy(pawnJSON.position),
+                rotation:new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation))
+            });
+            if (pawn.networkBuffer.length > 2)
+                pawn.networkBuffer.shift();
+        }
         if (pawnJSON.hasOwnProperty('data')) {
             pawn.data = pawnJSON.data;
             pawn.processData();
@@ -241,9 +255,11 @@ export default class Manager {
     }
     animate() {
         // Render loop
-        this.composer.render();
-        this.controls.update();
-        this.stats.update();
+        if (!document.hidden) {
+            this.composer.render();
+            this.controls.update();
+            this.stats.update();
+        }
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
         
@@ -264,20 +280,22 @@ export default class Manager {
         }
         
         // Raycast all objects for selectable/cursor
-        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
-        raycastableObjects.push(this.plane);
-        let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
-        if (hovered.length > 0) {
-            this.pawns.forEach((p, k) => p.hovered = false);
-            hovered[0].object.traverseAncestors((a) => {
-                for (const [key, value] of this.pawns) {
-                    if (value.mesh == a) {
-                        value.hovered = true;
-                        return;
+        if (!document.hidden) {
+            let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
+            raycastableObjects.push(this.plane);
+            let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
+            if (hovered.length > 0) {
+                this.pawns.forEach((p, k) => p.hovered = false);
+                hovered[0].object.traverseAncestors((a) => {
+                    for (const [key, value] of this.pawns) {
+                        if (value.mesh == a) {
+                            value.hovered = true;
+                            return;
+                        }
                     }
-                }
-            });
-            this.cursorPosition.copy(hovered[0].point);
+                });
+                this.cursorPosition.copy(hovered[0].point);
+            }
         }
         
         // Lerp all cursors

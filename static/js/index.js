@@ -21,7 +21,7 @@ function setup() {
     
     const titleText = new Text();
     titleText.text = "CHECKERS";
-    titleText.font = "../fonts/Bayon-Regular.ttf"
+    titleText.font = "../fonts/Bayon/Bayon-Regular.ttf"
     titleText.fontSize = 3.0;
     titleText.anchorX = '50%';
     titleText.anchorY = '50%';
@@ -31,12 +31,9 @@ function setup() {
     manager.scene.add(titleText);
 }
 
-let ticks = 0;
 function animate() {
     requestAnimationFrame(animate);
     manager.animate();
-    
-    ticks++;
 }
 
 // SETUP
