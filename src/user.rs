@@ -1,6 +1,6 @@
 use warp::ws::*;
 use tokio::sync::mpsc;
-use random_color::{Luminosity, RandomColor};
+use random_color::{Color, Luminosity, RandomColor};
 
 use crate::lobby::Vec3;
 
@@ -12,11 +12,11 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(id: usize, tx: mpsc::UnboundedSender<Message>) -> User {
+    pub fn new(id: usize, tx: mpsc::UnboundedSender<Message>, color: Color) -> User {
         User {
             id: id,
             tx: tx,
-            color: RandomColor::new().luminosity(Luminosity::Dark).to_hex(),
+            color: RandomColor::new().hue(color).luminosity(Luminosity::Dark).to_hex(),
             cursor_position: Vec3 {x:0.0,y:0.0,z:0.0}
         }
     }

@@ -126,6 +126,7 @@ export class Pawn {
         if (!this.selected && (!this.manager.host || this.networkSelected)) {
             let progress = (performance.now()-this.networkLastSynced)/Manager.networkTimestep;
             progress = Math.max(Math.min(progress, 1), 0);
+            progress = dt*20;
             
             let newPosition = this.position.clone();
             newPosition.lerp(this.networkPosition, progress);
@@ -134,10 +135,12 @@ export class Pawn {
             newRotation.slerp(this.networkRotation, progress);
             
             //FIXME: Do some sort of check for when to lerp, otherwise simulate physics locally (for smoothness)
-            if (this.networkSelected) {
+            if (this.networkSelected || true) {
                 // Lerp directly
-                this.setPosition(newPosition);
-                this.setRotation(newRotation);
+                this.setPosition(newPosition, this.networkSelected);
+                this.setRotation(newRotation, this.networkSelected);
+                //this.setPosition(this.networkPosition);
+                //this.setRotation(this.networkRotation);
             } else {
                 // 'Nudge' into place using physics forces
                 //this.setPosition(this.position.clone().lerp(this.networkPosition, dt * 5));
@@ -195,17 +198,19 @@ export class Pawn {
     }
     shake() { }
     
-    setPosition(position) {
+    setPosition(position, clearVelocity = true) {
         this.position.copy(position);
         this.physicsBody.position.copy(position);
-        this.physicsBody.velocity.set(0,0,0);
+        if (clearVelocity)
+            this.physicsBody.velocity.set(0,0,0);
         
         this.updateMeshTransform();
     }
-    setRotation(rotation) {
+    setRotation(rotation, clearVelocity = true) {
         this.rotation.copy(rotation);
         this.physicsBody.quaternion.copy(rotation);
-        this.physicsBody.angularVelocity.set(0,0,0);
+        if (clearVelocity)
+            this.physicsBody.angularVelocity.set(0,0,0);
         
         this.updateMeshTransform();
     }
@@ -292,7 +297,7 @@ export class Deck extends Pawn {
     }
     
     handleEvent(data) {
-        let out = {};
+        let out = super.handleEvent(data);
         switch (data.name) {
             case "try_merge":
                 this.tryMerge();
@@ -362,8 +367,8 @@ export class Deck extends Pawn {
                 belowPawn.dirty.add("data");
                 this.manager.tick();
                 this.manager.socket.send(JSON.stringify({
-                    type:"remove_pawn",
-                    id:this.id
+                    type:"remove_pawns",
+                    pawns:[this.id]
                 }));
                 belowPawn.updateDeck();
             }
@@ -406,9 +411,9 @@ export class Deck extends Pawn {
         }
         faceTexture = Deck.textureCache.get(this.data.contents[0]);
         let backTexture = Deck.textureCache.get("./images/cards_k/cardBack_red5.png");
-        faceTexture.generateMipmaps = false;
-        faceTexture.magFilter = THREE.LinearFilter;
-        faceTexture.minFilter = THREE.LinearFilter;
+        //faceTexture.generateMipmaps = false;
+        //faceTexture.magFilter = THREE.LinearFilter;
+        //faceTexture.minFilter = THREE.LinearFilter;
         
         // Apply new materials
         const sideMaterial = new THREE.MeshStandardMaterial( {color: 0xcccccc} );
@@ -459,7 +464,6 @@ export class Deck extends Pawn {
     }
     
     processData() {
-        console.log(this.data.contents);
         this.selectRotation.x = this.data.flipped ? Math.PI : 0;
         this.updateDeck();
     }

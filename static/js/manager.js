@@ -113,6 +113,11 @@ export default class Manager {
         this.buildWebSocket(callback);
     }
     
+    clear() {
+        this.socket.send(JSON.stringify({
+            type:"clear_pawns",
+        }));
+    }
     addPawn(pawn) {
         console.assert(this.host);
         
@@ -154,10 +159,14 @@ export default class Manager {
         }
         let pawn = this.pawns.get(pawnJSON.id);
         pawn.networkLastSynced = performance.now();
-        /*if (pawn.selected)
-            return;*/
-        if (pawnJSON.hasOwnProperty('selected'))
+        if (pawnJSON.hasOwnProperty('selected')) {
+            if (pawn.networkSelected && !pawnJSON.selected) {
+                //We have released, instead of updating network position, let's update position
+                pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
+                pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+            }
             pawn.networkSelected = pawnJSON.selected;
+        }
         if (pawnJSON.hasOwnProperty('position'))
             pawn.networkPosition.copy(pawnJSON.position);
         if (pawnJSON.hasOwnProperty('rotation'))
@@ -171,7 +180,7 @@ export default class Manager {
     addUser(id, color) {
         // Create element
         let playerElement = document.createElement("h2");
-        playerElement.innerText = id;
+        playerElement.innerText = "⬤";//id;
         playerElement.style.color = color;
         playerElement.classList.add("player");
         playerElement.classList.add("p" + id);
@@ -283,7 +292,7 @@ export default class Manager {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         // Update domElement size
-        this.renderer.setSize(window.innerWidth/1.2, window.innerHeight/1.2);
+        this.renderer.setSize(window.innerWidth/1, window.innerHeight/1);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
         // Update composer size
@@ -323,11 +332,17 @@ export default class Manager {
             case "pawn":
                 response = this.pawns.get(eventJSON.data.id).handleEvent(eventJSON.data);
                 break;
+            case "clear_pawns":
+                this.socket.send(JSON.stringify({
+                    type:"remove_pawns",
+                    pawns:Array.from(this.pawns.values()).map(p => p.id)
+                }));
+                break;
             case "request_update_pawns":
                 eventJSON.data.pawns.forEach(p => this.updatePawn(p));
                 this.socket.send(JSON.stringify({
-                    "type":"update_pawns",
-                    "pawns":eventJSON.data.pawns
+                    type:"update_pawns",
+                    pawns:eventJSON.data.pawns
                 }));
                 break;
         }
@@ -384,7 +399,7 @@ export default class Manager {
         this.camera.position.z = 15;
         this.camera.position.y = 8;
         
-        this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true});
+        this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true, antialias: true});
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -469,11 +484,9 @@ export default class Manager {
             
             if (type == "add_pawn") {
                 this.loadPawn(msg.pawn);
-            } else if (type == "remove_pawn") {
-                this.removePawn(msg.id);
-            }
-            
-            if (type == "update_pawns") {
+            } else if (type == "remove_pawns") {
+                msg.pawns.forEach(id => this.removePawn(id));
+            } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
             }
             

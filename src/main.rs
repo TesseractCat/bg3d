@@ -8,6 +8,7 @@ use warp::{http::Uri, Filter};
 use warp::ws::{Message, WebSocket};
 use names::Generator;
 use serde_json::{Value, json};
+use random_color::{Color};
 
 mod lobby;
 mod user;
@@ -72,7 +73,17 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         }
         let mut lobby = lobbies_wl.get_mut(&lobby_name).unwrap();
         if host { lobby.host = user_id; }
-        lobby.users.insert(user_id, User::new(user_id, buffer_tx));
+        let color: Color = match (lobby.users.len() + 1) % 7 {
+            1 => Color::Red,
+            2 => Color::Blue,
+            3 => Color::Purple,
+            4 => Color::Green,
+            5 => Color::Orange,
+            6 => Color::Monochrome,
+            0 => Color::Pink,
+            _ => Color::Monochrome, // Should never occur
+        };
+        lobby.users.insert(user_id, User::new(user_id, buffer_tx, color));
     }
     
     // Set up loop to relay cursor positions
@@ -96,7 +107,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         };
         if message.is_close() {
             println!("Websocket connection closed!");
-            user_disconnected(user_id, &lobby_name, &lobbies).await;
             break;
         }
         let text: String = message.to_str().unwrap().to_string();
@@ -106,7 +116,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             "join" => {user_joined(user_id, data, &lobby_name, &lobbies).await;},
             
             "add_pawn" => {add_pawn(user_id, data, &lobby_name, &lobbies).await;},
-            "remove_pawn" => {remove_pawn(user_id, data, &lobby_name, &lobbies).await;},
+            "remove_pawns" => {remove_pawns(user_id, data, &lobby_name, &lobbies).await;},
             "update_pawns" => {update_pawns(user_id, data, &lobby_name, &lobbies).await;},
             
             "send_cursor" => {update_cursor(user_id, data, &lobby_name, &lobbies).await;},
@@ -116,6 +126,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             _ => (),
         }
     }
+    user_disconnected(user_id, &lobby_name, &lobbies).await;
 }
 
 // --- GENERIC EVENTS ---
@@ -169,22 +180,20 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
         }
     }
 }
-async fn remove_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+async fn remove_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
     let mut lobby_wl = lobbies.write().await;
     let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
-    let pid: u64 = serde_json::from_value(data["id"].clone()).unwrap();
+    let pawn_ids: Vec<u64> = serde_json::from_value(data["pawns"].clone()).unwrap();
     
     // Remove pawn from lobby
-    lobby.pawns.remove(&pid);
+    for id in pawn_ids {
+        lobby.pawns.remove(&id);
+    }
     
     // Tell other users that this was removed
-    let response = json!({
-        "type":"remove_pawn",
-        "id":pid
-    });
     for u in lobby.users.values() {
-        u.tx.send(Message::text(response.to_string()));
+        u.tx.send(Message::text(data.to_string()));
     }
 }
 macro_rules! update_from_serde {
@@ -221,6 +230,18 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
     }
     Some(())
 }
+/*async fn clear_pawns(lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_wl = lobbies.write().await;
+    let lobby = lobby_wl.get_mut(lobby_name).unwrap();
+    
+    // Tell other users to clear
+    let response = json!({
+        "type":"clear_pawns",
+    });
+    for u in lobby.users.values() {
+        u.tx.send(Message::text(response.to_string()));
+    }
+}*/
 
 // --- USER EVENTS ---
 

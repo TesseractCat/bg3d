@@ -1,6 +1,6 @@
 @font-face {
     font-family: 'Bayon';
-    src: url('fonts/Bayon-Regular.ttf') format('truetype');
+    src: url('fonts/Bayon/Bayon-Regular.ttf') format('truetype');
 }
 
 body, html {
