@@ -9,6 +9,7 @@ import {Pawn, Deck, Dice} from './pawn';
 import {Checkers, Cards} from './game';
 
 let manager;
+let titleText;
 
 let board;
 
@@ -19,8 +20,8 @@ function setup() {
         quaternion: new CANNON.Quaternion().setFromEuler(-Math.PI / 2, 0, 0)
     }));
     
-    const titleText = new Text();
-    titleText.text = "CHECKERS";
+    titleText = new Text();
+    titleText.text = decodeURI(window.location.pathname.substring(1));
     titleText.font = "../fonts/Bayon/Bayon-Regular.ttf"
     titleText.fontSize = 3.0;
     titleText.anchorX = '50%';
@@ -40,6 +41,7 @@ function animate() {
 window.onload = function() {
     manager = new Manager();
     manager.init((host) => {
+        setup();
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
             let checkers = new Checkers(manager);
@@ -57,7 +59,6 @@ window.onload = function() {
                 }
             });
         }
-        setup();
         animate();
     });
     

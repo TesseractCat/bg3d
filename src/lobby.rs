@@ -21,6 +21,7 @@ pub struct Pawn {
     pub position: Vec3,
     pub rotation: Vec3,
     pub selected: bool,
+    pub selectRotation: Vec3,
     
     pub shapes: serde_json::Value,
     pub data: serde_json::Value

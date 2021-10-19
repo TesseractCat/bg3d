@@ -11,7 +11,7 @@ export class Pawn {
     hovered = false;
     selected = false;
     
-    selectRotation = new THREE.Euler();
+    selectRotation = {x:0, y:0, z:0};
     
     id = null;
     
@@ -81,9 +81,9 @@ export class Pawn {
                 if (e.key == 'f')
                     this.flip();
                 if (e.key == 'q')
-                    this.selectRotation.y += Math.PI/8;
+                    this.rotate(1);
                 if (e.key == 'e')
-                    this.selectRotation.y -= Math.PI/8;
+                    this.rotate(-1);
             }
         });
         document.addEventListener('mouseshake', (e) => {
@@ -117,7 +117,7 @@ export class Pawn {
             let newPosition = this.position.clone();
             newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)), dt * 10);
             let newRotation = this.rotation.clone();
-            newRotation.slerp(new THREE.Quaternion().setFromEuler(this.selectRotation), dt * 10);
+            newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
             this.setPosition(newPosition);
             this.setRotation(newRotation);
         }
@@ -192,7 +192,12 @@ export class Pawn {
         this.dirty.add("selected");
     }
     flip() {
-        this.selectRotation.x += Math.PI;
+        this.selectRotation.x = Math.abs(this.selectRotation.x - Math.PI) < 0.01 ? 0 : Math.PI;
+        this.dirty.add("selectRotation");
+    }
+    rotate(m) {
+        this.selectRotation.y += m * Math.PI/8;
+        this.dirty.add("selectRotation");
     }
     shake() { }
     
@@ -253,6 +258,7 @@ export class Pawn {
             selected:this.selected,
             position:{x:this.position.x, y:this.position.y, z:this.position.z},
             rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
+            selectRotation:this.selectRotation,
         };
     }
     static deserialize(manager, pawnJSON) {
@@ -263,6 +269,7 @@ export class Pawn {
         }), pawnJSON.id);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
+        pawn.selectRotation = pawnJSON.selectRotation;
         return pawn;
     }
     processData() { }
@@ -272,8 +279,7 @@ export class Deck extends Pawn {
     data = {
         name: "",
         contents: [],
-        size: new THREE.Vector2(),
-        flipped: false
+        size: new THREE.Vector2()
     }
     
     static cardThickness = 0.01;//0.005;
@@ -329,12 +335,11 @@ export class Deck extends Pawn {
     
     spawnCard() {
         //Create a new deck of length 1 and grab that instead
-        let idx = this.data.flipped ? this.data.contents.length - 1 : 0;
+        let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
             this.data.size, [this.data.contents[idx]]);
         cardPawn.moveable = true;
-        cardPawn.selectRotation.copy(this.selectRotation);
-        cardPawn.data.flipped = this.data.flipped;
+        cardPawn.selectRotation = Object.assign({}, this.selectRotation);
         
         this.manager.addPawn(cardPawn);
         
@@ -371,9 +376,9 @@ export class Deck extends Pawn {
             if (belowPawn != this
                 && belowPawn.constructor.name == this.constructor.name
                 && belowPawn.data.name == this.data.name
-                && belowPawn.data.flipped == this.data.flipped) {
+                && belowPawn.flipped() == this.flipped()) {
                 
-                if (this.data.flipped) {
+                if (this.flipped()) {
                     belowPawn.data.contents = [...belowPawn.data.contents, ...this.data.contents];
                 } else {
                     belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
@@ -455,10 +460,8 @@ export class Deck extends Pawn {
     shake() {
         this.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
     }
-    flip() {
-        super.flip();
-        this.data.flipped = !this.data.flipped;
-        this.dirty.add("data");
+    flipped() {
+        return Math.abs(this.selectRotation.x - Math.PI) < 0.01;
     }
     
     serialize() {
@@ -472,13 +475,13 @@ export class Deck extends Pawn {
         let pawn = new Deck(manager, pawnJSON.data.name, pawnJSON.position, rotation, pawnJSON.data.size, pawnJSON.data.contents, pawnJSON.id);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
+        pawn.selectRotation = pawnJSON.selectRotation;
         pawn.data = pawnJSON.data;
         pawn.processData();
         return pawn;
     }
     
     processData() {
-        this.selectRotation.x = this.data.flipped ? Math.PI : 0;
         this.updateDeck();
     }
 }

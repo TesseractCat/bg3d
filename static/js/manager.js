@@ -185,6 +185,9 @@ export default class Manager {
             if (pawn.networkBuffer.length > 2)
                 pawn.networkBuffer.shift();
         }
+        if (pawnJSON.hasOwnProperty('selectRotation')) {
+            pawn.selectRotation = pawnJSON.selectRotation;
+        }
         if (pawnJSON.hasOwnProperty('data')) {
             pawn.data = pawnJSON.data;
             pawn.processData();
