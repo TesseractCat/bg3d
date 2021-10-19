@@ -45,8 +45,8 @@ export class Pawn {
         this.physicsBody.position.copy(position);
         this.physicsBody.quaternion.copy(rotation);
         // Disable physics for non-hosts
-        if (!this.manager.host)
-            this.physicsBody.type = CANNON.Body.Static
+        //if (!this.manager.host)
+        //    this.physicsBody.type = CANNON.Body.Static
         this.manager.world.addBody(this.physicsBody);
 
         // Load mesh
@@ -133,8 +133,23 @@ export class Pawn {
             let newRotation = this.rotation.clone();
             newRotation.slerp(this.networkRotation, progress);
             
-            this.setPosition(newPosition);
-            this.setRotation(newRotation);
+            //FIXME: Do some sort of check for when to lerp, otherwise simulate physics locally (for smoothness)
+            if (this.networkSelected) {
+                // Lerp directly
+                this.setPosition(newPosition);
+                this.setRotation(newRotation);
+            } else {
+                // 'Nudge' into place using physics forces
+                //this.setPosition(this.position.clone().lerp(this.networkPosition, dt * 5));
+                //this.setRotation(this.rotation.clone().slerp(this.networkRotation.clone(), dt * 5));
+                let force = new CANNON.Vec3().copy(this.networkPosition.clone().sub(this.position)).scale(100);
+                console.log(force);
+                this.physicsBody.applyForce(force);
+                let torque = new THREE.Quaternion().multiply(this.networkRotation, this.rotation.inverse());
+                torque = new THREE.Euler().setFromQuaternion(torque).toVector3();
+                this.physicsBody.applyTorque(
+                    new CANNON.Vec3().copy(torque).scale(100));
+            }
         }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
@@ -171,6 +186,8 @@ export class Pawn {
         this.networkPosition.copy(this.position);
         this.networkRotation.copy(this.rotation);
         // Mark as dirty (so as to share that we have released)
+        this.dirty.add("position");
+        this.dirty.add("rotation");
         this.dirty.add("selected");
     }
     flip() {
