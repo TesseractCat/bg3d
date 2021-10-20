@@ -90,8 +90,8 @@ export default class Manager {
         });
         
         let dragged = false;
-        document.addEventListener('mousedown', () => { dragged = false });
-        document.addEventListener('mousemove', () => { dragged = true });
+        document.addEventListener('mousedown', () => { dragged = false; });
+        document.addEventListener('mousemove', () => { dragged = true; });
         document.addEventListener("mouseup", (e) => {
             if (dragged)
                 return;
@@ -495,7 +495,11 @@ export default class Manager {
                 msg.users.forEach(u => {
                     this.addUser(u.id, u.color)
                 });
-            }
+            }/* else if (type == "assign_host") {
+                console.log("ASSIGNED HOST");
+                document.querySelector("#host-panel").style.display = "block";
+                this.host = true;
+            }*/
             
             if (type == "event") {
                 this.handleEvent(msg);

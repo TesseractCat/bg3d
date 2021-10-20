@@ -2,6 +2,10 @@
     font-family: 'Bayon';
     src: url('fonts/Bayon/Bayon-Regular.ttf') format('truetype');
 }
+@font-face {
+    font-family: 'Lora';
+    src: url('fonts/Lora/Lora-Regular.ttf') format('truetype');
+}
 
 body, html {
     width:100%;

@@ -299,9 +299,22 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
         }
     }
     
-    // Remove user from lobby, delete lobby if last user
+    // Remove user from lobby
     lobby.users.remove(&user_id);
-    if lobby.users.len() == 0 {
+    
+    if lobby.users.len() != 0 {
+        // If the user id is the host, let's reassign the host to the next user
+        if lobby.host == user_id {
+            // Reassign hsot
+            lobby.host = *lobby.users.keys().next().unwrap();
+            // Tell the new host
+            let response = json!({
+                "type":"assign_host"
+            });
+            lobby.users.get(&lobby.host).unwrap().tx.send(Message::text(response.to_string()));
+        }
+    } else {
+        // Otherwise, delete lobby if last user
         lobby_wl.remove(lobby_name);
     }
 }

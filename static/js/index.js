@@ -42,23 +42,25 @@ window.onload = function() {
     manager = new Manager();
     manager.init((host) => {
         setup();
+        
+        let checkers = new Checkers(manager);
+        let cards = new Cards(manager);
+        document.querySelector("#games").addEventListener("change", (e) => {
+            switch (e.target.value) {
+                case "checkers":
+                    checkers.init(true);
+                    break;
+                case "cards":
+                    cards.init(true);
+                    break;
+            }
+        });
+        
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
-            let checkers = new Checkers(manager);
-            let cards = new Cards(manager);
             checkers.init(false);
-            
-            document.querySelector("#games").addEventListener("change", (e) => {
-                switch (e.target.value) {
-                    case "checkers":
-                        checkers.init(true);
-                        break;
-                    case "cards":
-                        cards.init(true);
-                        break;
-                }
-            });
         }
+        
         animate();
     });
     
