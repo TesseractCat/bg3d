@@ -476,6 +476,9 @@ export default class Manager {
             }));
             console.log('Connected!');
         });
+        this.socket.addEventListener('close', (e) => {
+            shade.style.display = 'block'
+        });
         this.socket.addEventListener('message', (e) => {
             let msg = JSON.parse(e.data);
             let type = msg.type;

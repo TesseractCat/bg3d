@@ -30,8 +30,10 @@ Controls:
 - Multiplayer
 - 3D cursors
 - Player list
+- Cards
 
 ### What doesn't
 
+- Personal 'hand' for cards 
 - Other games
-- Cards/stackables, Dice/rollables
+- Other stackables, Dice/rollables
