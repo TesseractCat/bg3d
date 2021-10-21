@@ -54,9 +54,10 @@ export default class Manager {
     stats;
     world;
     socket;
+    plane;
     
     pawns = new Map();
-    plane;
+    hand = [];
     
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -72,7 +73,7 @@ export default class Manager {
     lastCallTime;
     
     constructor() {
-        this.loader = new GLTFLoader().setPath('../models/');
+        this.loader = new GLTFLoader().setPath('../games/');
     }
     
     init(callback) {
@@ -84,15 +85,15 @@ export default class Manager {
         this.resize();
         
         // Track mouse position
-        document.addEventListener("mousemove", (e) => {
+        display.addEventListener("mousemove", (e) => {
             this.mouse.x = (event.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
         });
         
         let dragged = false;
-        document.addEventListener('mousedown', () => { dragged = false; });
-        document.addEventListener('mousemove', () => { dragged = true; });
-        document.addEventListener("mouseup", (e) => {
+        display.addEventListener('mousedown', () => { dragged = false; });
+        display.addEventListener('mousemove', () => { dragged = true; });
+        display.addEventListener("mouseup", (e) => {
             if (dragged)
                 return;
             let toSelect = Array.from(this.pawns.values()).filter(p => 
@@ -118,6 +119,7 @@ export default class Manager {
         animateWorker.onmessage = (e) => {
             if (document.hidden) {
                 this.animate();
+                this.tick();
             }
         };
     }
@@ -406,7 +408,7 @@ export default class Manager {
         this.scene.add(ambientLight);
         
         // Setup ground plane
-        const geom = new THREE.PlaneGeometry( 100, 100 );
+        const geom = new THREE.PlaneGeometry( 200, 200 );
         geom.rotateX(- Math.PI/2);
         const material = new THREE.ShadowMaterial();
         material.opacity = 0.3;
@@ -456,10 +458,12 @@ export default class Manager {
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.15;
         this.controls.maxPolarAngle = Math.PI/2.2;
+        this.controls.maxDistance = 65;
+        this.controls.minDistance = 2;
         
         this.controls.keyPanSpeed = 20;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
-        this.controls.listenToKeyEvents(document);
+        this.controls.listenToKeyEvents(display);
     }
     buildPhysics() {
         this.world = new CANNON.World({

@@ -6,7 +6,7 @@ import mouseShake from '../deps/mouse-shake'
 
 import Manager from './manager';
 import {Pawn, Deck, Dice} from './pawn';
-import {Checkers, Cards} from './game';
+import * as GAMES from './game';
 
 let manager;
 let titleText;
@@ -21,8 +21,9 @@ function setup() {
     }));
     
     titleText = new Text();
-    titleText.text = decodeURI(window.location.pathname.substring(1));
+    titleText.text = decodeURI(window.location.pathname.substring(1)).toUpperCase();
     titleText.font = "../fonts/Bayon/Bayon-Regular.ttf"
+    //titleText.font = "../fonts/Lora/Lora-Regular.ttf"
     titleText.fontSize = 3.0;
     titleText.anchorX = '50%';
     titleText.anchorY = '50%';
@@ -43,8 +44,9 @@ window.onload = function() {
     manager.init((host) => {
         setup();
         
-        let checkers = new Checkers(manager);
-        let cards = new Cards(manager);
+        let checkers = new GAMES.Checkers(manager);
+        let cards = new GAMES.Cards(manager);
+        let monopoly = new GAMES.Monopoly(manager);
         document.querySelector("#games").addEventListener("change", (e) => {
             switch (e.target.value) {
                 case "checkers":
@@ -52,6 +54,9 @@ window.onload = function() {
                     break;
                 case "cards":
                     cards.init(true);
+                    break;
+                case "monopoly":
+                    monopoly.init(true);
                     break;
             }
         });
@@ -70,5 +75,5 @@ window.onload = function() {
 window.onresize = function() {
     manager.resize();
 };
-window.onkeydown = function(e) {
+window.onmousedown = function(e) {
 }

@@ -22,15 +22,14 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
 #[tokio::main]
 async fn main() {
-    let default = warp::fs::dir("./static");
+    let default = warp::fs::dir("./static").with(warp::compression::gzip());
     
-    let index = warp::get().and(warp::path::end()).or(warp::path!("index.html")).map(|a| {
+    let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
         let mut generator = Generator::default();
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
     
-    let game = warp::get()
-        .and(warp::fs::file("./static/index.html"));
+    let game = warp::fs::file("./static/index.html");
     
     let lobbies = Lobbies::default();
     let lobbies = warp::any().map(move || lobbies.clone());

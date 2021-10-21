@@ -31,7 +31,7 @@ canvas {
     text-align: center;
     width: 240px;
     padding: 20px;
-    background-color: rgba(0,0,0,0.1);
+    background-color: #E5DEC8;/*rgba(0,0,0,0.1);*/
     border-radius: 10px;
     box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
     user-select:none;
@@ -80,6 +80,39 @@ canvas {
 
 #host-panel {
     text-align:left;
+}
+
+#chat-panel {
+    position:absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    padding: 20px;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 10px;
+    box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
+    user-select:none;
+    overflow-x:hidden;
+    
+    display:none;
+    
+    transition:opacity 0.2s;
+    opacity:1;
+}
+#chat-panel .entry {
+    line-height:0px;
+}
+#chat-panel #chat-entries {
+    max-height:150px;
+    overflow-y:auto;
+}
+#chat-panel #chat-input {
+    margin-top:10px;
+    width:100%;
+    border-radius:5px;
+    border:1px solid grey;
+    padding:5px;
+    box-sizing:border-box;
 }
 
 a, a:visited {

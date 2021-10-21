@@ -15,7 +15,7 @@ export class Pawn {
     
     id = null;
     
-    moveable = false;
+    moveable = true;
     mesh;
     meshUrl;
     physicsBody;
@@ -114,12 +114,14 @@ export class Pawn {
                     break;
                 }
             }
-            let newPosition = this.position.clone();
-            newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)), dt * 10);
-            let newRotation = this.rotation.clone();
-            newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
-            this.setPosition(newPosition);
-            this.setRotation(newRotation);
+            if (hitPoint != undefined) {
+                let newPosition = this.position.clone();
+                newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)), dt * 10);
+                let newRotation = this.rotation.clone();
+                newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
+                this.setPosition(newPosition);
+                this.setRotation(newRotation);
+            }
         }
         
         // Handle network interpolation
@@ -284,6 +286,7 @@ export class Deck extends Pawn {
     
     static cardThickness = 0.01;//0.005;
     static textureCache = new Map();
+    static textureLoader = new THREE.TextureLoader().setPath("../games/");
     
     box;
     faceMaterial;
@@ -308,8 +311,8 @@ export class Deck extends Pawn {
         this.box = box;
         mesh.add(box);
         
-        Deck.textureCache.set("./images/cards_k/cardBack_red5.png",
-            new THREE.TextureLoader().load("./images/cards_k/cardBack_red5.png"));
+        Deck.textureCache.set("generic/cards_k/cardBack_red5.png",
+            Deck.textureLoader.load("generic/cards_k/cardBack_red5.png"));
         
         this.updateDeck();
         
@@ -426,10 +429,10 @@ export class Deck extends Pawn {
         let faceTexture;
         if (!Deck.textureCache.has(this.data.contents[0])) {
             Deck.textureCache.set(this.data.contents[0],
-                new THREE.TextureLoader().load(this.data.contents[0]));
+                Deck.textureLoader.load(this.data.contents[0]));
         }
         faceTexture = Deck.textureCache.get(this.data.contents[0]);
-        let backTexture = Deck.textureCache.get("./images/cards_k/cardBack_red5.png");
+        let backTexture = Deck.textureCache.get("generic/cards_k/cardBack_red5.png");
         //faceTexture.generateMipmaps = false;
         //faceTexture.magFilter = THREE.LinearFilter;
         //faceTexture.minFilter = THREE.LinearFilter;
@@ -488,11 +491,19 @@ export class Deck extends Pawn {
 
 export class Dice extends Pawn {
     data = {
-        resultVectors: []
+        rollRotations: []
     }
     
+    constructor(manager, position, rotation, mesh, physicsBody, rollRotations, id = null) {
+        super(manager, position, rotation, mesh, physicsBody, id);
+        this.data.rollRotations = rollRotations;
+    }
+    
+    flip() { }
+    rotate(m) { }
     shake() {
-        this.flip();
+        this.selectRotation = this.data.rollRotations[Math.floor(Math.random() * this.data.rollRotations.length)];
+        this.dirty.add("selectRotation");
     }
     
     serialize() {
