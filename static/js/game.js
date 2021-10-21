@@ -86,6 +86,15 @@ export class Cards extends Game {
     
     init(clear) {
         super.init(clear, () => {
+            /*let table = new Pawn(this.manager, new THREE.Vector3(0,0.0,0), new THREE.Quaternion(), 'poker/table.gltf',
+                new CANNON.Body({
+                    mass: 0,
+                    shape: new CANNON.Cylinder(48, 48, 1.0, 8)
+                })
+            );
+            table.moveable = false;
+            this.manager.addPawn(table);*/
+            
             let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
             let suits = "Clubs,Spades,Diamonds,Hearts".split(",");
             let cards = [];
@@ -95,7 +104,7 @@ export class Cards extends Game {
                 }
             }
             let deck = new Deck(this.manager, "standard_deck",
-                new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(3.75, 5.25), cards);
+                new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(2.5 * 1.5, 3.5 * 1.5), cards);
             this.manager.addPawn(deck);
         });
     }
