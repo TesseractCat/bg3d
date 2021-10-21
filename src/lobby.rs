@@ -24,6 +24,7 @@ pub struct Pawn {
     pub selectRotation: Vec3,
     
     pub shapes: serde_json::Value,
+    pub meshOffset: Vec3,
     pub data: serde_json::Value
 }
 

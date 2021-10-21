@@ -18,6 +18,7 @@ export class Pawn {
     moveable = true;
     mesh;
     meshUrl;
+    meshOffset = new THREE.Vector3(0,0,0);
     physicsBody;
     
     dirty = new Set();
@@ -56,6 +57,10 @@ export class Pawn {
             this.meshUrl = mesh;
             this.manager.loader.load(mesh, (gltf) => {
                 gltf.scene.traverse(function (child) {
+                    if (child.material != undefined) {
+                        child.material.metalness = 0;
+                        child.material.smoothness = 0;
+                    }
                     child.castShadow = true;
                     child.receiveShadow = true;
                 });
@@ -95,7 +100,6 @@ export class Pawn {
     animate(dt) {
         // Follow dynamic physics body
         if (this.physicsBody.type == CANNON.Body.DYNAMIC) {
-            //console.log(this.physicsBody.position);
             this.position.copy(this.physicsBody.position);
             this.rotation.copy(this.physicsBody.quaternion);
             this.updateMeshTransform();
@@ -116,7 +120,7 @@ export class Pawn {
             }
             if (hitPoint != undefined) {
                 let newPosition = this.position.clone();
-                newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)), dt * 10);
+                newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)).sub(this.meshOffset), dt * 10);
                 let newRotation = this.rotation.clone();
                 newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
                 this.setPosition(newPosition);
@@ -240,6 +244,9 @@ export class Pawn {
         if (this.mesh) {
             this.mesh.position.copy(this.position);
             this.mesh.quaternion.copy(this.rotation);
+            this.mesh.translateX(this.meshOffset.x);
+            this.mesh.translateY(this.meshOffset.y);
+            this.mesh.translateZ(this.meshOffset.z);
         }
     }
     
@@ -250,6 +257,7 @@ export class Pawn {
         out.mass = this.physicsBody.mass;
         out.moveable = this.moveable;
         out.shapes = this.physicsBody.shapes.map(x => x.serialize());
+        out.meshOffset = {x:this.meshOffset.x, y:this.meshOffset.y, z:this.meshOffset.z};
         out.data = {};
         return out;
     }
@@ -265,10 +273,12 @@ export class Pawn {
     }
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Pawn(manager, pawnJSON.position, rotation, pawnJSON.mesh, new CANNON.Body({
+        let physicsBody = new CANNON.Body({
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        }), pawnJSON.id);
+        });
+        let pawn = new Pawn(manager, pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.id);
+        pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
@@ -311,12 +321,17 @@ export class Deck extends Pawn {
         this.box = box;
         mesh.add(box);
         
-        Deck.textureCache.set("generic/cards_k/cardBack_red5.png",
-            Deck.textureLoader.load("generic/cards_k/cardBack_red5.png"));
+        this.loadTexture("generic/cards_k/cardBack_red5.png");
         
         this.updateDeck();
         
         this.data.size.copy(size);
+    }
+    
+    loadTexture(texture) {
+        let t = Deck.textureLoader.load(texture);
+        t.encoding = THREE.sRGBEncoding;
+        Deck.textureCache.set(texture, t);
     }
     
     handleEvent(data) {
@@ -428,8 +443,7 @@ export class Deck extends Pawn {
         // Load textures
         let faceTexture;
         if (!Deck.textureCache.has(this.data.contents[0])) {
-            Deck.textureCache.set(this.data.contents[0],
-                Deck.textureLoader.load(this.data.contents[0]));
+            this.loadTexture(this.data.contents[0]);
         }
         faceTexture = Deck.textureCache.get(this.data.contents[0]);
         let backTexture = Deck.textureCache.get("generic/cards_k/cardBack_red5.png");

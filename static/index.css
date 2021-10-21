@@ -15,7 +15,7 @@ body, html {
 body {
     margin:0px;
     background: linear-gradient(0deg, #E5DEC8, #F9F8F4);
-    font-family: Bayon;
+    font-family: Lora;
 }
 
 canvas {
@@ -88,19 +88,17 @@ canvas {
     right: 20px;
     width: 240px;
     padding: 20px;
-    background-color: rgba(0,0,0,0.1);
+    background-color: #DED6BA;
     border-radius: 10px;
     box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
     user-select:none;
     overflow-x:hidden;
     
-    display:none;
+    /*display:none;*/
     
+    pointer-events:none;
     transition:opacity 0.2s;
-    opacity:1;
-}
-#chat-panel .entry {
-    line-height:0px;
+    opacity:0.2;
 }
 #chat-panel #chat-entries {
     max-height:150px;

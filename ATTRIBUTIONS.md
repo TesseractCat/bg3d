@@ -1,0 +1,1 @@
+SMALLLIKE - The Noun Project

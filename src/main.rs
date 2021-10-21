@@ -142,9 +142,9 @@ async fn event(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies)
         return;
     }
     for u in lobby.users.values() {
-        if u.id != user_id {
-            u.tx.send(Message::text(data.to_string()));
-        }
+        //if u.id != user_id {
+        u.tx.send(Message::text(data.to_string()));
+        //}
     }
 }
 async fn event_callback(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {

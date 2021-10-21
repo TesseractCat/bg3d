@@ -6,7 +6,7 @@
         <link rel="stylesheet" href="index.css">
     </head>
     <body>
-        <canvas id="display"></canvas>
+        <canvas id="display" tabindex='1'></canvas>
         <div id="overlay">
             <p><b>Share this link:</b></p>
             <a id="game-link" href="#"></a>
@@ -15,9 +15,6 @@
                 
                 <label for="games">Choose a game:</label>
                 <select name="games" id="games">
-                    <option value="checkers">Checkers</option>
-                    <option value="cards">Cards</option>
-                    <option value="monopoly">Monopoly</option>
                 </select>
                 
                 <br>
@@ -44,8 +41,7 @@
         </div>
         <div id="chat-panel">
             <div id="chat-entries">
-                <p class="entry"><span style="color: red;">⬤:</span> hello template this is some long text bceause i want to test text wrapping</p>
-                <p class="entry"><span style="color: red;">⬤:</span> hello template</p>
+                <p class="entry"><i>To start chatting, press 'Enter'</i></p>
             </div>
             <input id="chat-input"></input>
         </div>

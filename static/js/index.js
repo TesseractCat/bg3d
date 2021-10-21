@@ -30,7 +30,7 @@ function setup() {
     titleText.position.copy(new THREE.Vector3(0, 2.5, -11));
     titleText.rotation.copy(new THREE.Euler(-Math.PI/5.0, 0, 0));
     titleText.color = "#D6CCA9";
-    manager.scene.add(titleText);
+    //manager.scene.add(titleText);
 }
 
 function animate() {
@@ -44,26 +44,30 @@ window.onload = function() {
     manager.init((host) => {
         setup();
         
-        let checkers = new GAMES.Checkers(manager);
-        let cards = new GAMES.Cards(manager);
-        let monopoly = new GAMES.Monopoly(manager);
+        let games = [
+            new GAMES.Welcome(manager),
+            new GAMES.Checkers(manager),
+            new GAMES.Cards(manager),
+            new GAMES.Monopoly(manager),
+        ];
+        games.forEach(g => {
+            let option = document.createElement("option");
+            option.value = g.name;
+            option.innerText = g.name;
+            document.querySelector("#games").appendChild(option);
+        });
         document.querySelector("#games").addEventListener("change", (e) => {
-            switch (e.target.value) {
-                case "checkers":
-                    checkers.init(true);
-                    break;
-                case "cards":
-                    cards.init(true);
-                    break;
-                case "monopoly":
-                    monopoly.init(true);
-                    break;
+            for (let g of games) {
+                if (g.name == e.target.value) {
+                    g.init(true);
+                    return;
+                }
             }
         });
         
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
-            checkers.init(false);
+            games[0].init(false);
         }
         
         animate();

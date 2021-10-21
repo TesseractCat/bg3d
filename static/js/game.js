@@ -21,6 +21,33 @@ export class Game {
     }
 }
 
+export class Welcome extends Game {
+    name = "Welcome";
+    
+    init(clear) {
+        super.init(clear, () => {
+            let deck = new Deck(this.manager, "welcome",
+                new THREE.Vector3(0.9, 0, 0), new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
+                new THREE.Vector2(1.25 * 8, 1 * 8), 
+                ["generic/welcome.png"]);
+            deck.moveable = false;
+            this.manager.addPawn(deck);
+            
+            let birdHeight = 4.1;
+            let bird = new Pawn(this.manager,
+                new THREE.Vector3(-2.7,2.8,-1.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
+                'generic/bird.gltf',
+                new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
+                })
+            );
+            bird.meshOffset = new THREE.Vector3(0,-0.5 * birdHeight,0);
+            this.manager.addPawn(bird);
+        });
+    }
+}
+
 export class Checkers extends Game {
     name = "Checkers";
     

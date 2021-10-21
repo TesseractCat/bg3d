@@ -44,6 +44,15 @@ CANNON.Shape.prototype.deserialize = function(shape) {
             break;
     }
 }
+CANNON.Body.prototype.updateCenterOfMass = function() {
+    const centerOfMass = new CANNON.Vec3();
+    this.shapeOffsets.forEach(offset => centerOfMass.vadd(offset, centerOfMass));
+    centerOfMass.scale(1/this.shapes.length, centerOfMass);
+    this.shapeOffsets.forEach(offset => offset.vsub(centerOfMass, offset));
+    const worldCenterOfMass = new CANNON.Vec3();
+    this.vectorToWorldFrame(centerOfMass, worldCenterOfMass);
+    this.position.vadd(worldCenterOfMass, this.position);
+}
 
 export default class Manager {
     scene;
@@ -67,6 +76,7 @@ export default class Manager {
     
     host = false;
     id;
+    userColors = new Map();
     
     static physicsTimestep = 1/60;
     static networkTimestep = 1000/20;
@@ -111,6 +121,38 @@ export default class Manager {
             toSelect[0].grab(e.button);
         });
         
+        // Chat
+        display.addEventListener("keydown", (e) => {
+            if (e.key == "Enter") {
+                //document.querySelector("#chat-panel").style.display = "block";
+                document.querySelector("#chat-panel").style.opacity = "1";
+                document.querySelector("#chat-panel").style.pointerEvents = "auto";
+                document.querySelector("#chat-input").focus();
+                document.querySelector("#chat-input").select();
+            }
+        });
+        document.querySelector("#chat-input").addEventListener("keydown", (e) => {
+            if (e.key == "Enter") {
+                if (document.querySelector("#chat-input").value != "") {
+                    this.sendEvent("chat", false, {
+                        id:this.id,
+                        content:document.querySelector("#chat-input").value
+                    });
+                }
+                //document.querySelector("#chat-panel").style.display = "none";
+                document.querySelector("#chat-panel").style.opacity = "0.2";
+                document.querySelector("#chat-panel").style.pointerEvents = "none";
+                document.querySelector("#chat-input").value = "";
+                document.querySelector("#chat-input").blur();
+                display.focus();
+            }
+        });
+        document.querySelector("#chat-input").addEventListener("blur", (e) => {
+            document.querySelector("#chat-panel").style.opacity = "0.2";
+            document.querySelector("#chat-panel").style.pointerEvents = "none";
+            document.querySelector("#chat-input").value = "";
+        });
+        
         // Finally make websocket connection
         this.buildWebSocket(callback);
         
@@ -122,6 +164,27 @@ export default class Manager {
                 this.tick();
             }
         };
+    }
+    addChatEntry(chatJSON) {
+        let entry = document.createElement("p");
+        entry.classList.add("entry");
+        
+        let name = document.createElement("span");
+        name.innerText = "⬤: ";
+        name.style.color = this.userColors.get(chatJSON.id);
+        let text = document.createElement("span");
+        text.innerText = chatJSON.content;
+        
+        entry.appendChild(name);
+        entry.appendChild(text);
+        document.querySelector("#chat-entries").appendChild(entry);
+        entry.scrollIntoView();
+        
+        document.querySelector("#chat-panel").style.opacity = "1";
+        setTimeout(() => {
+            if (document.querySelector("#chat-input") != document.activeElement)
+                document.querySelector("#chat-panel").style.opacity = "0.2";
+        }, 1000);
     }
     
     clear() {
@@ -197,6 +260,8 @@ export default class Manager {
     }
     
     addUser(id, color) {
+        this.userColors.set(id, color);
+        
         // Create element
         let playerElement = document.createElement("h2");
         playerElement.innerText = "⬤";//id;
@@ -222,6 +287,7 @@ export default class Manager {
         document.querySelector(".player.p" + id).remove();
         this.scene.remove(this.lobbyCursorObjects.get(id));
         this.lobbyCursorObjects.delete(id);
+        this.userColors.delete(id);
     }
     
     sendCursor() {
@@ -368,6 +434,9 @@ export default class Manager {
                     pawns:eventJSON.data.pawns
                 }));
                 break;
+            case "chat":
+                this.addChatEntry(eventJSON.data);
+                break;
         }
         
         // Callback 
@@ -428,6 +497,7 @@ export default class Manager {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         //THREE.BasicShadowMap;
         //THREE.VSMShadowMap;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         
         this.composer = new EffectComposer(this.renderer);
 

@@ -29,13 +29,13 @@
             "name" : "Red",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
-                    0.8000000715255737,
-                    0.00567616755142808,
-                    0,
+                    0.7230427861213684,
+                    0.010509905405342579,
+                    0.016602253541350365,
                     1
                 ],
                 "metallicFactor" : 0,
-                "roughnessFactor" : 0.45495495200157166
+                "roughnessFactor" : 0.5580940246582031
             }
         }
     ],
