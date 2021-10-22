@@ -35,7 +35,7 @@ export class Welcome extends Game {
             
             let birdHeight = 4.1;
             let bird = new Pawn(this.manager,
-                new THREE.Vector3(-2.7,2.8,-1.2), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
+                new THREE.Vector3(-1.9,2.8,-1.35), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
                 'generic/bird.gltf',
                 new CANNON.Body({
                     mass: 5,
@@ -67,7 +67,7 @@ export class Checkers extends Game {
                     if ((x + y) % 2 != 0 || y == 4 || y == 3)
                         continue;
                     let checker = new Pawn(this.manager,
-                        new THREE.Vector3(-7.7 + x * 2.2,1.5,-7.7 + y * 2.2), new THREE.Quaternion(),
+                        new THREE.Vector3(-7 + x * 2,1.5,-7 + y * 2), new THREE.Quaternion(),
                         y < 4 ? 'checkers/checker_red.gltf' : 'checkers/checker_black.gltf',
                         new CANNON.Body({
                             mass: 5,
@@ -89,22 +89,31 @@ export class Cards extends Game {
             /*let table = new Pawn(this.manager, new THREE.Vector3(0,0.0,0), new THREE.Quaternion(), 'poker/table.gltf',
                 new CANNON.Body({
                     mass: 0,
-                    shape: new CANNON.Cylinder(48, 48, 1.0, 8)
+                    shape: new CANNON.Box(new CANNON.Vec3(40,0.3,35/2))
                 })
             );
             table.moveable = false;
             this.manager.addPawn(table);*/
             
-            let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
+            /*let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
             let suits = "Clubs,Spades,Diamonds,Hearts".split(",");
             let cards = [];
             for (let rank of ranks) {
                 for (let suit of suits) {
                     cards.push("generic/cards_k/card" + suit + rank + ".png");
                 }
+            }*/
+            let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
+            let suits = "C,S,D,H".split(",");
+            let cards = [];
+            for (let rank of ranks) {
+                for (let suit of suits) {
+                    cards.push("generic/cards/" + rank + suit + ".jpg");
+                }
             }
             let deck = new Deck(this.manager, "standard_deck",
-                new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(2.5 * 1.5, 3.5 * 1.5), cards);
+                new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0),
+                cards, "generic/cards/Red_back.jpg");
             this.manager.addPawn(deck);
         });
     }

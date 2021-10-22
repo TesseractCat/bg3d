@@ -2,6 +2,9 @@
 <meta charset="UTF-8">
 <html>
     <head>
+        <title>BirdGa.me - Simple Boardgames</title>
+        <meta name="description" content="Multiplayer boardgames online.">
+        <meta name="viewport" content="width=device-width">
         <script src="dist/bundle.js"></script>
         <link rel="stylesheet" href="index.css">
     </head>
@@ -32,9 +35,10 @@
                 <p>Click + drag to look</p>
                 <p>Right click + drag (or WASD) to pan</p>
                 <p>Click to pick up/put down:</p>
-                <p style="padding-left:0.2em">└ Right click to pick from a deck</p>
+                <p style="padding-left:0.2em;letter-spacing:-0.05rem;">└ Right click to pick from a deck</p>
                 <p>While holding an object:</p>
                 <p style="padding-left:0.2em">└ F to flip, and Q/E to rotate</p>
+                <p style="padding-left:0.2em;letter-spacing:-0.05rem;">└ G to add a card to your hand</p>
             </div>
             <hr>
             <h1>Players</h1>
@@ -45,6 +49,8 @@
             </div>
             <input id="chat-input"></input>
         </div>
+        <img id="icon" src="small_icon.png"></img>
+        <div id="hand-panel"></div>
         <div id="shade">
             <h1>CONNECTION LOST</h1>
         </div>

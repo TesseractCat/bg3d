@@ -11,6 +11,7 @@ import { SSAOPass } from '../deps/postprocessing/SSAOPass';
 import { PixelShader } from '../deps/shaders/PixelShader';
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
+import { RoomEnvironment } from '../deps/environments/RoomEnvironment.js';
 
 import { Pawn, Deck, Dice } from './pawn';
 
@@ -54,6 +55,51 @@ CANNON.Body.prototype.updateCenterOfMass = function() {
     this.position.vadd(worldCenterOfMass, this.position);
 }
 
+class Hand {
+    manager;
+    cards = [];
+    
+    constructor(manager) {
+        this.manager = manager;
+    }
+    
+    pushCard(deck) {
+        let cardProps = deck.serialize();
+        this.cards.push(cardProps);
+        console.assert(cardProps.data.contents.length == 1);
+        
+        let imageElement = document.createElement("img");
+        imageElement.src = "games/" + cardProps.data.contents[0];
+        imageElement.addEventListener("click",
+            () => this.takeCard(imageElement));
+        document.querySelector("#hand-panel").appendChild(imageElement);
+    }
+    takeCard(elem) {
+        if ([...this.manager.pawns.values()].filter(p => p.selected).length != 0)
+            return;
+        
+        const idx = [...elem.parentElement.children].indexOf(elem);
+        let card = this.cards[idx];
+        console.log(idx);
+        
+        let raycastableObjects = [...this.manager.pawns.values()].map(x => x.mesh);
+        raycastableObjects.push(this.manager.plane);
+        let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+        
+        if (hits.length >= 1) {
+            let hitPoint = hits[0].point.clone();
+            card.position = hitPoint.add(new THREE.Vector3(0, 2, 0));
+            
+            this.manager.sendEvent("request_add_pawn", true, {pawn:card}, (id) => {
+                this.manager.pawns.get(id).grab(0);
+                
+                this.cards.splice(idx, 1);
+                elem.remove();
+            });
+        }
+    }
+}
+
 export default class Manager {
     scene;
     camera;
@@ -66,7 +112,7 @@ export default class Manager {
     plane;
     
     pawns = new Map();
-    hand = [];
+    hand = new Hand(this);
     
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -153,6 +199,20 @@ export default class Manager {
             document.querySelector("#chat-input").value = "";
         });
         
+        // Route events to active pawns
+        document.addEventListener("keydown", (e) => {
+            this.pawns.forEach(p => {
+                if (p.selected)
+                    p.keyDown(e);
+            });
+        });
+        document.addEventListener('mouseshake', (e) => {
+            this.pawns.forEach(p => {
+                if (p.selected)
+                    p.shake();
+            });
+        });
+        
         // Finally make websocket connection
         this.buildWebSocket(callback);
         
@@ -165,6 +225,7 @@ export default class Manager {
             }
         };
     }
+    chatFadeTimeout;
     addChatEntry(chatJSON) {
         let entry = document.createElement("p");
         entry.classList.add("entry");
@@ -181,10 +242,12 @@ export default class Manager {
         entry.scrollIntoView();
         
         document.querySelector("#chat-panel").style.opacity = "1";
-        setTimeout(() => {
+        if (this.chatFadeTimeout !== undefined)
+            clearTimeout(this.chatFadeTimeout);
+        this.chatFadeTimeout = setTimeout(() => {
             if (document.querySelector("#chat-input") != document.activeElement)
                 document.querySelector("#chat-panel").style.opacity = "0.2";
-        }, 1000);
+        }, 2000);
     }
     
     clear() {
@@ -225,6 +288,7 @@ export default class Manager {
                 return;
         }
         this.pawns.set(pawnJSON.id, pawn);
+        return pawn;
     }
     updatePawn(pawnJSON) {
         if (!this.pawns.has(pawnJSON.id)) {
@@ -420,6 +484,11 @@ export default class Manager {
         switch (eventJSON.name) {
             case "pawn":
                 response = this.pawns.get(eventJSON.data.id).handleEvent(eventJSON.data);
+                break;
+            case "request_add_pawn":
+                let pawn = this.loadPawn(eventJSON.data.pawn);
+                this.addPawn(pawn);
+                response = pawn.id;
                 break;
             case "clear_pawns":
                 this.socket.send(JSON.stringify({

@@ -16,6 +16,7 @@ body {
     margin:0px;
     background: linear-gradient(0deg, #E5DEC8, #F9F8F4);
     font-family: Lora;
+    overflow:hidden;
 }
 
 canvas {
@@ -24,6 +25,7 @@ canvas {
     image-rendering: pixelated;           /* Chrome */
 }
 
+/* MAIN PANEL */
 #overlay {
     position: absolute;
     top: 20px;
@@ -60,27 +62,11 @@ canvas {
     line-height:20px;
 }
 
-#shade {
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
-    background:rgba(0,0,0,0.8);
-    display:none;
-}
-#shade h1 {
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%, -50%);
-    color:lightgrey;
-    margin:0px;
-}
-
 #host-panel {
     text-align:left;
 }
+
+/* CHAT PANEL */
 
 #chat-panel {
     position:absolute;
@@ -111,6 +97,71 @@ canvas {
     border:1px solid grey;
     padding:5px;
     box-sizing:border-box;
+}
+
+/* HAND PANEL */
+#hand-panel {
+    position:absolute;
+    bottom:0px;
+    width:100%;
+    text-align:center;
+    pointer-events:none;
+}
+#hand-panel h1 {
+    display:inline;
+    pointer-events:auto;
+}
+#hand-panel img {
+    display:inline;
+    pointer-events:auto;
+    cursor:pointer;
+    height:200px;
+    margin-left:-80px;
+    margin-bottom:-80px;
+    transition:margin-bottom 0.2s;
+    user-select:none;
+}
+#hand-panel img:first-child {
+    margin-left:0px;
+}
+#hand-panel img:hover {
+    margin-bottom:0px;
+}
+#hand-panel.minimized img {
+    margin-bottom:-120px;
+    pointer-events:none;
+}
+
+/* SHADE */
+
+#shade {
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.8);
+    display:none;
+}
+#shade h1 {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    color:lightgrey;
+    margin:0px;
+}
+
+/* MISC */
+
+#icon {
+    position:absolute;
+    left:20px;
+    bottom:20px;
+    width:60px;
+    height:60px;
+    cursor:pointer;
+    user-select:none;
 }
 
 a, a:visited {
