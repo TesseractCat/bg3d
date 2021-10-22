@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+use std::env;
 
 use futures_util::{FutureExt, StreamExt, SinkExt, TryFutureExt};
 use tokio::sync::{RwLock, mpsc};
@@ -22,6 +23,12 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mut port: u16 = 8080;
+    if args.len() == 2 {
+        port = args[1].parse::<u16>().unwrap_or(8080);
+    }
+    
     let default = warp::fs::dir("./static").with(warp::compression::gzip());
     
     let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
@@ -45,7 +52,7 @@ async fn main() {
         index.or(default).or(ws).or(game)
     );
 
-    warp::serve(routes).run(([0, 0, 0, 0], 8080)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
