@@ -239,7 +239,8 @@ export default class Manager {
         entry.appendChild(name);
         entry.appendChild(text);
         document.querySelector("#chat-entries").appendChild(entry);
-        entry.scrollIntoView();
+        document.querySelector("#chat-entries").scrollTop =
+            document.querySelector("#chat-entries").scrollHeight;
         
         document.querySelector("#chat-panel").style.opacity = "1";
         if (this.chatFadeTimeout !== undefined)
