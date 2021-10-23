@@ -75,6 +75,20 @@ window.onload = function() {
     
     document.getElementById("game-link").innerText = window.location.host + window.location.pathname;
     document.getElementById("game-link").href = window.location.href;
+    
+    document.getElementById("overlay-collapse").addEventListener("click", function() {
+        const elem = document.getElementById("overlay-collapse");
+        let collapsed = elem.innerText == "+";
+        if (collapsed) {
+            elem.innerText = "-";
+            overlay.style.width = "";
+            overlay.style.maxHeight = "";
+        } else {
+            elem.innerText = "+";
+            overlay.style.width = "10px";
+            overlay.style.maxHeight = "10px";
+        }
+    });
 };
 window.onresize = function() {
     manager.resize();

@@ -337,7 +337,7 @@ export default class Manager {
         if (id == this.id)
             playerElement.innerText += " (You)";
         
-        overlay.appendChild(playerElement);
+        document.querySelector("#player-entries").appendChild(playerElement);
         
         // Create cursor entry/object
         if (id != this.id) {
@@ -422,14 +422,18 @@ export default class Manager {
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
             if (hovered.length > 0) {
                 this.pawns.forEach((p, k) => p.hovered = false);
+                let pawnHovered = false;
                 hovered[0].object.traverseAncestors((a) => {
                     for (const [key, value] of this.pawns) {
                         if (value.mesh == a) {
+                            if (value.moveable && !value.selected)
+                                pawnHovered = true;
                             value.hovered = true;
                             return;
                         }
                     }
                 });
+                display.style.cursor = pawnHovered ? "pointer" : "auto";
                 this.cursorPosition.copy(hovered[0].point);
             }
         }
@@ -640,7 +644,7 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
-                msg.users.forEach(u => {
+                msg.users.sort((a, b) => b.id == this.id ? 1 : -1).forEach(u => {
                     this.addUser(u.id, u.color)
                 });
             }/* else if (type == "assign_host") {
