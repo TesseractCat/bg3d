@@ -612,7 +612,8 @@ export default class Manager {
     }
     buildWebSocket(callback) {
         let lobby = window.location.pathname.substring(1);
-        this.socket = new WebSocket("ws://" + window.location.host + "/ws/" + lobby);
+        this.socket =
+            new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + lobby);
         
         this.socket.addEventListener('open', (e) => {
             this.socket.send(JSON.stringify({
