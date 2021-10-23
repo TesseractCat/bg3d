@@ -33,11 +33,10 @@ async fn main() {
     
     let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
         let mut generator = Generator::default();
-        warp::redirect::permanent(generator.next().unwrap().parse::<Uri>().unwrap())
+        warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
-    let www = warp::header::exact("host", "www.birdga.me")
-        .map(|| {
-            warp::redirect::see_other("birdga.me".parse::<Uri>().unwrap())
+    let www = warp::header::exact("host", "www.birdga.me") .map(|| {
+            warp::redirect::permanent("birdga.me".parse::<Uri>().unwrap())
         });
     
     let game = warp::fs::file("./static/index.html");
