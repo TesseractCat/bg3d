@@ -3,6 +3,8 @@
 This is a boardgame engine created in Three.JS and Rust, designed to make it as
 easy as possible to start playing a boardgame online.
 
+[Try it now!](https://birdga.me/)
+
 ## Building
 
 Building is pretty simple. You will need a recent version of rust + npm.
