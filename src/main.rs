@@ -36,7 +36,7 @@ async fn main() {
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
     let www = warp::header::exact("host", "www.birdga.me") .map(|| {
-            warp::redirect::permanent("birdga.me".parse::<Uri>().unwrap())
+            warp::redirect::permanent(Uri::from_static("https://birdga.me"))
         });
     
     let game = warp::fs::file("./static/index.html");
@@ -52,7 +52,7 @@ async fn main() {
         });
     
     let routes = warp::get().and(
-        www.or(index).or(default).or(ws).or(game)
+        /*www.or*/(index).or(default).or(ws).or(game)
     );
 
     if port == 443 {
