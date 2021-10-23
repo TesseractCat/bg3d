@@ -33,8 +33,12 @@ async fn main() {
     
     let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
         let mut generator = Generator::default();
-        warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
+        warp::redirect::permanent(generator.next().unwrap().parse::<Uri>().unwrap())
     });
+    let www = warp::header::exact("host", "www.birdga.me")
+        .map(|| {
+            warp::redirect::see_other("birdga.me".parse::<Uri>().unwrap())
+        });
     
     let game = warp::fs::file("./static/index.html");
     
@@ -49,7 +53,7 @@ async fn main() {
         });
     
     let routes = warp::get().and(
-        index.or(default).or(ws).or(game)
+        www.or(index).or(default).or(ws).or(game)
     );
 
     if port == 443 {
