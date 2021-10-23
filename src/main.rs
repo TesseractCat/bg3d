@@ -52,7 +52,15 @@ async fn main() {
         index.or(default).or(ws).or(game)
     );
 
-    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    if port == 443 {
+        warp::serve(routes)
+            .tls()
+            .cert_path("/etc/letsencrypt/live/birdga.me/fullchain.pem")
+            .key_path("/etc/letsencrypt/live/birdga.me/privkey.pem")
+            .run(([0, 0, 0, 0], port)).await;
+    } else {
+        warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    }
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
