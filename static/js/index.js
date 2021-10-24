@@ -5,7 +5,7 @@ import {Text} from 'troika-three-text'
 import mouseShake from '../deps/mouse-shake'
 
 import Manager from './manager';
-import {Pawn, Deck, Dice} from './pawn';
+import {Pawn, Deck, Dice} from './pawns';
 import * as GAMES from './game';
 
 let manager;

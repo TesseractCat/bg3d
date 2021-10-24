@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 import Manager from './manager';
-import { Pawn, Deck, Dice } from './pawn';
+import { Pawn, Deck, Dice } from './pawns';
 
 export class Game {
     name = "";

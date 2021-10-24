@@ -13,7 +13,7 @@ import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 import { RoomEnvironment } from '../deps/environments/RoomEnvironment.js';
 
-import { Pawn, Deck, Dice } from './pawn';
+import { Pawn, Deck, Dice } from './pawns';
 
 CANNON.Shape.prototype.serialize = function() {
     var shape = {};
@@ -72,6 +72,9 @@ class Hand {
         imageElement.src = "games/" + cardProps.data.contents[0];
         imageElement.addEventListener("click",
             () => this.takeCard(imageElement));
+        imageElement.oncontextmenu = function() {
+            return false;
+        }
         document.querySelector("#hand-panel").appendChild(imageElement);
     }
     takeCard(elem) {
@@ -80,7 +83,6 @@ class Hand {
         
         const idx = [...elem.parentElement.children].indexOf(elem);
         let card = this.cards[idx];
-        console.log(idx);
         
         let raycastableObjects = [...this.manager.pawns.values()].map(x => x.mesh);
         raycastableObjects.push(this.manager.plane);
@@ -215,15 +217,6 @@ export default class Manager {
         
         // Finally make websocket connection
         this.buildWebSocket(callback);
-        
-        // Create webworker to manage animate() when page not focused
-        let animateWorker = new Worker('js/loop.js');
-        animateWorker.onmessage = (e) => {
-            if (document.hidden) {
-                this.animate();
-                this.tick();
-            }
-        };
     }
     chatFadeTimeout;
     addChatEntry(chatJSON) {
@@ -636,7 +629,10 @@ export default class Manager {
                 // We have initiated a connection
                 this.host = msg["host"];
                 this.id = msg.id;
+                
                 callback(this.host);
+                
+                // Start ticks
                 if (this.host) {
                     setInterval(() => this.tick(), Manager.networkTimestep);
                 } else {
@@ -644,6 +640,16 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => this.loadPawn(p));
                 }
+                // Create webworker to manage animate() when page not focused
+                let animateWorker = new Worker('js/loop.js');
+                animateWorker.onmessage = (e) => {
+                    if (document.hidden) {
+                        this.animate();
+                        this.tick();
+                    }
+                };
+                
+                // Add users
                 msg.users.sort((a, b) => b.id == this.id ? 1 : -1).forEach(u => {
                     this.addUser(u.id, u.color)
                 });
