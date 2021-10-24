@@ -56,8 +56,7 @@ export class Checkers extends Game {
             let board = new Pawn(this.manager, new THREE.Vector3(0,0.5,0), new THREE.Quaternion(), 'checkers/checkerboard.gltf',
                 new CANNON.Body({
                     mass: 0,
-                    //shape: new CANNON.Box(new CANNON.Vec3(8.0,1.0,8.0))
-                    shape: new CANNON.Box(new CANNON.Vec3(9.0,0.5,9.0))
+                    shape: new CANNON.Box(new CANNON.Vec3(8.0,0.5,8.0))
                 })
             );
             board.moveable = false;
