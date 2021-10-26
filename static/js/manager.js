@@ -253,6 +253,7 @@ export default class Manager {
         console.assert(this.host);
         
         console.log("Adding pawn with ID: " + pawn.id);
+        pawn.init();
         this.pawns.set(pawn.id, pawn);
         let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         this.socket.send(JSON.stringify({
@@ -270,12 +271,15 @@ export default class Manager {
         switch (pawnJSON.class) {
             case "Pawn":
                 pawn = Pawn.deserialize(this, pawnJSON);
+                pawn.init();
                 break;
             case "Deck":
                 pawn = Deck.deserialize(this, pawnJSON);
+                pawn.init();
                 break;
             case "Dice":
                 pawn = Dice.deserialize(this, pawnJSON);
+                pawn.init();
                 break;
             default:
                 console.error("Encountered unknown pawn type!");

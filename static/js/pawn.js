@@ -15,7 +15,7 @@ export class Pawn {
     id = null;
     
     moveable = true;
-    mesh;
+    mesh = new THREE.Object3D();
     meshUrl;
     meshOffset = new THREE.Vector3(0,0,0);
     physicsBody;
@@ -30,7 +30,7 @@ export class Pawn {
     
     static NEXT_ID = 0;
     
-    constructor(manager, position, rotation, mesh, physicsBody, id = null) {
+    constructor(manager, position, rotation, mesh, physicsBody, moveable = true, id = null) {
         if (id == null) {
             this.id = Pawn.NEXT_ID;
             Pawn.NEXT_ID += 1;
@@ -38,24 +38,23 @@ export class Pawn {
             this.id = id;
         }
         this.manager = manager;
+        this.moveable = moveable;
+        this.meshUrl = mesh;
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
         
         // Flush networkBuffer
         this.flushBuffer(position, rotation);
         
-        // Create and register physics body
+        // Create physics body
         this.physicsBody = physicsBody;
         this.physicsBody.position.copy(position);
         this.physicsBody.quaternion.copy(rotation);
-        // Disable physics for non-hosts
-        //if (!this.manager.host)
-        //    this.physicsBody.type = CANNON.Body.Static
-        this.manager.world.addBody(this.physicsBody);
+        if (!this.moveable)
+            this.physicsBody.type = CANNON.Body.STATIC;
 
         // Load mesh
-        if (typeof mesh === 'string') { // GLTF URL
-            this.meshUrl = mesh;
+        if (mesh != null) { // GLTF URL
             this.manager.loader.load(mesh, (gltf) => {
                 gltf.scene.traverse(function (child) {
                     /*if (child.material != undefined) {
@@ -66,26 +65,21 @@ export class Pawn {
                     child.receiveShadow = true;
                 });
 
-                this.mesh = gltf.scene;
+                this.mesh.add(gltf.scene);
                 this.updateMeshTransform();
-                this.manager.scene.add(gltf.scene);
             });
-        } else { // Three.JS mesh
-            this.meshUrl = "";
-            this.mesh = mesh;
+        } else { // Don't load GLTF
             this.updateMeshTransform();
-            this.manager.scene.add(this.mesh);
         }
     }
     initialized = false;
     init() {
         this.manager.scene.add(this.mesh);
         this.manager.world.addBody(this.physicsBody);
-        initialized = true;
+        this.initialized = true;
     }
     
     animate(dt) {
-        // TODO: Check for initialized
         // Follow dynamic physics body
         if (this.physicsBody.type == CANNON.Body.DYNAMIC) {
             this.position.copy(this.physicsBody.position);
@@ -278,11 +272,21 @@ export class Pawn {
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
-        let pawn = new Pawn(manager, pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.id);
+        let pawn =
+            new Pawn(manager, pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
         pawn.meshOffset.copy(pawnJSON.meshOffset);
-        pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
+        return pawn;
+    }
+    clone() {
+        // Serialize and Deserialize to clone
+        let serialized = this.serialize();
+        let serializedJSON = JSON.stringify(serialized);
+        let pawn = this.constructor.deserialize(this.manager, JSON.parse(serializedJSON));
+        // Increment ID
+        pawn.id = Pawn.NEXT_ID;
+        Pawn.NEXT_ID += 1;
         return pawn;
     }
     processData() { }
@@ -293,8 +297,8 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor(manager, position, rotation, mesh, physicsBody, rollRotations, id = null) {
-        super(manager, position, rotation, mesh, physicsBody, id);
+    constructor(manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null) {
+        super(manager, position, rotation, mesh, physicsBody, moveable, id);
         this.data.rollRotations = rollRotations;
     }
     
@@ -317,8 +321,8 @@ export class Dice extends Pawn {
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
-        let pawn = new Dice(manager, pawnJSON.position, rotation,
-            pawnJSON.mesh, physicsBody, pawnJSON.data.rollRotations, pawnJSON.id);
+        let pawn = new Dice(manager, pawnJSON.data.rollRotations, pawnJSON.position, rotation,
+            pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
         pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;

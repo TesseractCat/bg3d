@@ -14,7 +14,7 @@ pub struct Vec3 {
 pub struct Pawn {
     pub id: u64,
     pub class: String,
-    pub mesh: String,
+    pub mesh: Option<String>,
     pub mass: f64,
     pub moveable: bool,
     

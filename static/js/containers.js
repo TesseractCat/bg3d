@@ -21,14 +21,13 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor(manager, name, position, rotation, size, contents, back = null, id = null) {
-        const mesh = new THREE.Object3D();
-        mesh.scale.copy(new THREE.Vector3(size.x, Deck.cardThickness * contents.length, size.y));
+    constructor(manager, name, contents, back,
+        position, rotation, size, moveable = true, id = null) {
         
-        super(manager, position, rotation, mesh, new CANNON.Body({
+        super(manager, position, rotation, null, new CANNON.Body({
             mass: 5,
             shape: new CANNON.Box(new CANNON.Vec3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
-        }), id);
+        }), moveable, id);
         
         this.data.name = name;
         this.data.contents = contents;
@@ -39,7 +38,8 @@ export class Deck extends Pawn {
         box.castShadow = true;
         box.receiveShadow = true;
         this.box = box;
-        mesh.add(box);
+        this.box.scale.copy(new THREE.Vector3(size.x, Deck.cardThickness * contents.length, size.y));
+        this.mesh.add(box);
         
         if (this.data.back != null)
             this.loadTexture(this.data.back);
@@ -100,8 +100,8 @@ export class Deck extends Pawn {
     spawnCard() {
         //Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
-        let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
-            this.data.size, [this.data.contents[idx]], this.data.back);
+        let cardPawn = new Deck(this.manager, this.data.name, [this.data.contents[idx]], this.data.back,
+            new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation, this.data.size);
         cardPawn.moveable = true;
         cardPawn.selectRotation = Object.assign({}, this.selectRotation);
         
@@ -177,7 +177,7 @@ export class Deck extends Pawn {
     updateDeck() {
         // Resize
         let thickness = Deck.cardThickness * this.data.contents.length;
-        this.mesh.scale.setComponent(1, thickness);
+        this.box.scale.setComponent(1, thickness);
         this.physicsBody.shapes[0].halfExtents.set(
             this.physicsBody.shapes[0].halfExtents.x,
             (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
@@ -238,8 +238,8 @@ export class Deck extends Pawn {
     }
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Deck(manager, pawnJSON.data.name, pawnJSON.position, rotation, pawnJSON.data.size, pawnJSON.data.contents, pawnJSON.data.back, pawnJSON.id);
-        pawn.moveable = pawnJSON.moveable;
+        let pawn = new Deck(manager, pawnJSON.data.name, pawnJSON.data.contents, pawnJSON.data.back,
+            pawnJSON.position, rotation, pawnJSON.data.size, pawnJSON.moveable, pawnJSON.id);
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
         pawn.data = pawnJSON.data;
@@ -257,8 +257,8 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor(manager, position, rotation, mesh, physicsBody, holds, id = null) {
-        super(manager, position, rotation, mesh, physicsBody, id);
+    constructor(manager, holds, position, rotation, mesh, physicsBody, moveable = true, id = null) {
+        super(manager, position, rotation, mesh, physicsBody, moveable, id);
         this.data.holds = holds;
     }
     
@@ -314,6 +314,7 @@ export class Container extends Pawn {
         return out;
     }
     static deserialize(manager, pawnJSON) {
+        //FIXME: Gotta deserialize with our constructor
         let pawn = super.deserialize(manager, pawnJSON);
         pawn.data = pawnJSON.data;
         return pawn;
