@@ -13,7 +13,7 @@ import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 import { RoomEnvironment } from '../deps/environments/RoomEnvironment.js';
 
-import { Pawn, Deck, Dice } from './pawns';
+import { Pawn, Dice, Deck, Container  } from './pawns';
 
 CANNON.Shape.prototype.serialize = function() {
     var shape = {};
@@ -271,21 +271,20 @@ export default class Manager {
         switch (pawnJSON.class) {
             case "Pawn":
                 pawn = Pawn.deserialize(this, pawnJSON);
-                pawn.init();
-                break;
-            case "Deck":
-                pawn = Deck.deserialize(this, pawnJSON);
-                pawn.init();
                 break;
             case "Dice":
                 pawn = Dice.deserialize(this, pawnJSON);
-                pawn.init();
+                break;
+            case "Deck":
+                pawn = Deck.deserialize(this, pawnJSON);
+                break;
+            case "Container":
+                pawn = Container.deserialize(this, pawnJSON);
                 break;
             default:
                 console.error("Encountered unknown pawn type!");
                 return;
         }
-        this.pawns.set(pawnJSON.id, pawn);
         return pawn;
     }
     updatePawn(pawnJSON) {
@@ -642,7 +641,11 @@ export default class Manager {
                 } else {
                     setInterval(() => this.tick(), Manager.networkTimestep);
                     // If we aren't the host, let's deserialize the pawns received
-                    msg.pawns.forEach(p => this.loadPawn(p));
+                    msg.pawns.forEach(p => {
+                        let pawn = this.loadPawn(p);
+                        pawn.init();
+                        this.pawns.set(pawn.id, pawn);
+                    });
                 }
                 // Create webworker to manage animate() when page not focused
                 let animateWorker = new Worker('js/loop.js');
@@ -670,7 +673,9 @@ export default class Manager {
             }
             
             if (type == "add_pawn") {
-                this.loadPawn(msg.pawn);
+                let pawn = this.loadPawn(msg.pawn);
+                this.pawns.set(pawn.id, pawn);
+                pawn.init();
             } else if (type == "remove_pawns") {
                 msg.pawns.forEach(id => this.removePawn(id));
             } else if (type == "update_pawns") {

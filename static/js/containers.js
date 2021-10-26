@@ -268,8 +268,8 @@ export class Container extends Pawn {
         let out = super.handleEvent(data);
         switch (data.name) {
             case "grab_item":
-                let card = this.spawnCard();
-                out = card.id;
+                let item = this.spawnItem();
+                out = item.id;
                 break;
         }
         return out;
@@ -294,13 +294,19 @@ export class Container extends Pawn {
         this.updateDeck();
         
         return cardPawn;*/
+        
+        let item = this.manager.loadPawn(this.data.holds).clone();
+        item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
+        this.manager.addPawn(item);
+        
+        return item;
     }
     grab(button) {
         if (this.selected || this.networkSelected)
             return;
-        if (button == 0 || this.data.contents.length == 1) {
+        if (button == 0) {
             super.grab();
-        } else if (button == 2 && this.data.contents.length > 1) {
+        } else if (button == 2) {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
                 this.manager.pawns.get(item_id).grab(0);
             });
@@ -314,9 +320,16 @@ export class Container extends Pawn {
         return out;
     }
     static deserialize(manager, pawnJSON) {
-        //FIXME: Gotta deserialize with our constructor
-        let pawn = super.deserialize(manager, pawnJSON);
-        pawn.data = pawnJSON.data;
+        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
+        let physicsBody = new CANNON.Body({
+            mass: pawnJSON.mass,
+            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
+        });
+        let pawn = new Container(manager, pawnJSON.data.holds,
+            pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
+        pawn.meshOffset.copy(pawnJSON.meshOffset);
+        pawn.networkSelected = pawnJSON.selected;
+        pawn.selectRotation = pawnJSON.selectRotation;
         return pawn;
     }
 }

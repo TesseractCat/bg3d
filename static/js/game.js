@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 import Manager from './manager';
-import { Pawn, Deck, Dice } from './pawns';
+import { Pawn, Dice, Deck, Container  } from './pawns';
 
 export class Game {
     name = "";
@@ -58,21 +58,47 @@ export class Checkers extends Game {
                 }), false
             );
             this.manager.addPawn(board);
+            
+            let checkerRed = new Pawn(this.manager, new THREE.Vector3(), new THREE.Quaternion(),
+                'checkers/checker_red.gltf', new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+                })
+            );
+            let checkerBlack = new Pawn(this.manager, new THREE.Vector3(), new THREE.Quaternion(),
+                'checkers/checker_black.gltf', new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+                })
+            );
             for (let x = 0; x < 8; x++) {
                 for (let y = 0; y < 8; y++) {
                     if ((x + y) % 2 != 0 || y == 4 || y == 3)
                         continue;
-                    let checker = new Pawn(this.manager,
-                        new THREE.Vector3(-7 + x * 2,1.5,-7 + y * 2), new THREE.Quaternion(),
-                        y < 4 ? 'checkers/checker_red.gltf' : 'checkers/checker_black.gltf',
-                        new CANNON.Body({
-                            mass: 5,
-                            shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
-                        })
-                    );
+                    let checker = y < 4 ? checkerRed.clone() : checkerBlack.clone();
+                    checker.setPosition(new THREE.Vector3(-7 + x * 2,1.5,-7 + y * 2));
                     this.manager.addPawn(checker);
                 }
             }
+            
+            let checkerRedBag = new Container(this.manager, checkerRed.serialize(),
+                new THREE.Vector3(-11, 2.5, -3), new THREE.Quaternion(),
+                'generic/bag.gltf', new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                })
+            );
+            checkerRedBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
+            let checkerBlackBag = new Container(this.manager, checkerBlack.serialize(),
+                new THREE.Vector3(-11, 2.5, 3), new THREE.Quaternion(),
+                'generic/bag.gltf', new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                })
+            );
+            checkerBlackBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
+            this.manager.addPawn(checkerRedBag);
+            this.manager.addPawn(checkerBlackBag);
         });
     }
 }
