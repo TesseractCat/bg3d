@@ -26,20 +26,24 @@ export class Welcome extends Game {
     
     init(clear) {
         super.init(clear, () => {
-            let deck = new Deck(this.manager, "welcome", ["generic/welcome.png"], null,
-                new THREE.Vector3(0.9, 0, 0), new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
-                new THREE.Vector2(1.25 * 8, 1 * 8), false);
+            let deck = new Deck({
+                manager: this.manager, name: "welcome", contents: ["generic/welcome.png"],
+                position: new THREE.Vector3(0.9, 0, 0),// new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
+                size: new THREE.Vector2(1.25 * 8, 1 * 8),
+                moveable: false
+            });
             this.manager.addPawn(deck);
             
             let birdHeight = 4.1;
-            let bird = new Pawn(this.manager,
-                new THREE.Vector3(-1.9,2.8,-1.35), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
-                'generic/bird.gltf',
-                new CANNON.Body({
+            let bird = new Pawn({
+                manager: this.manager,
+                position: new THREE.Vector3(-1.9,2.8,-1.35),
+                rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
+                mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
                 })
-            );
+            });
             bird.meshOffset = new THREE.Vector3(0,-0.5 * birdHeight,0);
             this.manager.addPawn(bird);
         });
@@ -51,26 +55,34 @@ export class Checkers extends Game {
     
     init(clear) {
         super.init(clear, () => {
-            let board = new Pawn(this.manager, new THREE.Vector3(0,0.5,0), new THREE.Quaternion(), 'checkers/checkerboard.gltf',
-                new CANNON.Body({
+            let board = new Pawn({
+                manager: this.manager,
+                position: new THREE.Vector3(0,0.5,0),
+                mesh: 'checkers/checkerboard.gltf',
+                physicsBody: new CANNON.Body({
                     mass: 0,
                     shape: new CANNON.Box(new CANNON.Vec3(8.0,0.5,8.0))
-                }), false
-            );
+                }),
+                moveable: false
+            });
             this.manager.addPawn(board);
             
-            let checkerRed = new Pawn(this.manager, new THREE.Vector3(), new THREE.Quaternion(),
-                'checkers/checker_red.gltf', new CANNON.Body({
+            let checkerRed = new Pawn({
+                manager: this.manager,
+                mesh: 'checkers/checker_red.gltf',
+                physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
                 })
-            );
-            let checkerBlack = new Pawn(this.manager, new THREE.Vector3(), new THREE.Quaternion(),
-                'checkers/checker_black.gltf', new CANNON.Body({
+            });
+            let checkerBlack = new Pawn({
+                manager: this.manager,
+                mesh: 'checkers/checker_black.gltf',
+                physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
                 })
-            );
+            });
             for (let x = 0; x < 8; x++) {
                 for (let y = 0; y < 8; y++) {
                     if ((x + y) % 2 != 0 || y == 4 || y == 3)
@@ -81,21 +93,23 @@ export class Checkers extends Game {
                 }
             }
             
-            let checkerRedBag = new Container(this.manager, checkerRed.serialize(),
-                new THREE.Vector3(-11, 2.5, -3), new THREE.Quaternion(),
-                'generic/bag.gltf', new CANNON.Body({
+            let checkerRedBag = new Container({
+                manager: this.manager, holds: checkerRed.serialize(),
+                position: new THREE.Vector3(-11, 2.5, -3),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 })
-            );
+            });
             checkerRedBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
-            let checkerBlackBag = new Container(this.manager, checkerBlack.serialize(),
-                new THREE.Vector3(-11, 2.5, 3), new THREE.Quaternion(),
-                'generic/bag.gltf', new CANNON.Body({
+            let checkerBlackBag = new Container({
+                manager: this.manager, holds: checkerBlack.serialize(),
+                position: new THREE.Vector3(-11, 2.5, 3),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 })
-            );
+            });
             checkerBlackBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
             this.manager.addPawn(checkerRedBag);
             this.manager.addPawn(checkerBlackBag);
@@ -116,8 +130,11 @@ export class Cards extends Game {
                     cards.push("generic/cards/" + rank + suit + ".jpg");
                 }
             }
-            let deckTemplate = new Deck(this.manager, "standard_deck", cards, "generic/cards/Red_back.jpg",
-                new THREE.Vector3(0, 3, 0), new THREE.Quaternion(), new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0));
+            let deckTemplate = new Deck({
+                manager: this.manager,
+                name: "standard_deck", contents: cards, back: "generic/cards/Red_back.jpg",
+                position: new THREE.Vector3(0, 3, 0), size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
+            });
             for (var i = 0; i < 3; i++) {
                 let deck = deckTemplate.clone();
                 deck.data.name = i.toString();
@@ -133,12 +150,15 @@ export class Monopoly extends Game {
     
     init(clear) {
         super.init(clear, () => {
-            let board = new Pawn(this.manager, new THREE.Vector3(0,0.0,0), new THREE.Quaternion(), 'monopoly/board.gltf',
-                new CANNON.Body({
+            let board = new Pawn({
+                manager: this.manager,
+                mesh: 'monopoly/board.gltf',
+                physicsBody: new CANNON.Body({
                     mass: 0,
                     shape: new CANNON.Box(new CANNON.Vec3(10.0,0.2,10.0))
-                }), false
-            );
+                }),
+                moveable: false
+            });
             this.manager.addPawn(board);
             
             let playerPositions = [
@@ -149,47 +169,75 @@ export class Monopoly extends Game {
             ];
 
             for (let pos of playerPositions) {
-                let ones = new Deck(this.manager, "1", Array(5).fill("monopoly/1.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(0, 2, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let ones = new Deck({
+                    manager: this.manager, name: "1",
+                    contents: Array(5).fill("monopoly/1.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(0, 2, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(ones);
                 
-                let fives = new Deck(this.manager, "5", Array(5).fill("monopoly/5.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(0.5, 4, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let fives = new Deck({
+                    manager: this.manager, name: "5",
+                    contents: Array(5).fill("monopoly/5.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(0.5, 4, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(fives);
                 
-                let tens = new Deck(this.manager, "10", Array(5).fill("monopoly/10.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(1.0, 6, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let tens = new Deck({
+                    manager: this.manager, name: "10",
+                    contents: Array(5).fill("monopoly/10.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(1.0, 6, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(tens);
                 
-                let fifties = new Deck(this.manager, "50", Array(2).fill("monopoly/50.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(1.5, 8, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let fifties = new Deck({
+                    manager: this.manager, name: "50",
+                    contents: Array(2).fill("monopoly/50.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(1.5, 8, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(fifties);
                 
-                let hundreds = new Deck(this.manager, "100", Array(2).fill("monopoly/100.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(2.0, 10, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let hundreds = new Deck({
+                    manager: this.manager, name: "100",
+                    contents: Array(2).fill("monopoly/100.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(2.0, 10, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(hundreds);
                 
-                let fiveHundreds = new Deck(this.manager, "500", Array(2).fill("monopoly/500.jpg"), null,
-                    pos.clone().add(new THREE.Vector3(2.5, 12, 0)), new THREE.Quaternion(), new THREE.Vector2(5, 2.8));
+                let fiveHundreds = new Deck({
+                    manager: this.manager, name: "500",
+                    contents: Array(2).fill("monopoly/500.jpg"),
+                    position: pos.clone().add(new THREE.Vector3(2.5, 12, 0)), size: new THREE.Vector2(5, 2.8)
+                });
                 this.manager.addPawn(fiveHundreds);
             }
             
-            let chance = new Deck(this.manager, "chance", [...Array(16).keys()].map(i => "monopoly/chance/" + i + ".jpg"), null,
-                new THREE.Vector3(4.5, 3, 4.5), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4, 0)), new THREE.Vector2(5/1.5, 2.8/1.5));
+            let chance = new Deck({
+                manager: this.manager, name: "chance",
+                contents: [...Array(16).keys()].map(i => "monopoly/chance/" + i + ".jpg"),
+                position: new THREE.Vector3(4.5, 3, 4.5), rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4, 0)),
+                size: new THREE.Vector2(5/1.5, 2.8/1.5)
+            });
             this.manager.addPawn(chance);
-            let chest = new Deck(this.manager, "chest", [...Array(16).keys()].map(i => "monopoly/chest/" + i + ".jpg"), null,
-                new THREE.Vector3(-4.5, 3, -4.5), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4 + Math.PI, 0)), new THREE.Vector2(5/1.5, 2.8/1.5));
+            let chest = new Deck({
+                manager: this.manager, name: "chest",
+                contents: [...Array(16).keys()].map(i => "monopoly/chest/" + i + ".jpg"),
+                position: new THREE.Vector3(-4.5, 3, -4.5), rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4 + Math.PI, 0)),
+                size: new THREE.Vector2(5/1.5, 2.8/1.5)
+            });
             this.manager.addPawn(chest);
             
             for (let i = 0; i < 28; i++) {
-                let property = new Deck(this.manager, "properties", ["monopoly/properties/" + i + ".jpg"], null,
-                    new THREE.Vector3(((i%6) - 2.5) * 5, 1, 20 + Math.floor(i/6) * 5), new THREE.Quaternion(),
-                    new THREE.Vector2(1 * 3.5, 1.16*3.5));
+                let property = new Deck({
+                    manager: this.manager, name: "properties", contents: ["monopoly/properties/" + i + ".jpg"],
+                    position: new THREE.Vector3(((i%6) - 2.5) * 5, 1, 20 + Math.floor(i/6) * 5),
+                    size: new THREE.Vector2(1 * 3.5, 1.16*3.5)
+                });
                 this.manager.addPawn(property);
             }
             
-            let die = new Dice(this.manager,
-                [
+            let die = new Dice({
+                manager: this.manager, rollRotations: [
                     {x:0, y:0, z:0},
                     {x:Math.PI/2, y:0, z:0},
                     {x:Math.PI, y:0, z:0},
@@ -197,11 +245,11 @@ export class Monopoly extends Game {
                     {x:0, y:0, z:Math.PI/2},
                     {x:0, y:0, z:-Math.PI/2},
                 ],
-                new THREE.Vector3(0.0,1.0,0), new THREE.Quaternion(), 'generic/die.gltf', new CANNON.Body({
+                mesh: 'generic/die.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Box(new CANNON.Vec3(1/3,1/3,1/3))
                 })
-            );
+            });
             let leftDie = die.clone();
             leftDie.setPosition(new THREE.Vector3(-1.0, 1.0, 0.0));
             let rightDie = die.clone();

@@ -414,10 +414,10 @@ export default class Manager {
         // Raycast all objects for selectable/cursor
         if (!document.hidden) {
             let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
-            raycastableObjects.push(this.plane);
+            //raycastableObjects.push(this.plane);
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
+            this.pawns.forEach((p, k) => p.hovered = false);
             if (hovered.length > 0) {
-                this.pawns.forEach((p, k) => p.hovered = false);
                 let pawnHovered = false;
                 hovered[0].object.traverseAncestors((a) => {
                     for (const [key, value] of this.pawns) {
@@ -431,6 +431,8 @@ export default class Manager {
                 });
                 display.style.cursor = pawnHovered ? "pointer" : "auto";
                 this.cursorPosition.copy(hovered[0].point);
+            } else {
+                display.style.cursor = "auto";
             }
         }
         

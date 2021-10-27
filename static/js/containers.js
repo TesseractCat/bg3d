@@ -21,13 +21,18 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor(manager, name, contents, back,
-        position, rotation, size, moveable = true, id = null) {
+    constructor({manager, name, contents, back,
+        position, rotation, size, moveable = true, id = null}) {
         
-        super(manager, position, rotation, null, new CANNON.Body({
-            mass: 5,
-            shape: new CANNON.Box(new CANNON.Vec3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
-        }), moveable, id);
+        super({
+            manager: manager,
+            position: position, rotation: rotation,
+            physicsBody: new CANNON.Body({
+                mass: 5,
+                shape: new CANNON.Box(new CANNON.Vec3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
+            }),
+            moveable: moveable, id: id
+        });
         
         this.data.name = name;
         this.data.contents = contents;
@@ -100,9 +105,11 @@ export class Deck extends Pawn {
     spawnCard() {
         //Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
-        let cardPawn = new Deck(this.manager, this.data.name, [this.data.contents[idx]], this.data.back,
-            new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation, this.data.size);
-        cardPawn.moveable = true;
+        let cardPawn = new Deck({
+            manager: this.manager, name: this.data.name,  contents: [this.data.contents[idx]], back: this.data.back,
+            position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
+            size: this.data.size
+        });
         cardPawn.selectRotation = Object.assign({}, this.selectRotation);
         
         this.manager.addPawn(cardPawn);
@@ -238,8 +245,12 @@ export class Deck extends Pawn {
     }
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Deck(manager, pawnJSON.data.name, pawnJSON.data.contents, pawnJSON.data.back,
-            pawnJSON.position, rotation, pawnJSON.data.size, pawnJSON.moveable, pawnJSON.id);
+        let pawn = new Deck({
+            manager: manager,
+            name: pawnJSON.data.name, contents: pawnJSON.data.contents, back: pawnJSON.data.back,
+            position: pawnJSON.position, rotation: rotation, size: pawnJSON.data.size,
+            moveable: pawnJSON.moveable, id: pawnJSON.id
+        });
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
         pawn.data = pawnJSON.data;
@@ -257,8 +268,13 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor(manager, holds, position, rotation, mesh, physicsBody, moveable = true, id = null) {
-        super(manager, position, rotation, mesh, physicsBody, moveable, id);
+    constructor({manager, holds, position, rotation, mesh, physicsBody, moveable = true, id = null}) {
+        super({
+            manager: manager,
+            position:position, rotation:rotation,
+            mesh:mesh, physicsBody:physicsBody,
+            moveable:moveable, id:id
+        });
         this.data.holds = holds;
     }
     
@@ -325,8 +341,12 @@ export class Container extends Pawn {
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
-        let pawn = new Container(manager, pawnJSON.data.holds,
-            pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
+        let pawn = new Container({
+            manager: manager, holds: pawnJSON.data.holds,
+            position: pawnJSON.position, rotation: rotation,
+            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            moveable: pawnJSON.moveable, id: pawnJSON.id
+        });
         pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;

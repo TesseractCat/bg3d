@@ -16,8 +16,8 @@ mod user;
 use lobby::*;
 use user::*;
 
+//TODO: Replace this with Dashmap?
 type Lobbies = Arc<RwLock<HashMap<String, Lobby>>>;
-type Users = Arc<RwLock<HashMap<usize, User>>>;
 
 static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 

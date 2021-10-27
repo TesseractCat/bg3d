@@ -30,7 +30,7 @@ export class Pawn {
     
     static NEXT_ID = 0;
     
-    constructor(manager, position, rotation, mesh, physicsBody, moveable = true, id = null) {
+    constructor({manager, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), mesh = null, physicsBody, moveable = true, id = null}) {
         if (id == null) {
             this.id = Pawn.NEXT_ID;
             Pawn.NEXT_ID += 1;
@@ -272,8 +272,12 @@ export class Pawn {
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
-        let pawn =
-            new Pawn(manager, pawnJSON.position, rotation, pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
+        let pawn = new Pawn({
+            manager: manager,
+            position: pawnJSON.position, rotation: rotation,
+            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            moveable: pawnJSON.moveable, id: pawnJSON.id
+        });
         pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
@@ -297,8 +301,13 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor(manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null) {
-        super(manager, position, rotation, mesh, physicsBody, moveable, id);
+    constructor({manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null}) {
+        super({
+            manager: manager,
+            position:position, rotation:rotation,
+            mesh:mesh, physicsBody:physicsBody,
+            moveable:moveable, id:id
+        });
         this.data.rollRotations = rollRotations;
     }
     
@@ -321,8 +330,12 @@ export class Dice extends Pawn {
             mass: pawnJSON.mass,
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
-        let pawn = new Dice(manager, pawnJSON.data.rollRotations, pawnJSON.position, rotation,
-            pawnJSON.mesh, physicsBody, pawnJSON.moveable, pawnJSON.id);
+        let pawn = new Dice({
+            manager: manager, rollRotations: pawnJSON.data.rollRotations,
+            position: pawnJSON.position, rotation: rotation,
+            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            moveable: pawnJSON.moveable, id: pawnJSON.id
+        });
         pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
