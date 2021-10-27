@@ -9,19 +9,21 @@ export class Pawn {
     rotation = new THREE.Quaternion();
     hovered = false;
     selected = false;
+    data = {};
     
     selectRotation = {x:0, y:0, z:0};
     
-    id = null;
+    id;
+    name;
     
     moveable = true;
     mesh = new THREE.Object3D();
     meshUrl;
-    meshOffset = new THREE.Vector3(0,0,0);
+    meshOffset = new THREE.Vector3();
     physicsBody;
     
     dirty = new Set();
-    lastPosition = new THREE.Vector3(0,0,0);
+    lastPosition = new THREE.Vector3();
     lastRotation = new THREE.Quaternion();
     
     networkSelected = false;
@@ -30,7 +32,10 @@ export class Pawn {
     
     static NEXT_ID = 0;
     
-    constructor({manager, position = new THREE.Vector3(), rotation = new THREE.Quaternion(), mesh = null, physicsBody, moveable = true, id = null}) {
+    constructor({manager,
+        position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
+        mesh = null, meshOffset = new THREE.Vector3(), physicsBody, moveable = true, id = null, name = null}) {
+        
         if (id == null) {
             this.id = Pawn.NEXT_ID;
             Pawn.NEXT_ID += 1;
@@ -38,8 +43,10 @@ export class Pawn {
             this.id = id;
         }
         this.manager = manager;
+        this.name = name;
         this.moveable = moveable;
         this.meshUrl = mesh;
+        this.meshOffset.copy(meshOffset);
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
         
@@ -209,6 +216,7 @@ export class Pawn {
             this.physicsBody.velocity.set(0,0,0);
         
         this.updateMeshTransform();
+        return this;
     }
     setRotation(rotation, clearVelocity = true) {
         this.rotation.copy(rotation);
@@ -217,6 +225,7 @@ export class Pawn {
             this.physicsBody.angularVelocity.set(0,0,0);
         
         this.updateMeshTransform();
+        return this;
     }
     flushBuffer(position, rotation) {
         this.networkBuffer.push({
@@ -245,15 +254,17 @@ export class Pawn {
         }
     }
     
+    static className() { return "Pawn"; };
     serialize() {
         let out = this.serializeState();
-        out.class = "Pawn";
-        out.mesh = this.meshUrl;
-        out.mass = this.physicsBody.mass;
-        out.moveable = this.moveable;
-        out.shapes = this.physicsBody.shapes.map(x => x.serialize());
-        out.meshOffset = {x:this.meshOffset.x, y:this.meshOffset.y, z:this.meshOffset.z};
-        out.data = {};
+        Object.assign(out, {
+            class: this.constructor.className(),
+            name: this.name,
+            mesh: this.meshUrl, meshOffset: {x:this.meshOffset.x, y:this.meshOffset.y, z:this.meshOffset.z},
+            mass: this.physicsBody.mass, moveable: this.moveable,
+            shapes: this.physicsBody.shapes.map(x => x.serialize()),
+            data: this.data
+        });
         return out;
     }
     serializeState() {
@@ -273,7 +284,7 @@ export class Pawn {
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Pawn({
-            manager: manager,
+            manager: manager, name: pawnJSON.name,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, physicsBody: physicsBody,
             moveable: pawnJSON.moveable, id: pawnJSON.id
@@ -301,12 +312,12 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor({manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null}) {
+    constructor({manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null, name = null}) {
         super({
-            manager: manager,
-            position:position, rotation:rotation,
-            mesh:mesh, physicsBody:physicsBody,
-            moveable:moveable, id:id
+            manager: manager, name: name,
+            position: position, rotation: rotation,
+            mesh: mesh, physicsBody: physicsBody,
+            moveable: moveable, id: id
         });
         this.data.rollRotations = rollRotations;
     }
@@ -318,12 +329,7 @@ export class Dice extends Pawn {
         this.dirty.add("selectRotation");
     }
     
-    serialize() {
-        let out = super.serialize();
-        out.class = "Dice";
-        out.data = this.data;
-        return out;
-    }
+    static className() { return "Dice"; };
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let physicsBody = new CANNON.Body({
@@ -331,7 +337,8 @@ export class Dice extends Pawn {
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Dice({
-            manager: manager, rollRotations: pawnJSON.data.rollRotations,
+            manager: manager, name: pawnJSON.name,
+            rollRotations: pawnJSON.data.rollRotations,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, physicsBody: physicsBody,
             moveable: pawnJSON.moveable, id: pawnJSON.id

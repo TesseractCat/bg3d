@@ -146,6 +146,8 @@ export default class Manager {
         display.addEventListener("mousemove", (e) => {
             this.mouse.x = (event.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
+            tooltip.style.top = event.clientY + "px";
+            tooltip.style.left = event.clientX + "px";
         });
         
         let dragged = false;
@@ -414,25 +416,34 @@ export default class Manager {
         // Raycast all objects for selectable/cursor
         if (!document.hidden) {
             let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
-            //raycastableObjects.push(this.plane);
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
             this.pawns.forEach((p, k) => p.hovered = false);
             if (hovered.length > 0) {
                 let pawnHovered = false;
+                let pawn = null;
                 hovered[0].object.traverseAncestors((a) => {
                     for (const [key, value] of this.pawns) {
                         if (value.mesh == a) {
-                            if (value.moveable && !value.selected)
+                            if (value.moveable && !value.selected) {
                                 pawnHovered = true;
+                                pawn = value;
+                            }
                             value.hovered = true;
                             return;
                         }
                     }
                 });
                 display.style.cursor = pawnHovered ? "pointer" : "auto";
+                if (pawnHovered && pawn != null && pawn.constructor.className() == "Container") {
+                    tooltip.innerText = pawn.name;
+                    tooltip.style.display = "block";
+                } else {
+                    tooltip.style.display = "none";
+                }
                 this.cursorPosition.copy(hovered[0].point);
             } else {
                 display.style.cursor = "auto";
+                tooltip.style.display = "none";
             }
         }
         

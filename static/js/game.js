@@ -42,9 +42,9 @@ export class Welcome extends Game {
                 mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
-                })
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * birdHeight,0)
             });
-            bird.meshOffset = new THREE.Vector3(0,-0.5 * birdHeight,0);
             this.manager.addPawn(bird);
         });
     }
@@ -68,7 +68,7 @@ export class Checkers extends Game {
             this.manager.addPawn(board);
             
             let checkerRed = new Pawn({
-                manager: this.manager,
+                manager: this.manager, name: "Red Checker",
                 mesh: 'checkers/checker_red.gltf',
                 physicsBody: new CANNON.Body({
                     mass: 5,
@@ -76,7 +76,7 @@ export class Checkers extends Game {
                 })
             });
             let checkerBlack = new Pawn({
-                manager: this.manager,
+                manager: this.manager, name: "Black Checker",
                 mesh: 'checkers/checker_black.gltf',
                 physicsBody: new CANNON.Body({
                     mass: 5,
@@ -95,22 +95,24 @@ export class Checkers extends Game {
             
             let checkerRedBag = new Container({
                 manager: this.manager, holds: checkerRed.serialize(),
+                name: "Red Checkers",
                 position: new THREE.Vector3(-11, 2.5, -3),
                 mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
-                })
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
-            checkerRedBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
             let checkerBlackBag = new Container({
                 manager: this.manager, holds: checkerBlack.serialize(),
+                name: "Black Checkers",
                 position: new THREE.Vector3(-11, 2.5, 3),
                 mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
-                })
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
-            checkerBlackBag.meshOffset = new THREE.Vector3(0,-0.5 * 2.5,0);
             this.manager.addPawn(checkerRedBag);
             this.manager.addPawn(checkerBlackBag);
         });
@@ -133,14 +135,12 @@ export class Cards extends Game {
             let deckTemplate = new Deck({
                 manager: this.manager,
                 name: "standard_deck", contents: cards, back: "generic/cards/Red_back.jpg",
-                position: new THREE.Vector3(0, 3, 0), size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
+                size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
             });
-            for (var i = 0; i < 3; i++) {
-                let deck = deckTemplate.clone();
-                deck.data.name = i.toString();
-                deck.setPosition(new THREE.Vector3(i * 3.5 - (3 * 3.5)/2, 3, 0));
-                this.manager.addPawn(deck);
-            }
+            let deck = deckTemplate.clone();
+            deck.name = "Standard Deck";
+            deck.setPosition(new THREE.Vector3(0, 2, 0));
+            this.manager.addPawn(deck);
         });
     }
 }
@@ -168,49 +168,106 @@ export class Monopoly extends Game {
                 new THREE.Vector3(-15.5,0,0),
             ];
 
+            let ones = new Deck({
+                manager: this.manager, name: "1",
+                contents: Array(5).fill("monopoly/1.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
+            let fives = new Deck({
+                manager: this.manager, name: "5",
+                contents: Array(5).fill("monopoly/5.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
+            let tens = new Deck({
+                manager: this.manager, name: "10",
+                contents: Array(5).fill("monopoly/10.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
+            let fifties = new Deck({
+                manager: this.manager, name: "50",
+                contents: Array(2).fill("monopoly/50.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
+            let hundreds = new Deck({
+                manager: this.manager, name: "100",
+                contents: Array(2).fill("monopoly/100.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
+            let fiveHundreds = new Deck({
+                manager: this.manager, name: "500",
+                contents: Array(2).fill("monopoly/500.jpg"), size: new THREE.Vector2(5, 2.8)
+            });
             for (let pos of playerPositions) {
-                let ones = new Deck({
-                    manager: this.manager, name: "1",
-                    contents: Array(5).fill("monopoly/1.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(0, 2, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(ones);
-                
-                let fives = new Deck({
-                    manager: this.manager, name: "5",
-                    contents: Array(5).fill("monopoly/5.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(0.5, 4, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(fives);
-                
-                let tens = new Deck({
-                    manager: this.manager, name: "10",
-                    contents: Array(5).fill("monopoly/10.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(1.0, 6, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(tens);
-                
-                let fifties = new Deck({
-                    manager: this.manager, name: "50",
-                    contents: Array(2).fill("monopoly/50.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(1.5, 8, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(fifties);
-                
-                let hundreds = new Deck({
-                    manager: this.manager, name: "100",
-                    contents: Array(2).fill("monopoly/100.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(2.0, 10, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(hundreds);
-                
-                let fiveHundreds = new Deck({
-                    manager: this.manager, name: "500",
-                    contents: Array(2).fill("monopoly/500.jpg"),
-                    position: pos.clone().add(new THREE.Vector3(2.5, 12, 0)), size: new THREE.Vector2(5, 2.8)
-                });
-                this.manager.addPawn(fiveHundreds);
+                this.manager.addPawn(ones.clone().setPosition(pos.clone().add(new THREE.Vector3(0, 2, 0))));
+                this.manager.addPawn(fives.clone().setPosition(pos.clone().add(new THREE.Vector3(0.5, 4, 0))));
+                this.manager.addPawn(tens.clone().setPosition(pos.clone().add(new THREE.Vector3(1.0, 6, 0))));
+                this.manager.addPawn(fifties.clone().setPosition(pos.clone().add(new THREE.Vector3(1.5, 8, 0))));
+                this.manager.addPawn(hundreds.clone().setPosition(pos.clone().add(new THREE.Vector3(2.0, 10, 0))));
+                this.manager.addPawn(fiveHundreds.clone().setPosition(pos.clone().add(new THREE.Vector3(2.5, 12, 0))));
             }
+            
+            let bagX = -(9 + 6)/2;
+            let onesBag = new Container({
+                manager: this.manager, holds: ones.serialize(), name: "5 x 1s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            bagX += 3;
+            let fivesBag = new Container({
+                manager: this.manager, holds: fives.serialize(), name: "5 x 5s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            bagX += 3;
+            let tensBag = new Container({
+                manager: this.manager, holds: tens.serialize(), name: "5 x 10s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            bagX += 3;
+            let fiftiesBag = new Container({
+                manager: this.manager, holds: fifties.serialize(), name: "2 x 50s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            bagX += 3;
+            let hundredsBag = new Container({
+                manager: this.manager, holds: hundreds.serialize(), name: "2 x 100s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            bagX += 3;
+            let fiveHundredsBag = new Container({
+                manager: this.manager, holds: fiveHundreds.serialize(), name: "2 x 500s",
+                position: new THREE.Vector3(bagX, 5, -21.5),
+                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
+                }),
+                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
+            });
+            
+            this.manager.addPawn(onesBag);
+            this.manager.addPawn(fivesBag);
+            this.manager.addPawn(tensBag);
+            this.manager.addPawn(fiftiesBag);
+            this.manager.addPawn(hundredsBag);
+            this.manager.addPawn(fiveHundredsBag);
             
             let chance = new Deck({
                 manager: this.manager, name: "chance",

@@ -7,7 +7,6 @@ import arrayShuffle from 'array-shuffle';
 
 export class Deck extends Pawn {
     data = {
-        name: "",
         contents: [],
         back: "",
         size: new THREE.Vector2()
@@ -25,7 +24,7 @@ export class Deck extends Pawn {
         position, rotation, size, moveable = true, id = null}) {
         
         super({
-            manager: manager,
+            manager: manager, name: name,
             position: position, rotation: rotation,
             physicsBody: new CANNON.Body({
                 mass: 5,
@@ -34,7 +33,6 @@ export class Deck extends Pawn {
             moveable: moveable, id: id
         });
         
-        this.data.name = name;
         this.data.contents = contents;
         this.data.back = back;
         
@@ -106,7 +104,7 @@ export class Deck extends Pawn {
         //Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck({
-            manager: this.manager, name: this.data.name,  contents: [this.data.contents[idx]], back: this.data.back,
+            manager: this.manager, name: this.name,  contents: [this.data.contents[idx]], back: this.data.back,
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
             size: this.data.size
         });
@@ -144,10 +142,10 @@ export class Deck extends Pawn {
                 if (belowPawn != this)
                     break;
             }
-            if (belowPawn != this
-                && belowPawn.constructor.name == this.constructor.name
-                && belowPawn.data.name == this.data.name
-                && belowPawn.flipped() == this.flipped()) {
+            if (belowPawn != this // Not us :)
+                && belowPawn.constructor.name == this.constructor.name // Both are Decks
+                && belowPawn.name == this.name // ...of the same type
+                && belowPawn.flipped() == this.flipped()) { // ...and are flipped the same direction
                 
                 if (this.flipped()) {
                     belowPawn.data.contents = [...belowPawn.data.contents, ...this.data.contents];
@@ -237,17 +235,12 @@ export class Deck extends Pawn {
         return Math.abs(this.selectRotation.x - Math.PI) < 0.01;
     }
     
-    serialize() {
-        let out = super.serialize();
-        out.class = "Deck";
-        out.data = this.data;
-        return out;
-    }
+    static className() { return "Deck"; };
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Deck({
-            manager: manager,
-            name: pawnJSON.data.name, contents: pawnJSON.data.contents, back: pawnJSON.data.back,
+            manager: manager, name: pawnJSON.name,
+            contents: pawnJSON.data.contents, back: pawnJSON.data.back,
             position: pawnJSON.position, rotation: rotation, size: pawnJSON.data.size,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
@@ -268,11 +261,12 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor({manager, holds, position, rotation, mesh, physicsBody, moveable = true, id = null}) {
+    constructor({manager, holds, position, rotation, mesh, meshOffset = new THREE.Vector3(), physicsBody, moveable = true, id = null, name = null}) {
         super({
-            manager: manager,
+            manager: manager, name: name,
             position:position, rotation:rotation,
-            mesh:mesh, physicsBody:physicsBody,
+            mesh:mesh, meshOffset:meshOffset,
+            physicsBody:physicsBody,
             moveable:moveable, id:id
         });
         this.data.holds = holds;
@@ -329,12 +323,7 @@ export class Container extends Pawn {
         }
     }
     
-    serialize() {
-        let out = super.serialize();
-        out.class = "Container";
-        out.data = this.data;
-        return out;
-    }
+    static className() { return "Container"; };
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let physicsBody = new CANNON.Body({
@@ -342,7 +331,8 @@ export class Container extends Pawn {
             shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Container({
-            manager: manager, holds: pawnJSON.data.holds,
+            manager: manager, name: pawnJSON.name,
+            holds: pawnJSON.data.holds,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, physicsBody: physicsBody,
             moveable: pawnJSON.moveable, id: pawnJSON.id

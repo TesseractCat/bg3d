@@ -199,3 +199,14 @@ button, select {
 button {
     border:1px solid grey;
 }
+
+#tooltip {
+    display:none;
+    position:absolute;
+    pointer-events:none;
+    background-color:rgba(0,0,0,0.8);
+    color:white;
+    transform:translate(0, -100%);
+    padding:3px;
+    border-radius:2px;
+}
