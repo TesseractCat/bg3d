@@ -6,14 +6,11 @@ import Stats from '../deps/libs/stats.module';
 import { EffectComposer } from '../deps/postprocessing/EffectComposer';
 import { RenderPass } from '../deps/postprocessing/RenderPass';
 import { ShaderPass } from '../deps/postprocessing/ShaderPass';
-import { SAOPass } from '../deps/postprocessing/SAOPass';
-import { SSAOPass } from '../deps/postprocessing/SSAOPass';
-import { PixelShader } from '../deps/shaders/PixelShader';
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
-import { RoomEnvironment } from '../deps/environments/RoomEnvironment.js';
 
 import { Pawn, Dice, Deck, Container  } from './pawns';
+import { NetworkedTransform } from './transform';
 
 CANNON.Shape.prototype.serialize = function() {
     var shape = {};
@@ -102,6 +99,25 @@ class Hand {
     }
 }
 
+class Cursor {
+    mesh;
+    networkTransform;
+    
+    constructor(color) {
+        const cursorGeometry = new THREE.SphereGeometry(0.32, 12, 12);
+        const cursorMaterial = new THREE.MeshBasicMaterial( {color: color} );
+        const cursorObject = new THREE.Mesh(cursorGeometry, cursorMaterial);
+        
+        this.mesh = cursorObject;
+        this.networkTransform = new NetworkedTransform(new THREE.Vector3(), new THREE.Quaternion());
+    }
+    animate() {
+        this.networkTransform.animate();
+        this.mesh.position.copy(this.networkTransform.position);
+        this.mesh.quaternion.copy(this.networkTransform.rotation);
+    }
+}
+
 export default class Manager {
     scene;
     camera;
@@ -120,7 +136,7 @@ export default class Manager {
     mouse = new THREE.Vector2();
     
     cursorPosition = new THREE.Vector3();
-    lobbyCursorObjects = new Map();
+    lobbyCursors = new Map();
     
     host = false;
     id;
@@ -247,9 +263,9 @@ export default class Manager {
     }
     
     clear() {
-        this.socket.send(JSON.stringify({
+        this.sendSocket({
             type:"clear_pawns",
-        }));
+        });
     }
     addPawn(pawn) {
         console.assert(this.host);
@@ -258,10 +274,10 @@ export default class Manager {
         pawn.init();
         this.pawns.set(pawn.id, pawn);
         let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
-        this.socket.send(JSON.stringify({
+        this.sendSocket({
             type:"add_pawn",
             pawn:pawn.serialize()
-        }));
+        });
     }
     removePawn(id) {
         this.scene.remove(this.pawns.get(id).mesh);
@@ -295,7 +311,6 @@ export default class Manager {
             return;
         }
         let pawn = this.pawns.get(pawnJSON.id);
-        pawn.networkLastSynced = performance.now();
         if (pawnJSON.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !pawnJSON.selected) {
                 //We have released, instead of updating network position, let's update position
@@ -305,13 +320,9 @@ export default class Manager {
             pawn.networkSelected = pawnJSON.selected;
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
-            pawn.networkBuffer.push({
-                time:performance.now(),
-                position:new THREE.Vector3().copy(pawnJSON.position),
-                rotation:new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation))
-            });
-            if (pawn.networkBuffer.length > 2)
-                pawn.networkBuffer.shift();
+            pawn.networkTransform.tick(
+                new THREE.Vector3().copy(pawnJSON.position),
+                new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
         }
         if (pawnJSON.hasOwnProperty('selectRotation')) {
             pawn.selectRotation = pawnJSON.selectRotation;
@@ -339,25 +350,23 @@ export default class Manager {
         
         // Create cursor entry/object
         if (id != this.id) {
-            const cursorGeometry = new THREE.SphereGeometry(0.32, 10, 10);
-            const cursorMaterial = new THREE.MeshBasicMaterial( {color: new THREE.Color(color)} );
-            const cursorObject = new THREE.Mesh(cursorGeometry, cursorMaterial);
-            this.scene.add(cursorObject);
-            this.lobbyCursorObjects.set(id, cursorObject);
+            let cursor = new Cursor(new THREE.Color(color));
+            this.scene.add(cursor.mesh);
+            this.lobbyCursors.set(id, cursor);
         }
     }
     removeUser(id) {
         document.querySelector(".player.p" + id).remove();
-        this.scene.remove(this.lobbyCursorObjects.get(id));
-        this.lobbyCursorObjects.delete(id);
+        this.scene.remove(this.lobbyCursors.get(id).mesh);
+        this.lobbyCursors.delete(id);
         this.userColors.delete(id);
     }
     
     sendCursor() {
-        this.socket.send(JSON.stringify({
+        this.sendSocket({
             type:"send_cursor",
             position:{x:this.cursorPosition.x, y:this.cursorPosition.y, z:this.cursorPosition.z}
-        }));
+        });
     }
     tick() {
         // Send all dirty pawns (even the ones selected by a client)
@@ -385,7 +394,7 @@ export default class Manager {
             )});
             to_update.forEach(p => p.dirty.clear());
         }
-        this.sendCursor()
+        this.sendCursor();
     }
     animate() {
         // Render loop
@@ -415,6 +424,8 @@ export default class Manager {
         
         // Raycast all objects for selectable/cursor
         if (!document.hidden) {
+            // Raycast for selectable
+            // (don't raycast ground plane to stop card's being below the ground issues)
             let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
             this.pawns.forEach((p, k) => p.hovered = false);
@@ -440,19 +451,20 @@ export default class Manager {
                 } else {
                     tooltip.style.display = "none";
                 }
-                this.cursorPosition.copy(hovered[0].point);
             } else {
                 display.style.cursor = "auto";
                 tooltip.style.display = "none";
             }
+            
+            // Raycast for cursor plane
+            raycastableObjects.push(this.plane);
+            hovered = this.raycaster.intersectObjects(raycastableObjects, true);
+            if (hovered.length > 0)
+                this.cursorPosition.copy(hovered[0].point);
         }
         
         // Lerp all cursors
-        this.lobbyCursorObjects.forEach((c) => {
-            if (c.networkPosition) {
-                c.position.lerp(c.networkPosition, dt * 10);
-            }
-        });
+        this.lobbyCursors.forEach((c) => { c.animate(); });
     }
     resize() {
         // Update camera aspect ratio
@@ -466,6 +478,27 @@ export default class Manager {
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
+    benchmark = true;
+    benchmarkTime = 0;
+    benchmarkBytes = 0;
+    sendSocket(obj) {
+        let json = JSON.stringify(obj, function(k,v) {
+            if (typeof v === "number") {
+                //FIXME: Is this enough precision?
+                return parseFloat(v.toFixed(2));
+            }
+            return v;
+        });
+        if (this.benchmark) {
+            this.benchmarkBytes += new TextEncoder().encode(json).length;
+            if (performance.now() - this.benchmarkTime > 1000) {
+                console.log((this.benchmarkBytes/1000).toString() +  " KB/s");
+                this.benchmarkBytes = 0;
+                this.benchmarkTime = performance.now();
+            }
+        }
+        this.socket.send(json);
+    }
     pendingEvents = new Map();
     sendEvent(name, target, data, callback) {
         //target = true (target host only), false (target all)
@@ -488,7 +521,7 @@ export default class Manager {
         } else {
             if (callback !== undefined)
                 this.pendingEvents.set(uuid, callback);
-            this.socket.send(JSON.stringify(event));
+            this.sendSocket(event);
         }
     }
     handleEvent(eventJSON) {
@@ -505,17 +538,17 @@ export default class Manager {
                 response = pawn.id;
                 break;
             case "clear_pawns":
-                this.socket.send(JSON.stringify({
+                this.sendSocket({
                     type:"remove_pawns",
                     pawns:Array.from(this.pawns.values()).map(p => p.id)
-                }));
+                });
                 break;
             case "request_update_pawns":
                 eventJSON.data.pawns.forEach(p => this.updatePawn(p));
-                this.socket.send(JSON.stringify({
+                this.sendSocket({
                     type:"update_pawns",
                     pawns:eventJSON.data.pawns
-                }));
+                });
                 break;
             case "chat":
                 this.addChatEntry(eventJSON.data);
@@ -524,12 +557,12 @@ export default class Manager {
         
         // Callback 
         if (eventJSON.callback) {
-            this.socket.send(JSON.stringify({
+            this.sendSocket({
                 type:"event_callback",
                 receiver:eventJSON.sender,
                 data:response,
                 uuid:eventJSON.uuid,
-            }));
+            });
         }
     }
     eventCallback(callbackJSON) {
@@ -629,9 +662,9 @@ export default class Manager {
             new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + lobby);
         
         this.socket.addEventListener('open', (e) => {
-            this.socket.send(JSON.stringify({
+            this.sendSocket({
                 type: "join"
-            }));
+            });
             console.log('Connected!');
         });
         this.socket.addEventListener('close', (e) => {
@@ -709,8 +742,8 @@ export default class Manager {
                         return;
                     
                     let newPosition = new THREE.Vector3().copy(cursor.position).add(new THREE.Vector3(0, 0.25, 0));
-                    if (this.lobbyCursorObjects.has(cursor.id))
-                        this.lobbyCursorObjects.get(cursor.id).networkPosition = newPosition;
+                    if (this.lobbyCursors.has(cursor.id))
+                        this.lobbyCursors.get(cursor.id).networkTransform.tick(newPosition);
                 });
             }
         });

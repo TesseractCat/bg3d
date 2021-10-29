@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es'
 
 import Manager from './manager';
+import { NetworkedTransform } from './transform';
 
 // Local instance of moveable object with mesh
 export class Pawn {
@@ -27,8 +28,7 @@ export class Pawn {
     lastRotation = new THREE.Quaternion();
     
     networkSelected = false;
-    networkBuffer = [];
-    networkLastSynced = 0;
+    networkTransform;
     
     static NEXT_ID = 0;
     
@@ -50,8 +50,8 @@ export class Pawn {
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
         
-        // Flush networkBuffer
-        this.flushBuffer(position, rotation);
+        // Create new NetworkedTransform
+        this.networkTransform = new NetworkedTransform(position, rotation);
         
         // Create physics body
         this.physicsBody = physicsBody;
@@ -118,35 +118,12 @@ export class Pawn {
         }
         
         // Handle network interpolation
+        this.networkTransform.animate();
         if (!this.selected && (!this.manager.host || this.networkSelected)) {
-            let diff = this.networkBuffer[1].time - this.networkBuffer[0].time;
-            let progress = (performance.now()-this.networkLastSynced)/diff;
-            progress = Math.max(Math.min(progress, 1), 0);
-            
-            let newPosition = this.networkBuffer[0].position.clone();
-            newPosition.lerp(this.networkBuffer[1].position.clone(), progress);
-            
-            let newRotation = this.networkBuffer[0].rotation.clone();
-            newRotation.slerp(this.networkBuffer[1].rotation.clone(), progress);
-            
-            //FIXME: Do some sort of check for when to lerp, otherwise simulate physics locally (for smoothness)
-            if (this.networkSelected || true) {
-                // Lerp directly
-                this.setPosition(newPosition);//, this.networkSelected);
-                this.setRotation(newRotation);//, this.networkSelected);
-            } else {
-                /*
-                // 'Nudge' into place using physics forces
-                //this.setPosition(this.position.clone().lerp(this.networkPosition, dt * 5));
-                //this.setRotation(this.rotation.clone().slerp(this.networkRotation.clone(), dt * 5));
-                let force = new CANNON.Vec3().copy(this.networkPosition.clone().sub(this.position)).scale(100);
-                console.log(force);
-                this.physicsBody.applyForce(force);
-                let torque = new THREE.Quaternion().multiply(this.networkRotation, this.rotation.inverse());
-                torque = new THREE.Euler().setFromQuaternion(torque).toVector3();
-                this.physicsBody.applyTorque(
-                    new CANNON.Vec3().copy(torque).scale(100));*/
-            }
+            //this.setPosition(this.networkTransform.position);
+            this.setPosition(
+                this.position.clone().lerp(this.networkTransform.position, dt * 20));
+            this.setRotation(this.networkTransform.rotation);
         }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
@@ -191,7 +168,7 @@ export class Pawn {
     release() {
         this.selected = false;
         // Locally apply position as networked position
-        this.flushBuffer(this.position, this.rotation);
+        this.networkTransform.flushBuffer(this.position, this.rotation);
         // Mark as dirty (so as to share that we have released)
         this.dirty.add("position");
         this.dirty.add("rotation");
@@ -226,22 +203,6 @@ export class Pawn {
         
         this.updateMeshTransform();
         return this;
-    }
-    flushBuffer(position, rotation) {
-        this.networkBuffer.push({
-            time:performance.now(),
-            position:new THREE.Vector3().copy(position),
-            rotation:new THREE.Quaternion().copy(rotation)
-        });
-        if (this.networkBuffer.length > 2)
-            this.networkBuffer.shift();
-        this.networkBuffer.push({
-            time:performance.now() + 1,
-            position:new THREE.Vector3().copy(position),
-            rotation:new THREE.Quaternion().copy(rotation)
-        });
-        if (this.networkBuffer.length > 2)
-            this.networkBuffer.shift();
     }
     
     updateMeshTransform() {

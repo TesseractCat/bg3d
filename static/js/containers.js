@@ -222,7 +222,13 @@ export class Deck extends Pawn {
         console.assert(this.manager.host);
         if (this.data.contents.length > 1) {
             //Shuffle
-            this.data.contents = arrayShuffle(this.data.contents);
+            //this.data.contents = arrayShuffle(this.data.contents);
+            //https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#The_modern_algorithm
+            for (let i = this.data.contents.length - 1; i >= 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [this.data.contents[j], this.data.contents[i]]
+                    = [this.data.contents[i], this.data.contents[j]];
+            }
             this.updateDeck();
             this.dirty.add("data");
         }
