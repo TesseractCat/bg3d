@@ -120,9 +120,9 @@ export class Pawn {
         // Handle network interpolation
         this.networkTransform.animate();
         if (!this.selected && (!this.manager.host || this.networkSelected)) {
-            //this.setPosition(this.networkTransform.position);
-            this.setPosition(
-                this.position.clone().lerp(this.networkTransform.position, dt * 20));
+            this.setPosition(this.networkTransform.position);
+            //this.setPosition(
+            //    this.position.clone().lerp(this.networkTransform.position, dt * 40));
             this.setRotation(this.networkTransform.rotation);
         }
         

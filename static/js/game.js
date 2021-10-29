@@ -7,6 +7,7 @@ import { Pawn, Dice, Deck, Container  } from './pawns';
 export class Game {
     name = "";
     manager;
+    templates = new Map();
     
     constructor(manager) {
         this.manager = manager;
@@ -24,6 +25,24 @@ export class Game {
 export class Welcome extends Game {
     name = "Welcome";
     
+    constructor(manager) {
+        super(manager);
+        
+        let birdHeight = 4.1;
+        let bird = new Pawn({
+            manager: this.manager,
+            position: new THREE.Vector3(-1.9,2.8,-1.35),
+            rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
+            mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
+                mass: 5,
+                shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
+            }),
+            meshOffset: new THREE.Vector3(0,-0.5 * birdHeight,0)
+        });
+        
+        this.templates.set("Bird Statue", bird);
+    }
+    
     init(clear) {
         super.init(clear, () => {
             let deck = new Deck({
@@ -34,24 +53,36 @@ export class Welcome extends Game {
             });
             this.manager.addPawn(deck);
             
-            let birdHeight = 4.1;
-            let bird = new Pawn({
-                manager: this.manager,
-                position: new THREE.Vector3(-1.9,2.8,-1.35),
-                rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
-                mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
-                    mass: 5,
-                    shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
-                }),
-                meshOffset: new THREE.Vector3(0,-0.5 * birdHeight,0)
-            });
-            this.manager.addPawn(bird);
+            this.manager.addPawn(this.templates.get("Bird Statue").clone());
         });
     }
 }
 
 export class Checkers extends Game {
     name = "Checkers";
+    
+    constructor(manager) {
+        super(manager);
+        
+        let checkerRed = new Pawn({
+            manager: this.manager, name: "Red Checker",
+            mesh: 'checkers/checker_red.gltf',
+            physicsBody: new CANNON.Body({
+                mass: 5,
+                shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+            })
+        });
+        let checkerBlack = new Pawn({
+            manager: this.manager, name: "Black Checker",
+            mesh: 'checkers/checker_black.gltf',
+            physicsBody: new CANNON.Body({
+                mass: 5,
+                shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+            })
+        });
+        this.templates.set(checkerRed.name, checkerRed);
+        this.templates.set(checkerBlack.name, checkerBlack);
+    }
     
     init(clear) {
         super.init(clear, () => {
@@ -67,34 +98,19 @@ export class Checkers extends Game {
             });
             this.manager.addPawn(board);
             
-            let checkerRed = new Pawn({
-                manager: this.manager, name: "Red Checker",
-                mesh: 'checkers/checker_red.gltf',
-                physicsBody: new CANNON.Body({
-                    mass: 5,
-                    shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
-                })
-            });
-            let checkerBlack = new Pawn({
-                manager: this.manager, name: "Black Checker",
-                mesh: 'checkers/checker_black.gltf',
-                physicsBody: new CANNON.Body({
-                    mass: 5,
-                    shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
-                })
-            });
             for (let x = 0; x < 8; x++) {
                 for (let y = 0; y < 8; y++) {
                     if ((x + y) % 2 != 0 || y == 4 || y == 3)
                         continue;
-                    let checker = y < 4 ? checkerRed.clone() : checkerBlack.clone();
+                    let checker = y < 4 ?
+                        this.templates.get("Red Checker").clone() : this.templates.get("Black Checker").clone();
                     checker.setPosition(new THREE.Vector3(-7 + x * 2,1.5,-7 + y * 2));
                     this.manager.addPawn(checker);
                 }
             }
             
             let checkerRedBag = new Container({
-                manager: this.manager, holds: checkerRed.serialize(),
+                manager: this.manager, holds: this.templates.get("Red Checker").serialize(),
                 name: "Red Checkers",
                 position: new THREE.Vector3(-11, 2.5, -3),
                 mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
@@ -104,7 +120,7 @@ export class Checkers extends Game {
                 meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             let checkerBlackBag = new Container({
-                manager: this.manager, holds: checkerBlack.serialize(),
+                manager: this.manager, holds: this.templates.get("Black Checker").serialize(),
                 name: "Black Checkers",
                 position: new THREE.Vector3(-11, 2.5, 3),
                 mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
@@ -122,22 +138,28 @@ export class Checkers extends Game {
 export class Cards extends Game {
     name = "Cards";
     
+    constructor(manager) {
+        super(manager);
+        
+        let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
+        let suits = "C,S,D,H".split(",");
+        let cards = [];
+        for (let rank of ranks) {
+            for (let suit of suits) {
+                cards.push("generic/cards/" + rank + suit + ".jpg");
+            }
+        }
+        let deckTemplate = new Deck({
+            manager: this.manager, name: "Standard Deck",
+            contents: cards, back: "generic/cards/Red_back.jpg",
+            size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
+        });
+        this.templates.set(deckTemplate.name, deckTemplate);
+    }
+    
     init(clear) {
         super.init(clear, () => {
-            let ranks = "A,2,3,4,5,6,7,8,9,10,J,Q,K".split(",");
-            let suits = "C,S,D,H".split(",");
-            let cards = [];
-            for (let rank of ranks) {
-                for (let suit of suits) {
-                    cards.push("generic/cards/" + rank + suit + ".jpg");
-                }
-            }
-            let deckTemplate = new Deck({
-                manager: this.manager,
-                name: "standard_deck", contents: cards, back: "generic/cards/Red_back.jpg",
-                size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
-            });
-            let deck = deckTemplate.clone();
+            let deck = this.templates.get("Standard Deck").clone();
             deck.name = "Standard Deck";
             deck.setPosition(new THREE.Vector3(0, 2, 0));
             this.manager.addPawn(deck);

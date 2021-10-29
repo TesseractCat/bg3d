@@ -478,7 +478,7 @@ export default class Manager {
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    benchmark = true;
+    benchmark = false;
     benchmarkTime = 0;
     benchmarkBytes = 0;
     sendSocket(obj) {

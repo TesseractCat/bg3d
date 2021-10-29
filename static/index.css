@@ -75,6 +75,21 @@ canvas {
     max-height:200px;
     overflow-y:auto;
 }
+#piece-combo {
+    font-size:0px;
+}
+#piece-combo label {
+    font-size:1rem;
+    margin-right:5px;
+}
+#pieces {
+    width:100px;
+    border-radius:5px 0px 0px 5px;
+    margin-right:0px;
+}
+#add-piece {
+    border-radius:0px 5px 5px 0px;
+}
 
 #overlay-collapse {
     position:absolute;

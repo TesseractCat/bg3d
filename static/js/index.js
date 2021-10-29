@@ -50,11 +50,23 @@ window.onload = function() {
             new GAMES.Cards(manager),
             new GAMES.Monopoly(manager),
         ];
-        games.forEach(g => {
-            let option = document.createElement("option");
-            option.value = g.name;
-            option.innerText = g.name;
-            document.querySelector("#games").appendChild(option);
+        games.forEach((g, i) => {
+            let gameOption = document.createElement("option");
+            gameOption.value = g.name;
+            gameOption.innerText = g.name;
+            document.querySelector("#games").appendChild(gameOption);
+            
+            if (g.templates.size > 0) {
+                let pieceGroup = document.createElement("optgroup");
+                pieceGroup.label = g.name;
+                for (const piece of g.templates.keys()) {
+                    let pieceOption = document.createElement("option");
+                    pieceOption.value = i + "/" + piece;
+                    pieceOption.innerText = piece;
+                    pieceGroup.appendChild(pieceOption);
+                }
+                document.querySelector("#pieces").appendChild(pieceGroup);
+            }
         });
         document.querySelector("#games").addEventListener("change", (e) => {
             for (let g of games) {
@@ -63,6 +75,16 @@ window.onload = function() {
                     return;
                 }
             }
+        });
+        document.querySelector("#add-piece").addEventListener("click", (e) => {
+            let info = document.querySelector("#pieces").value.split("/");
+            let idx = info[0];
+            let templateName = info[1];
+            
+            let pawn = games[idx].templates.get(templateName).clone();
+            pawn.setPosition(new THREE.Vector3(0, 5, 0));
+            pawn.setRotation(new THREE.Quaternion());
+            manager.addPawn(pawn);
         });
         
         if (host) {
