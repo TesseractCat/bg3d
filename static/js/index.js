@@ -46,6 +46,7 @@ window.onload = function() {
         
         let games = [
             new GAMES.Welcome(manager),
+            new GAMES.Chess(manager),
             new GAMES.Checkers(manager),
             new GAMES.Cards(manager),
             new GAMES.Monopoly(manager),

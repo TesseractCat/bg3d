@@ -135,6 +135,149 @@ export class Checkers extends Game {
     }
 }
 
+export class Chess extends Game {
+    name = "Chess";
+    
+    constructor(manager) {
+        super(manager);
+    }
+    
+    init(clear) {
+        super.init(clear, () => {
+            let board = new Pawn({
+                manager: this.manager,
+                position: new THREE.Vector3(0,0.5,0),
+                mesh: 'checkers/checkerboard.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 0,
+                    shape: new CANNON.Box(new CANNON.Vec3(8.0,0.5,8.0))
+                }),
+                moveable: false
+            });
+            this.manager.addPawn(board);
+            
+            let queen = new Pawn({
+                manager: this.manager, name: "Queen",
+                mesh: 'chess/queen.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            let king = new Pawn({
+                manager: this.manager, name: "King",
+                mesh: 'chess/king.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            let rook = new Pawn({
+                manager: this.manager, name: "Rook",
+                mesh: 'chess/rook.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            let knight = new Pawn({
+                manager: this.manager, name: "Knight",
+                mesh: 'chess/knight.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            let bishop = new Pawn({
+                manager: this.manager, name: "Bishop",
+                mesh: 'chess/bishop.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            let pawn = new Pawn({
+                manager: this.manager, name: "Pawn",
+                mesh: 'chess/pawn.gltf',
+                physicsBody: new CANNON.Body({
+                    mass: 5,
+                    shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
+                }),
+                meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+            });
+            
+            // SPAWN
+            let rookPositions = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(7, 0, 0),
+            ];
+            rookPositions.forEach((p) => {
+                let temp = rook.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+            
+            let knightPositions = [
+                new THREE.Vector3(1, 0, 0),
+                new THREE.Vector3(6, 0, 0),
+            ];
+            knightPositions.forEach((p) => {
+                let temp = knight.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+            
+            let bishopPositions = [
+                new THREE.Vector3(2, 0, 0),
+                new THREE.Vector3(5, 0, 0),
+            ];
+            bishopPositions.forEach((p) => {
+                let temp = bishop.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+            
+            let queenPositions = [
+                new THREE.Vector3(3, 0, 0),
+            ];
+            queenPositions.forEach((p) => {
+                let temp = queen.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+            let kingPositions = [
+                new THREE.Vector3(4, 0, 0),
+            ];
+            kingPositions.forEach((p) => {
+                let temp = king.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+            
+            let pawnPositions = [
+                new THREE.Vector3(1, 0, 1),
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(2, 0, 1),
+                new THREE.Vector3(3, 0, 1),
+                new THREE.Vector3(4, 0, 1),
+                new THREE.Vector3(5, 0, 1),
+                new THREE.Vector3(6, 0, 1),
+                new THREE.Vector3(7, 0, 1),
+            ];
+            pawnPositions.forEach((p) => {
+                let temp = pawn.clone();
+                temp.setPosition(new THREE.Vector3(-7 + p.x * 2, 3, -7 + p.z * 2));
+                this.manager.addPawn(temp);
+            });
+        });
+    }
+}
+
 export class Cards extends Game {
     name = "Cards";
     

@@ -3,7 +3,6 @@ import * as CANNON from 'cannon-es'
 
 import Manager from './manager';
 import { Pawn } from './pawn';
-import arrayShuffle from 'array-shuffle';
 
 export class Deck extends Pawn {
     data = {

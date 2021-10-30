@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+//import RAPIER from '@dimforge/rapier3d-compat';
 import { nanoid } from 'nanoid';
 
 import Stats from '../deps/libs/stats.module';
 import { EffectComposer } from '../deps/postprocessing/EffectComposer';
 import { RenderPass } from '../deps/postprocessing/RenderPass';
 import { ShaderPass } from '../deps/postprocessing/ShaderPass';
+import { SSAOPass } from '../deps/postprocessing/SSAOPass';
+import { GammaCorrectionShader } from '../deps/shaders/GammaCorrectionShader';
 import { OrbitControls } from '../deps/controls/OrbitControls';
 import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 
@@ -150,11 +153,11 @@ export default class Manager {
         this.loader = new GLTFLoader().setPath('../games/');
     }
     
-    init(callback) {
+    async init(callback) {
         this.buildScene();
         this.buildRenderer();
         this.buildControls();
-        this.buildPhysics();
+        await this.buildPhysics();
         
         this.resize();
         
@@ -619,6 +622,14 @@ export default class Manager {
 
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
+        /*const ssaoPass = new SSAOPass(this.scene, this.camera, 20, 20);
+        ssaoPass.minDistance /= 30;
+        ssaoPass.maxDistance /= 30;
+        ssaoPass.kernelRadius = 16/30;
+        ssaoPass.output = 1;
+        this.composer.addPass(ssaoPass);
+        const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader)
+        this.composer.addPass(gammaCorrectionPass);*/
 
         this.stats = Stats();
         document.body.appendChild(this.stats.dom);
@@ -651,10 +662,12 @@ export default class Manager {
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
         this.controls.listenToKeyEvents(display);
     }
-    buildPhysics() {
+    async buildPhysics() {
         this.world = new CANNON.World({
             gravity: new CANNON.Vec3(0, -15.0, 0),
         });
+        //await RAPIER.init();
+        //this.rWorld = new RAPIER.World(new RAPIER.Vector3(0, -15, 0));
     }
     buildWebSocket(callback) {
         let lobby = window.location.pathname.substring(1);

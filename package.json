@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "description": "An open source THREE.js based multiplayer board game simulator",
   "dependencies": {
-    "array-shuffle": "^3.0.0",
+    "@dimforge/rapier3d-compat": "^0.7.6",
     "cannon-es": "^0.18.0",
     "esbuild": "^0.13.6",
+    "esbuild-plugin-wasm": "^1.0.0",
     "nanoid": "^3.1.30",
     "three": "^0.132.2",
     "troika-three-text": "^0.43.0"
