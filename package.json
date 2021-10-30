@@ -18,8 +18,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild static/js/index.js --bundle --minify --sourcemap --target=chrome58 --outfile=static/dist/bundle.js",
-    "watch": "esbuild static/js/index.js --watch --bundle --minify --sourcemap --target=chrome58 --outfile=static/dist/bundle.js"
+    "build": "esbuild static/js/index.js --bundle --minify --sourcemap --target=chrome58 --outfile=static/bundle.js",
+    "watch": "esbuild static/js/index.js --watch --bundle --minify --sourcemap --target=chrome58 --outfile=static/bundle.js"
   },
   "author": "tesseractcat",
   "license": "MIT"
