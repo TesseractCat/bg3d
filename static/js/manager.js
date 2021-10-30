@@ -319,6 +319,7 @@ export default class Manager {
                 //We have released, instead of updating network position, let's update position
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+                pawn.physicsBody.sleepState = CANNON.Body.AWAKE; // Wake up pawn if not awake
             }
             pawn.networkSelected = pawnJSON.selected;
         }
@@ -663,8 +664,12 @@ export default class Manager {
         this.controls.listenToKeyEvents(display);
     }
     async buildPhysics() {
+        let solver = new CANNON.GSSolver();
+        solver.iterations = 15;
         this.world = new CANNON.World({
             gravity: new CANNON.Vec3(0, -15.0, 0),
+            allowSleep: true,
+            solver: solver,
         });
         //await RAPIER.init();
         //this.rWorld = new RAPIER.World(new RAPIER.Vector3(0, -15, 0));

@@ -166,6 +166,7 @@ export class Pawn {
         document.querySelector("#hand-panel").classList.add("minimized");
     }
     release() {
+        this.physicsBody.sleepState = CANNON.Body.AWAKE;
         this.selected = false;
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
