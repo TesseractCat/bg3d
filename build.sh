@@ -1,3 +1,4 @@
+bash version.sh
 git pull
 sudo pkill BG3D
 npm run build
