@@ -15,7 +15,7 @@
     "nodes" : [
         {
             "mesh" : 0,
-            "name" : "queen",
+            "name" : "queen_black",
             "scale" : [
                 0.6499999761581421,
                 0.6499999761581421,
@@ -31,16 +31,16 @@
     "materials" : [
         {
             "doubleSided" : true,
-            "name" : "White",
+            "name" : "Black",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
-                    0.800000011920929,
-                    0.800000011920929,
-                    0.800000011920929,
+                    0.018848516047000885,
+                    0.01769496127963066,
+                    0.01345010008662939,
                     1
                 ],
                 "metallicFactor" : 0,
-                "roughnessFactor" : 0.2771301567554474
+                "roughnessFactor" : 0.38550451397895813
             }
         }
     ],

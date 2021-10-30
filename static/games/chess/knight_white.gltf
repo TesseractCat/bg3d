@@ -15,7 +15,7 @@
     "nodes" : [
         {
             "mesh" : 0,
-            "name" : "knight",
+            "name" : "knight_white",
             "scale" : [
                 0.6499999761581421,
                 0.6499999761581421,
@@ -29,13 +29,13 @@
             "name" : "White",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
-                    0.800000011920929,
-                    0.800000011920929,
-                    0.800000011920929,
+                    0.8000000715255737,
+                    0.7366549968719482,
+                    0.5128418803215027,
                     1
                 ],
                 "metallicFactor" : 0,
-                "roughnessFactor" : 0.2771301567554474
+                "roughnessFactor" : 0.38550451397895813
             }
         }
     ],
