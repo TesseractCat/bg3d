@@ -28,9 +28,9 @@ export class Welcome extends Game {
     constructor(manager) {
         super(manager);
         
-        let birdHeight = 4.1;
+        let birdHeight = 4.3;
         let bird = new Pawn({
-            manager: this.manager,
+            manager: this.manager, name: "Bird Statue",
             position: new THREE.Vector3(-1.9,2.8,-1.35),
             rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
             mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
@@ -40,7 +40,7 @@ export class Welcome extends Game {
             meshOffset: new THREE.Vector3(0,-0.5 * birdHeight,0)
         });
         
-        this.templates.set("Bird Statue", bird);
+        this.templates.set(bird.name, bird);
     }
     
     init(clear) {
@@ -69,7 +69,7 @@ export class Checkers extends Game {
             mesh: 'checkers/checker_red.gltf',
             physicsBody: new CANNON.Body({
                 mass: 5,
-                shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+                shape: new CANNON.Cylinder(0.8, 0.8, 0.35, 10)//new CANNON.Vec3(1.0,0.2,1.0))
             })
         });
         let checkerBlack = new Pawn({
@@ -77,7 +77,7 @@ export class Checkers extends Game {
             mesh: 'checkers/checker_black.gltf',
             physicsBody: new CANNON.Body({
                 mass: 5,
-                shape: new CANNON.Cylinder(1.1, 1.1, 0.48, 6)//new CANNON.Vec3(1.0,0.2,1.0))
+                shape: new CANNON.Cylinder(0.8, 0.8, 0.35, 10)//new CANNON.Vec3(1.0,0.2,1.0))
             })
         });
         this.templates.set(checkerRed.name, checkerRed);
@@ -156,12 +156,12 @@ export class Chess extends Game {
             });
             this.manager.addPawn(board);
             
-            let queen = this.getPiece('queen');
-            let king = this.getPiece('king');
-            let rook = this.getPiece('rook');
-            let knight = this.getPiece('knight');
-            let bishop = this.getPiece('bishop');
-            let pawn = this.getPiece('pawn');
+            let queen = this.getPiece('queen', 0.7, 2.81);
+            let king = this.getPiece('king', 0.7, 3.18);
+            let rook = this.getPiece('rook', 0.625, 1.9);
+            let knight = this.getPiece('knight', 0.625, 2.09);
+            let bishop = this.getPiece('bishop', 0.625, 2.67);
+            let pawn = this.getPiece('pawn', 0.625, 1.78);
             
             // SPAWN
             let rookPositions = [
@@ -202,24 +202,22 @@ export class Chess extends Game {
         });
     }
     
-    getPiece(name) {
+    getPiece(name, radius, height) {
         let white = new Pawn({
             manager: this.manager, name: name,
             mesh: 'chess/' + name + '_white.gltf',
             physicsBody: new CANNON.Body({
                 mass: 5,
-                shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
-            }),
-            meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+                shape: new CANNON.Cylinder(radius, radius, height, 6)
+            })
         });
         let black = new Pawn({
             manager: this.manager, name: name,
             mesh: 'chess/' + name + '_black.gltf',
             physicsBody: new CANNON.Body({
                 mass: 5,
-                shape: new CANNON.Cylinder(0.625, 0.625, 1.9, 6)
-            }),
-            meshOffset: new THREE.Vector3(0, -1.9/2, 0)
+                shape: new CANNON.Cylinder(radius, radius, height, 6)
+            })
         });
         return [white, black];
     }
@@ -277,10 +275,11 @@ export class Monopoly extends Game {
         super.init(clear, () => {
             let board = new Pawn({
                 manager: this.manager,
+                position: new THREE.Vector3(0, 0.1, 0),
                 mesh: 'monopoly/board.gltf',
                 physicsBody: new CANNON.Body({
                     mass: 0,
-                    shape: new CANNON.Box(new CANNON.Vec3(10.0,0.2,10.0))
+                    shape: new CANNON.Box(new CANNON.Vec3(10.0,0.1,10.0))
                 }),
                 moveable: false
             });

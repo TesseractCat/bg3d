@@ -12,7 +12,7 @@ export class Pawn {
     selected = false;
     data = {};
     
-    selectRotation = {x:0, y:0, z:0};
+    selectRotation = new THREE.Vector3();
     
     id;
     name;
@@ -72,6 +72,9 @@ export class Pawn {
                     child.receiveShadow = true;
                 });
 
+                let boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+                this.meshOffset = new THREE.Vector3(0, -0.5 * (boundingBox.max.y - boundingBox.min.y), 0);
+                this.dirty.add("meshOffset");
                 this.mesh.add(gltf.scene);
                 this.updateMeshTransform();
             });
@@ -222,7 +225,7 @@ export class Pawn {
         Object.assign(out, {
             class: this.constructor.className(),
             name: this.name,
-            mesh: this.meshUrl, meshOffset: {x:this.meshOffset.x, y:this.meshOffset.y, z:this.meshOffset.z},
+            mesh: this.meshUrl, meshOffset: this.meshOffset,
             mass: this.physicsBody.mass, moveable: this.moveable,
             shapes: this.physicsBody.shapes.map(x => x.serialize()),
             data: this.data
@@ -230,12 +233,12 @@ export class Pawn {
         return out;
     }
     serializeState() {
-        let rotation = new THREE.Euler().setFromQuaternion(this.rotation);
+        let rotation = new THREE.Euler().setFromQuaternion(this.rotation).toVector3();
         return {
             id:this.id,
             selected:this.selected,
-            position:{x:this.position.x, y:this.position.y, z:this.position.z},
-            rotation:{x:rotation.x, y:rotation.y, z:rotation.z},
+            position:this.position,
+            rotation:rotation,
             selectRotation:this.selectRotation,
         };
     }

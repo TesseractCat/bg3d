@@ -378,15 +378,12 @@ export default class Manager {
         if (to_update.length > 0) {
             this.sendEvent("request_update_pawns", true,
                 {pawns: to_update.map(p => {
-                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation)
+                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation).toVector3();
                     let update = {id: p.id};
                     for (let dirtyParam of p.dirty) {
                         switch (dirtyParam) {
-                            case "position":
-                                update[dirtyParam] = {x:p.position.x,y:p.position.y,z:p.position.z};
-                                break;
                             case "rotation":
-                                update[dirtyParam] = {x:rotation.x,y:rotation.y,z:rotation.z};
+                                update[dirtyParam] = rotation;
                                 break;
                             default:
                                 update[dirtyParam] = p[dirtyParam];
@@ -627,7 +624,7 @@ export default class Manager {
         ssaoPass.minDistance /= 30;
         ssaoPass.maxDistance /= 30;
         ssaoPass.kernelRadius = 16/30;
-        ssaoPass.output = 1;
+        ssaoPass.output = 0;
         this.composer.addPass(ssaoPass);
         const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader)
         this.composer.addPass(gammaCorrectionPass);*/
