@@ -253,7 +253,8 @@ export class Cards extends Game {
         }
         let deckTemplate = new Deck({
             manager: this.manager, name: "Standard Deck",
-            contents: cards, back: "generic/cards/Red_back.jpg", cornerRadius: 0.08,
+            contents: cards, back: "generic/cards/Red_back.jpg",
+            cornerRadius: 0.08, sideColor: 0xffffff,
             size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
         });
         this.templates.set(deckTemplate.name, deckTemplate);

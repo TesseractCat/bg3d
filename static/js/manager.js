@@ -69,7 +69,8 @@ class Hand {
         console.assert(cardProps.data.contents.length == 1);
         
         let imageElement = document.createElement("img");
-        imageElement.src = "games/" + cardProps.data.contents[0];
+        imageElement.src = `games/${cardProps.data.contents[0]}`;
+        imageElement.style.borderRadius = `${cardProps.data.cornerRadius}in`;
         imageElement.addEventListener("click",
             () => this.takeCard(imageElement));
         imageElement.oncontextmenu = function() {
