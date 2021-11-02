@@ -33,7 +33,7 @@ export class Welcome extends Game {
             manager: this.manager, name: "Bird Statue",
             position: new THREE.Vector3(-1.9,2.8,-1.35),
             rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
-            mesh: 'generic/bird.gltf', physicsBody: new CANNON.Body({
+            mesh: 'generic/bird.gltf?v=2', physicsBody: new CANNON.Body({
                 mass: 5,
                 shape: new CANNON.Cylinder(1.5, 1.5, birdHeight, 8)
             }),
@@ -47,6 +47,7 @@ export class Welcome extends Game {
         super.init(clear, () => {
             let deck = new Deck({
                 manager: this.manager, name: "welcome", contents: ["generic/welcome.png"],
+                sideColor: 0x000000,
                 position: new THREE.Vector3(0.9, 0, 0),// new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
                 size: new THREE.Vector2(1.25 * 8, 1 * 8),
                 moveable: false
@@ -66,7 +67,7 @@ export class Checkers extends Game {
         
         let checkerRed = new Pawn({
             manager: this.manager, name: "Red Checker",
-            mesh: 'checkers/checker_red.gltf',
+            mesh: 'checkers/checker_red.gltf?v=2',
             physicsBody: new CANNON.Body({
                 mass: 5,
                 shape: new CANNON.Cylinder(0.8, 0.8, 0.35, 10)//new CANNON.Vec3(1.0,0.2,1.0))
@@ -74,7 +75,7 @@ export class Checkers extends Game {
         });
         let checkerBlack = new Pawn({
             manager: this.manager, name: "Black Checker",
-            mesh: 'checkers/checker_black.gltf',
+            mesh: 'checkers/checker_black.gltf?v=2',
             physicsBody: new CANNON.Body({
                 mass: 5,
                 shape: new CANNON.Cylinder(0.8, 0.8, 0.35, 10)//new CANNON.Vec3(1.0,0.2,1.0))
@@ -113,7 +114,7 @@ export class Checkers extends Game {
                 manager: this.manager, holds: this.templates.get("Red Checker").serialize(),
                 name: "Red Checkers",
                 position: new THREE.Vector3(-11, 2.5, -3),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -123,7 +124,7 @@ export class Checkers extends Game {
                 manager: this.manager, holds: this.templates.get("Black Checker").serialize(),
                 name: "Black Checkers",
                 position: new THREE.Vector3(-11, 2.5, 3),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -252,7 +253,7 @@ export class Cards extends Game {
         }
         let deckTemplate = new Deck({
             manager: this.manager, name: "Standard Deck",
-            contents: cards, back: "generic/cards/Red_back.jpg",
+            contents: cards, back: "generic/cards/Red_back.jpg", cornerRadius: 0.08,
             size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
         });
         this.templates.set(deckTemplate.name, deckTemplate);
@@ -329,7 +330,7 @@ export class Monopoly extends Game {
             let onesBag = new Container({
                 manager: this.manager, holds: ones.serialize(), name: "5 x 1s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -339,7 +340,7 @@ export class Monopoly extends Game {
             let fivesBag = new Container({
                 manager: this.manager, holds: fives.serialize(), name: "5 x 5s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -349,7 +350,7 @@ export class Monopoly extends Game {
             let tensBag = new Container({
                 manager: this.manager, holds: tens.serialize(), name: "5 x 10s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -359,7 +360,7 @@ export class Monopoly extends Game {
             let fiftiesBag = new Container({
                 manager: this.manager, holds: fifties.serialize(), name: "2 x 50s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -369,7 +370,7 @@ export class Monopoly extends Game {
             let hundredsBag = new Container({
                 manager: this.manager, holds: hundreds.serialize(), name: "2 x 100s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),
@@ -379,7 +380,7 @@ export class Monopoly extends Game {
             let fiveHundredsBag = new Container({
                 manager: this.manager, holds: fiveHundreds.serialize(), name: "2 x 500s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
-                mesh: 'generic/bag.gltf', physicsBody: new CANNON.Body({
+                mesh: 'generic/bag.gltf?v=2', physicsBody: new CANNON.Body({
                     mass: 5,
                     shape: new CANNON.Cylinder(1.5, 1.5, 2.5, 8)
                 }),

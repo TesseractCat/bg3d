@@ -581,7 +581,7 @@ export default class Manager {
         directionalLight.castShadow = true;
         directionalLight.position.y = 25;
         directionalLight.position.x = 10;//0
-        directionalLight.shadow.normalBias = 0.05;
+        directionalLight.shadow.normalBias = 0.1;//0.05;
         directionalLight.shadow.camera.left = -50;
         directionalLight.shadow.camera.right = 50;
         directionalLight.shadow.camera.bottom = -50;

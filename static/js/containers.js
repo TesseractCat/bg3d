@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es'
 
+import { ExtrudeGeometry } from '../deps/ExtrudeGeometryFB';
+import * as BufferGeometryUtils from '../deps/utils/BufferGeometryUtils';
+
 import Manager from './manager';
 import { Pawn } from './pawn';
 
@@ -9,6 +12,7 @@ export class Deck extends Pawn {
         contents: [],
         back: "",
         sideColor: 0,
+        cornerRadius: 0,
         size: new THREE.Vector2()
     }
     
@@ -21,7 +25,7 @@ export class Deck extends Pawn {
     backMaterial;
     
     constructor({manager, name, contents, back, sideColor = 0xcccccc,
-        position, rotation, size, moveable = true, id = null}) {
+        position, rotation, size, cornerRadius = 0.02, moveable = true, id = null}) {
         
         super({
             manager: manager, name: name,
@@ -36,21 +40,54 @@ export class Deck extends Pawn {
         this.data.contents = contents;
         this.data.back = back;
         this.data.sideColor = sideColor;
+        this.data.cornerRadius = cornerRadius;
+        this.data.size.copy(size);
         
-        const geometry = new THREE.BoxGeometry(1,1,1);
+        const roundedSquare = this.#roundedSquare(cornerRadius);
+        const extrudeSettings = {
+            curveSegments:6,
+            steps:1,
+            depth:1,
+            bevelEnabled: false,
+        };
+        
+        let geometry = new ExtrudeGeometry(roundedSquare, extrudeSettings);//new THREE.BoxGeometry(1,1,1);
+        geometry.deleteAttribute('normal');
+        geometry = BufferGeometryUtils.mergeVertices(geometry);
+        geometry.computeVertexNormals();
+        
         const box = new THREE.Mesh(geometry);
         box.castShadow = true;
         box.receiveShadow = true;
+        box.scale.set(1, -1, 1);
+        box.position.set(-0.5, 0.5, 0.5);
+        box.quaternion.setFromEuler(new THREE.Euler(Math.PI/2, 0, 0));
+        
         this.box = box;
-        this.box.scale.copy(new THREE.Vector3(size.x, Deck.cardThickness * contents.length, size.y));
+        this.mesh.scale.copy(new THREE.Vector3(size.x, Deck.cardThickness * contents.length, size.y));
         this.mesh.add(box);
         
         if (this.data.back != null)
             this.loadTexture(this.data.back);
         
         this.updateDeck();
-        
-        this.data.size.copy(size);
+    }
+    #roundedSquare(radius) {
+        let shape = new THREE.Shape();
+        let width = 1;
+        let height = 1;
+        let x = 0;
+        let y = 0;
+        shape.moveTo(x, y + radius);
+        shape.lineTo(x, y + height - radius);
+        shape.quadraticCurveTo(x, y + height, x + radius, y + height);
+        shape.lineTo(x + width - radius, y + height);
+        shape.quadraticCurveTo(x + width, y + height, x + width, y + height - radius);
+        shape.lineTo(x + width, y + radius);
+        shape.quadraticCurveTo(x + width, y, x + width - radius, y);
+        shape.lineTo(x + radius, y);
+        shape.quadraticCurveTo(x, y, x, y + radius);
+        return shape;
     }
     
     animate(dt) {
@@ -106,7 +143,8 @@ export class Deck extends Pawn {
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck({
             manager: this.manager, name: this.name,
-            contents: [this.data.contents[idx]], back: this.data.back, sideColor: this.data.sideColor,
+            contents: [this.data.contents[idx]], back: this.data.back,
+            sideColor: this.data.sideColor, cornerRadius: this.data.cornerRadius,
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
             size: this.data.size
         });
@@ -184,7 +222,7 @@ export class Deck extends Pawn {
     updateDeck() {
         // Resize
         let thickness = Deck.cardThickness * this.data.contents.length;
-        this.box.scale.setComponent(1, thickness);
+        this.mesh.scale.setComponent(1, thickness);
         this.physicsBody.shapes[0].halfExtents.set(
             this.physicsBody.shapes[0].halfExtents.x,
             (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
@@ -208,15 +246,18 @@ export class Deck extends Pawn {
         //faceTexture.minFilter = THREE.LinearFilter;
         
         // Apply new materials
-        const sideMaterial = new THREE.MeshStandardMaterial( {color: this.data.sideColor} );
-        this.faceMaterial = new THREE.MeshStandardMaterial( {color: 0xffffff,
+        const sideMaterial = new THREE.MeshStandardMaterial({color: this.data.sideColor});
+        this.faceMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: faceTexture
         });
-        this.backMaterial = new THREE.MeshStandardMaterial( {color: 0xffffff,
+        this.backMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: backTexture
         });
-        this.box.material = [
+        /*this.box.material = [
             sideMaterial, sideMaterial, this.faceMaterial, this.backMaterial, sideMaterial, sideMaterial
+        ];*/
+        this.box.material = [
+            this.faceMaterial, sideMaterial, this.backMaterial
         ];
     }
     
@@ -252,7 +293,10 @@ export class Deck extends Pawn {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Deck({
             manager: manager, name: pawnJSON.name,
+            
             contents: pawnJSON.data.contents, back: pawnJSON.data.back,
+            sideColor: pawnJSON.data.sideColor, cornerRadius: pawnJSON.data.cornerRadius,
+            
             position: pawnJSON.position, rotation: rotation, size: pawnJSON.data.size,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
