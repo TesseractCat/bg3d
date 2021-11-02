@@ -8,6 +8,7 @@ export class Deck extends Pawn {
     data = {
         contents: [],
         back: "",
+        sideColor: 0,
         size: new THREE.Vector2()
     }
     
@@ -19,7 +20,7 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor({manager, name, contents, back,
+    constructor({manager, name, contents, back, sideColor = 0xcccccc,
         position, rotation, size, moveable = true, id = null}) {
         
         super({
@@ -34,6 +35,7 @@ export class Deck extends Pawn {
         
         this.data.contents = contents;
         this.data.back = back;
+        this.data.sideColor = sideColor;
         
         const geometry = new THREE.BoxGeometry(1,1,1);
         const box = new THREE.Mesh(geometry);
@@ -103,7 +105,8 @@ export class Deck extends Pawn {
         //Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck({
-            manager: this.manager, name: this.name,  contents: [this.data.contents[idx]], back: this.data.back,
+            manager: this.manager, name: this.name,
+            contents: [this.data.contents[idx]], back: this.data.back, sideColor: this.data.sideColor,
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
             size: this.data.size
         });
@@ -205,7 +208,7 @@ export class Deck extends Pawn {
         //faceTexture.minFilter = THREE.LinearFilter;
         
         // Apply new materials
-        const sideMaterial = new THREE.MeshStandardMaterial( {color: 0xcccccc} );
+        const sideMaterial = new THREE.MeshStandardMaterial( {color: this.data.sideColor} );
         this.faceMaterial = new THREE.MeshStandardMaterial( {color: 0xffffff,
             map: faceTexture
         });
@@ -233,6 +236,10 @@ export class Deck extends Pawn {
         }
     }
     
+    flip() {
+        if (this.data.back != null)
+            super.flip();
+    }
     shake() {
         this.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
     }

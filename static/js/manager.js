@@ -580,7 +580,7 @@ export default class Manager {
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.castShadow = true;
         directionalLight.position.y = 25;
-        directionalLight.position.x = 10;
+        directionalLight.position.x = 10;//0
         directionalLight.shadow.normalBias = 0.05;
         directionalLight.shadow.camera.left = -50;
         directionalLight.shadow.camera.right = 50;
@@ -589,6 +589,11 @@ export default class Manager {
         directionalLight.shadow.mapSize.width = 2048;//1024;
         directionalLight.shadow.mapSize.height = 2048;//1024;
         this.scene.add(directionalLight);
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.1);
+        directionalLight2.position.y = 10;
+        directionalLight2.position.z = -15;
+        directionalLight2.position.x = -20;
+        this.scene.add(directionalLight2);
 
         const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
         this.scene.add(ambientLight);

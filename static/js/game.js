@@ -205,7 +205,7 @@ export class Chess extends Game {
     getPiece(name, radius, height) {
         let white = new Pawn({
             manager: this.manager, name: name,
-            mesh: 'chess/' + name + '_white.gltf',
+            mesh: 'chess/' + name + '_white.gltf?v=2',
             physicsBody: new CANNON.Body({
                 mass: 5,
                 shape: new CANNON.Cylinder(radius, radius, height, 6)
@@ -213,7 +213,7 @@ export class Chess extends Game {
         });
         let black = new Pawn({
             manager: this.manager, name: name,
-            mesh: 'chess/' + name + '_black.gltf',
+            mesh: 'chess/' + name + '_black.gltf?v=2',
             physicsBody: new CANNON.Body({
                 mass: 5,
                 shape: new CANNON.Cylinder(radius, radius, height, 6)
