@@ -10,6 +10,7 @@ export class Pawn {
     rotation = new THREE.Quaternion();
     hovered = false;
     selected = false;
+    simulateLocally = false;
     data = {};
     
     selectRotation = new THREE.Vector3();
@@ -122,7 +123,7 @@ export class Pawn {
         
         // Handle network interpolation
         this.networkTransform.animate();
-        if (!this.selected && (!this.manager.host || this.networkSelected)) {
+        if ((/*!this.selected || */!this.simulateLocally) && (!this.manager.host || this.networkSelected)) {
             this.setPosition(this.networkTransform.position);
             //this.setPosition(
             //    this.position.clone().lerp(this.networkTransform.position, dt * 40));
@@ -164,13 +165,19 @@ export class Pawn {
             return;
         
         this.selected = true;
+        this.simulateLocally = true;
         this.dirty.add("selected");
         this.updateMeshTransform(); // FIXME: Needed?
         document.querySelector("#hand-panel").classList.add("minimized");
     }
     release() {
         this.physicsBody.sleepState = CANNON.Body.AWAKE;
+        
         this.selected = false;
+        // If the client, simulate locally for a bit while dropping.
+        // This should smooth out dropping a bit.
+        setTimeout(() => {this.simulateLocally = false;}, 500);
+        
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
         // Mark as dirty (so as to share that we have released)
