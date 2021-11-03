@@ -11,22 +11,34 @@ pub struct Vec3 {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Shape {
+    #[serde(rename_all = "camelCase")]
+    Box { half_extents: Vec3 },
+    #[serde(rename_all = "camelCase")]
+    Cylinder { radius_top: f64, radius_bottom: f64, height: f64, num_segments: u64 },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Pawn {
     pub id: u64, // Identifiers
     pub name: Option<String>,
     
     pub class: String, // Immutable Properties
     pub mesh: Option<String>,
-    pub meshOffset: Vec3,
+    #[serde(rename = "meshOffset")]
+    pub mesh_offset: Vec3,
     pub mass: f64,
-    pub shapes: serde_json::Value,
+    pub shapes: Vec<Shape>,
     pub moveable: bool,
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
     pub selected: bool,
-    pub selectRotation: Vec3,
+    #[serde(rename = "selectRotation")]
+    pub select_rotation: Vec3,
     
+    //FIXME: Completely serialize this data, we don't want arbitrary storage here.
     pub data: serde_json::Value // Misc
 }
 

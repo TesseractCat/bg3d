@@ -233,7 +233,7 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
         update_from_serde!(pawn, pawns[i], selected);
         update_from_serde!(pawn, pawns[i], position);
         update_from_serde!(pawn, pawns[i], rotation);
-        update_from_serde!(pawn, pawns[i], selectRotation);
+        update_from_serde!(pawn, pawns[i], select_rotation);
         update_from_serde!(pawn, pawns[i], data);
     }
     

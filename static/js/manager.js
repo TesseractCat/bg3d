@@ -15,14 +15,15 @@ import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
 import { Pawn, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
-CANNON.Shape.prototype.serialize = function() {
+CANNON.Shape.prototype.toJSON = function() {
     var shape = {};
-    shape.type = this.type;
-    switch (shape.type) {
+    switch (this.type) {
         case CANNON.Shape.types.BOX:
+            shape.type = "Box";
             shape.halfExtents = {x: this.halfExtents.x, y: this.halfExtents.y, z: this.halfExtents.z};
             break;
         case CANNON.Shape.types.CYLINDER:
+            shape.type = "Cylinder";
             shape.radiusTop = this.radiusTop;
             shape.radiusBottom = this.radiusBottom;
             shape.height = this.height;
@@ -34,11 +35,11 @@ CANNON.Shape.prototype.serialize = function() {
     }
     return shape;
 }
-CANNON.Shape.prototype.deserialize = function(shape) {
+CANNON.Shape.prototype.fromJSON = function(shape) {
     switch (shape.type) {
-        case CANNON.Shape.types.BOX:
+        case "Box":
             return new CANNON.Box(new CANNON.Vec3().copy(shape.halfExtents));
-        case CANNON.Shape.types.CYLINDER:
+        case "Cylinder":
             return new CANNON.Cylinder(shape.radiusTop, shape.radiusBottom, shape.height, shape.numSegments);
         default:
             console.error("Attempting to deserialize unhandled shape!");
@@ -335,6 +336,7 @@ export default class Manager {
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
                 pawn.physicsBody.sleepState = CANNON.Body.AWAKE; // Wake up pawn if not awake
             }
+            //TODO: Disable simulateLocally in some cases?
             pawn.networkSelected = pawnJSON.selected;
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {

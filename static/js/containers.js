@@ -383,7 +383,7 @@ export class Container extends Pawn {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let physicsBody = new CANNON.Body({
             mass: pawnJSON.mass,
-            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
+            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Container({
             manager: manager, name: pawnJSON.name,

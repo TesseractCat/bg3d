@@ -238,7 +238,7 @@ export class Pawn {
             name: this.name,
             mesh: this.meshUrl, meshOffset: this.meshOffset,
             mass: this.physicsBody.mass, moveable: this.moveable,
-            shapes: this.physicsBody.shapes.map(x => x.serialize()),
+            shapes: this.physicsBody.shapes,
             data: this.data
         });
         return out;
@@ -257,7 +257,7 @@ export class Pawn {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let physicsBody = new CANNON.Body({
             mass: pawnJSON.mass,
-            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
+            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Pawn({
             manager: manager, name: pawnJSON.name,
@@ -310,7 +310,7 @@ export class Dice extends Pawn {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let physicsBody = new CANNON.Body({
             mass: pawnJSON.mass,
-            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
+            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
         });
         let pawn = new Dice({
             manager: manager, name: pawnJSON.name,
