@@ -131,6 +131,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         
         match data["type"].as_str().unwrap() {
             "join" => {user_joined(user_id, data, &lobby_name, &lobbies).await;},
+            "ping" => {ping(user_id, data, &lobby_name, &lobbies).await;},
             
             "add_pawn" => {add_pawn(user_id, data, &lobby_name, &lobbies).await;},
             "remove_pawns" => {remove_pawns(user_id, data, &lobby_name, &lobbies).await;},
@@ -334,6 +335,19 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
         // Otherwise, delete lobby if last user
         lobby_wl.remove(lobby_name);
     }
+}
+
+async fn ping(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
+    let mut lobby_rl = lobbies.read().await;
+    let lobby = lobby_rl.get(lobby_name).unwrap();
+    
+    let response = json!({
+        "type":"pong",
+        "idx":data["idx"]
+    });
+    
+    // Pong
+    lobby.users.get(&user_id).unwrap().tx.send(Message::text(response.to_string()));
 }
 
 // -- CURSOR EVENTS --

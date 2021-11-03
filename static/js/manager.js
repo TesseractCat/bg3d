@@ -128,10 +128,12 @@ export default class Manager {
     renderer;
     composer;
     controls;
-    stats;
     world;
     socket;
     plane;
+    
+    stats;
+    pingPanel;
     
     pawns = new Map();
     hand = new Hand(this);
@@ -149,6 +151,8 @@ export default class Manager {
     static physicsTimestep = 1/60;
     static networkTimestep = 1000/20;
     lastCallTime;
+    
+    lastPingSent;
     
     constructor() {
         this.loader = new GLTFLoader().setPath('../games/');
@@ -645,6 +649,7 @@ export default class Manager {
         this.composer.addPass(gammaCorrectionPass);*/
 
         this.stats = Stats();
+        this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
         document.body.appendChild(this.stats.dom);
         
         // Allow plugins to be dropped
@@ -723,6 +728,16 @@ export default class Manager {
                         this.pawns.set(pawn.id, pawn);
                     });
                 }
+                // Start ping tester
+                let pings = 0;
+                setInterval(() => {
+                    this.lastPingSent = performance.now();
+                    this.sendSocket({
+                        type:"ping",
+                        idx:pings
+                    });
+                    pings++;
+                }, 500);
                 // Create webworker to manage animate() when page not focused
                 let animateWorker = new Worker('js/loop.js');
                 animateWorker.onmessage = (e) => {
@@ -741,6 +756,11 @@ export default class Manager {
                 document.querySelector("#host-panel").style.display = "block";
                 this.host = true;
             }*/
+            
+            if (type == "pong") {
+                let rtt = Math.floor(performance.now() - this.lastPingSent);
+                this.pingPanel.update(rtt, 200);
+            }
             
             if (type == "event") {
                 this.handleEvent(msg);
