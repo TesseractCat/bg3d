@@ -329,7 +329,7 @@ export default class Manager {
         }
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawnJSON.hasOwnProperty('selected')) {
-            if (pawn.networkSelected && !pawnJSON.selected) {
+            if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
                 //We have released, instead of updating network position, let's update position
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));

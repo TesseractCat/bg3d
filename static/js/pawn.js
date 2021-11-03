@@ -11,6 +11,7 @@ export class Pawn {
     hovered = false;
     selected = false;
     simulateLocally = false;
+    simulateLocallyTimeout;
     data = {};
     
     selectRotation = new THREE.Vector3();
@@ -165,6 +166,7 @@ export class Pawn {
             return;
         
         this.selected = true;
+        clearTimeout(this.simulateLocallyTimeout);
         this.simulateLocally = true;
         this.dirty.add("selected");
         this.updateMeshTransform(); // FIXME: Needed?
@@ -174,9 +176,9 @@ export class Pawn {
         this.physicsBody.sleepState = CANNON.Body.AWAKE;
         
         this.selected = false;
-        // If the client, simulate locally for a bit while dropping.
-        // This should smooth out dropping a bit.
-        setTimeout(() => {this.simulateLocally = false;}, 500);
+        // If the client, simulate locally for a bit (2s) while dropping.
+        // This should smooth out dropping as stuff should be settled.
+        this.simulateLocallyTimeout = setTimeout(() => {this.simulateLocally = false;}, 2000);
         
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
