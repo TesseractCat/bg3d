@@ -125,10 +125,12 @@ export class Pawn {
         // Handle network interpolation
         this.networkTransform.animate();
         if ((/*!this.selected || */!this.simulateLocally) && (!this.manager.host || this.networkSelected)) {
-            this.setPosition(this.networkTransform.position);
-            //this.setPosition(
-            //    this.position.clone().lerp(this.networkTransform.position, dt * 40));
-            this.setRotation(this.networkTransform.rotation);
+            //this.setPosition(this.networkTransform.position);
+            //this.setRotation(this.networkTransform.rotation);
+            this.setPosition(
+                this.position.clone().lerp(this.networkTransform.position, dt * 40));
+            this.setRotation(
+                this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40));
         }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
