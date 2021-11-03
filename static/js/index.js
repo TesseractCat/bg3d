@@ -116,5 +116,3 @@ window.onload = function() {
 window.onresize = function() {
     manager.resize();
 };
-window.onmousedown = function(e) {
-}

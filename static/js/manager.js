@@ -164,15 +164,24 @@ export default class Manager {
         
         // Track mouse position
         display.addEventListener("mousemove", (e) => {
-            this.mouse.x = (event.clientX / window.innerWidth)*2 - 1;
-            this.mouse.y = -(event.clientY / window.innerHeight)*2 + 1;
-            tooltip.style.top = event.clientY + "px";
-            tooltip.style.left = event.clientX + "px";
+            this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
+            this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
+            tooltip.style.top = e.clientY + "px";
+            tooltip.style.left = e.clientX + "px";
         });
         
         let dragged = false;
-        display.addEventListener('mousedown', () => { dragged = false; });
-        display.addEventListener('mousemove', () => { dragged = true; });
+        let downPos = {x: 0, y:0};
+        display.addEventListener('mousedown', (e) => {
+            dragged = false;
+            downPos = {x: e.clientX, y: e.clientY};
+        });
+        display.addEventListener('mousemove', (e) => {
+            // Fix intermittent chrome bug where mouse move is triggered incorrectly
+            // https://bugs.chromium.org/p/chromium/issues/detail?id=721341
+            if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0)
+                dragged = true;
+        });
         display.addEventListener("mouseup", (e) => {
             if (dragged)
                 return;

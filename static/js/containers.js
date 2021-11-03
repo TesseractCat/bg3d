@@ -45,7 +45,6 @@ export class Deck extends Pawn {
         
         const roundedSquare = this.#roundedSquare(cornerRadius);
         const extrudeSettings = {
-            curveSegments:6,
             steps:1,
             depth:1,
             bevelEnabled: false,

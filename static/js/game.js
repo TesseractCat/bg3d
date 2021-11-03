@@ -47,7 +47,7 @@ export class Welcome extends Game {
         super.init(clear, () => {
             let deck = new Deck({
                 manager: this.manager, name: "welcome", contents: ["generic/welcome.png"],
-                sideColor: 0x000000,
+                sideColor: 0x000000, cornerRadius: 0.06,
                 position: new THREE.Vector3(0.9, 0, 0),// new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
                 size: new THREE.Vector2(1.25 * 8, 1 * 8),
                 moveable: false
@@ -266,6 +266,15 @@ export class Cards extends Game {
             deck.name = "Standard Deck";
             deck.setPosition(new THREE.Vector3(0, 2, 0));
             this.manager.addPawn(deck);
+            
+            /*let pokerChips = new Deck({
+                manager: this.manager, name: "Poker Chip",
+                contents: Array(10).fill("poker/chip.jpg"),
+                cornerRadius: 0.52, sideColor: 0x12225a,
+                size: new THREE.Vector2(1.5, 1.5),
+                position: new THREE.Vector3(3, 1, 0)
+            });
+            this.manager.addPawn(pokerChips);*/
         });
     }
 }
