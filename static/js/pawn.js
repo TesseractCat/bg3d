@@ -23,6 +23,7 @@ export class Pawn {
     mesh = new THREE.Object3D();
     meshUrl;
     meshOffset = new THREE.Vector3();
+    hoveredOffset = 0;
     physicsBody;
     
     dirty = new Set();
@@ -59,7 +60,7 @@ export class Pawn {
         this.physicsBody = physicsBody;
         this.physicsBody.position.copy(position);
         this.physicsBody.quaternion.copy(rotation);
-        if (!this.moveable)
+        if (!this.moveable || true)
             this.physicsBody.type = CANNON.Body.STATIC;
 
         // Load mesh
@@ -98,6 +99,8 @@ export class Pawn {
             this.rotation.copy(this.physicsBody.quaternion);
             this.updateMeshTransform();
         }
+        //this.hoveredOffset = new THREE.Vector3(0, this.hoveredOffset, 0)
+        //    .lerp(new THREE.Vector3(0, this.hovered ? 0.2 : 0, 0), dt * 15).y;
         
         // Raycast to mesh
         if (this.selected) {
@@ -124,7 +127,8 @@ export class Pawn {
         
         // Handle network interpolation
         this.networkTransform.animate();
-        if ((/*!this.selected || */!this.simulateLocally) && (!this.manager.host || this.networkSelected)) {
+        //if ((/*!this.selected || */!this.simulateLocally) && (!this.manager.host || this.networkSelected)) {
+        if (!this.simulateLocally) {
             //this.setPosition(this.networkTransform.position);
             //this.setRotation(this.networkTransform.rotation);
             this.setPosition(
@@ -135,8 +139,7 @@ export class Pawn {
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
         if (!this.dirty.has("position")) {
-            if ((this.manager.host && !this.networkSelected) || this.selected) {
-            //if (this.manager.host || this.selected) {
+            if (/*(this.manager.host && !this.networkSelected) || */this.selected) {
                 if (this.position.distanceToSquared(this.lastPosition) > 0.01 ||
                     this.rotation.angleTo(this.lastRotation) > 0.01) {
                     
@@ -180,7 +183,7 @@ export class Pawn {
         this.selected = false;
         // If the client, simulate locally for a bit (2s) while dropping.
         // This should smooth out dropping as stuff should be settled.
-        this.simulateLocallyTimeout = setTimeout(() => {this.simulateLocally = false;}, 2000);
+        this.simulateLocallyTimeout = setTimeout(() => {this.simulateLocally = false;}, 1);//2000);
         
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
@@ -225,7 +228,7 @@ export class Pawn {
             this.mesh.position.copy(this.position);
             this.mesh.quaternion.copy(this.rotation);
             this.mesh.translateX(this.meshOffset.x);
-            this.mesh.translateY(this.meshOffset.y);
+            this.mesh.translateY(this.meshOffset.y + this.hoveredOffset);
             this.mesh.translateZ(this.meshOffset.z);
         }
     }
@@ -238,7 +241,7 @@ export class Pawn {
             name: this.name,
             mesh: this.meshUrl, meshOffset: this.meshOffset,
             mass: this.physicsBody.mass, moveable: this.moveable,
-            shapes: this.physicsBody.shapes,
+            shapes: this.physicsBody.shapes.map(x => x.toJSON()),
             data: this.data
         });
         return out;

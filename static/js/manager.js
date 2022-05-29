@@ -342,7 +342,7 @@ export default class Manager {
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
                 new THREE.Vector3().copy(pawnJSON.position),
-                new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+                new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')));
         }
         if (pawnJSON.hasOwnProperty('selectRotation')) {
             pawn.selectRotation = pawnJSON.selectRotation;

@@ -10,13 +10,43 @@ pub struct Vec3 {
         pub y: f64,
         pub z: f64,
 }
+impl From<&Vector<f32>> for Vec3 {
+	fn from(v: &Vector<f32>) -> Self {
+		Vec3 {
+			x: v.x as f64,
+			y: v.y as f64,
+			z: v.z as f64,
+		}
+	}
+}
+impl From<&Vec3> for Vector<f32> {
+	fn from(v: &Vec3) -> Self {
+		vector![v.x as f32, v.y as f32, v.z as f32]
+	}
+}
+impl From<&Rotation<f32>> for Vec3 {
+	fn from(v: &Rotation<f32>) -> Self {
+		let euler = v.euler_angles();
+		Vec3 {
+			x: euler.0 as f64,
+			y: euler.1 as f64,
+			z: euler.2 as f64,
+		}
+	}
+}
+impl From<&Vec3> for Rotation<f32> {
+	fn from(v: &Vec3) -> Self {
+		Rotation::from_euler_angles(v.x as f32, v.y as f32, v.z as f32)
+	}
+}
+
 #[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Vec2 {
         pub x: f64,
         pub y: f64,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Shape {
     #[serde(rename_all = "camelCase")]
@@ -55,7 +85,10 @@ pub struct Pawn {
     #[serde(rename = "selectRotation")]
     pub select_rotation: Vec3,
     
-    pub data: PawnData // Misc
+    pub data: PawnData, // Misc
+
+	#[serde(skip)]
+	pub rigid_body: Option<RigidBodyHandle>,
 }
 
 pub struct PhysicsWorld {
@@ -70,18 +103,40 @@ pub struct PhysicsWorld {
     pub ccd_solver: CCDSolver,
 }
 impl PhysicsWorld {
-    pub fn new() -> PhysicsWorld {
-        PhysicsWorld {
+    pub fn new(dt: f32) -> PhysicsWorld {
+        let mut w = PhysicsWorld {
             rigid_body_set: RigidBodySet::new(),
             collider_set: ColliderSet::new(),
-            integration_parameters: IntegrationParameters::default(),
+            integration_parameters: IntegrationParameters {
+                dt: dt,
+                ..Default::default()
+            },
             physics_pipeline: PhysicsPipeline::new(),
             island_manager: IslandManager::new(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             joint_set: JointSet::new(),
             ccd_solver: CCDSolver::new(),
-        }
+        };
+		
+		w.collider_set.insert(ColliderBuilder::cuboid(1000.0, 0.5, 1000.0).translation(vector![0.0, -0.5, 0.0]).build());
+		
+		return w;
+    }
+    pub fn step(&mut self) {
+        self.physics_pipeline.step(
+            &vector![0.0, -15.0, 0.0],
+            &self.integration_parameters,
+			&mut self.island_manager,
+			&mut self.broad_phase,
+			&mut self.narrow_phase,
+			&mut self.rigid_body_set,
+			&mut self.collider_set,
+			&mut self.joint_set,
+			&mut self.ccd_solver,
+			&(),
+			&(),
+        );
     }
 }
 
@@ -99,7 +154,7 @@ impl Lobby {
             host: 0,
             users: HashMap::new(),
             pawns: HashMap::new(),
-            world: PhysicsWorld::new(),
+            world: PhysicsWorld::new(50.0/1000.0),
         }
     }
 }

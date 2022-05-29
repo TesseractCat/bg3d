@@ -10,6 +10,7 @@ use warp::ws::{Message, WebSocket};
 use names::Generator;
 use serde_json::{Value, json};
 use random_color::{Color};
+use rapier3d::prelude::*;
 
 mod lobby;
 mod user;
@@ -42,6 +43,7 @@ async fn main() {
     let game = warp::fs::file("./static/index.html");
     
     let lobbies = Lobbies::default();
+    let physics_lobbies = lobbies.clone();
     let lobbies = warp::any().map(move || lobbies.clone());
     
     let ws = warp::path!("ws" / String)
@@ -54,6 +56,42 @@ async fn main() {
     let routes = warp::get().and(
         /*www.or*/(index).or(default).or(ws).or(game)
     );
+    
+    // Physics steps
+    tokio::task::spawn(async move {
+        loop {
+            {
+                let mut lobby_wl = physics_lobbies.write().await;
+                for lobby in lobby_wl.values_mut() {
+					// Simulate physics
+                    lobby.world.step();
+                    
+                    // Transfer pawn information from rigidbody
+                    let mut dirty_pawns: Vec<&Pawn> = vec![];
+					for pawn in lobby.pawns.values_mut() {
+						let rb_handle = pawn.rigid_body.unwrap();
+                        let rb = lobby.world.rigid_body_set.get(rb_handle).unwrap();
+						pawn.position = Vec3::from(rb.translation());
+						pawn.rotation = Vec3::from(rb.rotation());
+                        if !rb.is_sleeping() {
+                            dirty_pawns.push(pawn);
+                        }
+					}
+                    if !dirty_pawns.is_empty() {
+                        // Send update
+                        let response = json!({
+                            "type":"update_pawns",
+                            "pawns":dirty_pawns
+                        });
+                        for u in lobby.users.values() {
+                            u.tx.send(Message::text(response.to_string()));
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        }
+    });
 
     if port == 443 {
         warp::serve(routes)
@@ -182,7 +220,31 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
     let mut lobby_wl = lobbies.write().await;
     let lobby = lobby_wl.get_mut(lobby_name).unwrap();
     
-    let pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
+    let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
+    
+    // Deserialize collider
+	let rigid_body = RigidBodyBuilder::new_dynamic()
+		.translation(Vector::from(&pawn.position))
+        .rotation(Rotation::from(&pawn.rotation).scaled_axis())
+        .build();
+	pawn.rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
+
+    for shape in &pawn.shapes {
+        let collider = match shape {
+            lobby::Shape::Box { half_extents } => {
+                ColliderBuilder::cuboid(half_extents.x as f32,
+                    half_extents.y as f32,
+                    half_extents.z as f32)
+            },
+            lobby::Shape::Cylinder { radius_top, radius_bottom, height, num_segments } => {
+                ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius_top as f32)
+            },
+            _ => ColliderBuilder::ball(0.5),
+        };
+		lobby.world.collider_set.insert_with_parent(
+            collider.density(5.0).build(),
+			pawn.rigid_body.unwrap(), &mut lobby.world.rigid_body_set);
+    }
     
     // Add pawn to lobby
     lobby.pawns.insert(pawn.id, pawn.clone());
@@ -206,6 +268,12 @@ async fn remove_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
     
     // Remove pawn from lobby
     for id in pawn_ids {
+        // Remove rigidbody first
+        let rb_handle = lobby.pawns.get(&id).unwrap().rigid_body.unwrap();
+        lobby.world.rigid_body_set.remove(rb_handle,
+            &mut lobby.world.island_manager,
+            &mut lobby.world.collider_set,
+            &mut lobby.world.joint_set);
         lobby.pawns.remove(&id);
     }
     
@@ -216,7 +284,7 @@ async fn remove_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
 }
 macro_rules! update_from_serde {
     ($to_update:ident, $value:expr, $key:ident) => {
-        if !$value.get(stringify!($key)).is_none() {
+        if $value.get(stringify!($key)).is_some() {
             $to_update.$key = serde_json::from_value($value[stringify!($key)].clone()).unwrap();
         }
     }
@@ -230,11 +298,24 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
     for i in 0..pawns.len() {
         let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap())?;
         
-        update_from_serde!(pawn, pawns[i], selected);
+        // Update struct values
         update_from_serde!(pawn, pawns[i], position);
         update_from_serde!(pawn, pawns[i], rotation);
+        update_from_serde!(pawn, pawns[i], selected);
         update_from_serde!(pawn, pawns[i], select_rotation);
         update_from_serde!(pawn, pawns[i], data);
+        
+        // Update physics
+        if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
+            let rb_handle = pawn.rigid_body.unwrap();
+            let position: Vector<f32> = Vector::from(&pawn.position);
+            let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
+            let rigid_body = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
+            rigid_body.set_translation(position, true);
+            rigid_body.set_rotation(rotation.scaled_axis(), true);
+            rigid_body.set_linvel(vector![0.0, 0.0, 0.0], true);
+            rigid_body.set_angvel(vector![0.0, 0.0, 0.0], true);
+        }
     }
     
     // Relay to other users that these pawns were changed
