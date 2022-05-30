@@ -341,26 +341,8 @@ export class Container extends Pawn {
     }
     
     spawnItem() {
-        /*//Create a new deck of length 1 and grab that instead
-        let idx = this.flipped() ? this.data.contents.length - 1 : 0;
-        let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
-            this.data.size, [this.data.contents[idx]], this.data.back);
-        cardPawn.moveable = true;
-        cardPawn.selectRotation = Object.assign({}, this.selectRotation);
-        
-        this.manager.addPawn(cardPawn);
-        
-        this.data.contents.splice(idx, 1);
-        this.dirty.add("data");
-        // Flush dirty and prevent race condition
-        // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
-        this.manager.tick();
-        
-        this.updateDeck();
-        
-        return cardPawn;*/
-        
         let item = this.manager.loadPawn(this.data.holds).clone();
+        // FIXME: Update networkTransform or something
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
         this.manager.addPawn(item);
         

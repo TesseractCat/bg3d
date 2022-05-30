@@ -286,12 +286,10 @@ export default class Manager {
         });
     }
     addPawn(pawn) {
-        console.assert(this.host);
-        
         console.log("Adding pawn with ID: " + pawn.id);
         pawn.init();
         this.pawns.set(pawn.id, pawn);
-        let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
+        //let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         this.sendSocket({
             type:"add_pawn",
             pawn:pawn.serialize()
@@ -331,7 +329,7 @@ export default class Manager {
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawnJSON.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
-                //We have released, instead of updating network position, let's update position
+                //This pawn has been released, reset the network buffer and update position
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
                 pawn.physicsBody.sleepState = CANNON.Body.AWAKE; // Wake up pawn if not awake

@@ -127,14 +127,17 @@ export class Pawn {
         
         // Handle network interpolation
         this.networkTransform.animate();
-        //if ((/*!this.selected || */!this.simulateLocally) && (!this.manager.host || this.networkSelected)) {
         if (!this.simulateLocally) {
-            //this.setPosition(this.networkTransform.position);
-            //this.setRotation(this.networkTransform.rotation);
+            //this.setPosition(this.networkTransform.position, false);
+            //this.setRotation(this.networkTransform.rotation, false);
             this.setPosition(
-                this.position.clone().lerp(this.networkTransform.position, dt * 40));
+                this.position.clone().lerp(this.networkTransform.position, dt * 40),
+                false
+            );
             this.setRotation(
-                this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40));
+                this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40),
+                false
+            );
         }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
@@ -202,21 +205,17 @@ export class Pawn {
     }
     shake() { }
     
-    setPosition(position, clearVelocity = true) {
+    setPosition(position, resetNetwork = true) {
         this.position.copy(position);
-        this.physicsBody.position.copy(position);
-        if (clearVelocity)
-            this.physicsBody.velocity.set(0,0,0);
-        
+        if (resetNetwork)
+            this.networkTransform = new NetworkedTransform(this.position, this.rotation);
         this.updateMeshTransform();
         return this;
     }
-    setRotation(rotation, clearVelocity = true) {
+    setRotation(rotation, resetNetwork = true) {
         this.rotation.copy(rotation);
-        this.physicsBody.quaternion.copy(rotation);
-        if (clearVelocity)
-            this.physicsBody.angularVelocity.set(0,0,0);
-        
+        if (resetNetwork)
+            this.networkTransform = new NetworkedTransform(this.position, this.rotation);
         this.updateMeshTransform();
         return this;
     }

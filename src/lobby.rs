@@ -109,7 +109,7 @@ pub struct Lobby {
     pub name: String,
     pub host: usize,
 
-    pub users: HashMap<usize, User>,
+    pub users: HashMap<usize, User>, // FIXME: Make these both u16
     pub pawns: HashMap<u64, Pawn>,
 
     pub world: PhysicsWorld,

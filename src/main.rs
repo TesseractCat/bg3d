@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
 
 use futures_util::{FutureExt, StreamExt, SinkExt, TryFutureExt};
+use tokio::time::{sleep, Duration};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -99,7 +100,7 @@ async fn main() {
                     }
                 }
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs_f64(1.0/60.0)).await;
+            sleep(Duration::from_secs_f64(1.0/60.0)).await;
             tick += 1;
         }
     });
@@ -159,7 +160,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     tokio::task::spawn(async move {
         loop {
             relay_cursors(user_id, &lobby_name_clone, &lobbies_clone).await;
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000/10)).await;
+            sleep(Duration::from_secs_f64(1.0/10.0)).await;
         }
     });
     
@@ -422,17 +423,21 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     if lobby.users.len() != 0 {
         // If the user id is the host, let's reassign the host to the next user
         if lobby.host == user_id {
-            // Reassign hsot
+            // Reassign host
             lobby.host = *lobby.users.keys().next().unwrap();
             // Tell the new host
             let response = json!({
                 "type":"assign_host"
             });
             lobby.users.get(&lobby.host).unwrap().tx.send(Message::text(response.to_string()));
+
+            println!("Host of lobby [{lobby_name}] left, reassigning <{user_id}> -> <{}>", lobby.host);
         }
     } else {
         // Otherwise, delete lobby if last user
         lobby_wl.remove(lobby_name);
+
+        println!("Lobby [{lobby_name}] removed");
     }
 }
 
