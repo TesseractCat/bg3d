@@ -70,4 +70,7 @@ impl PhysicsWorld {
                                    &mut self.multibody_joint_set,
                                    true);
     }
+    pub fn insert_with_parent(&mut self, collider: Collider, handle: RigidBodyHandle) {
+        self.collider_set.insert_with_parent(collider, handle, &mut self.rigid_body_set);
+    }
 }
