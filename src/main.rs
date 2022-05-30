@@ -30,7 +30,7 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 #[tokio::main]
 async fn main() {
     let default_port: u16 = 8080;
-    let mut port: u16 = match env::args().nth(2) {
+    let mut port: u16 = match env::args().nth(1) {
         Some(p) => p.parse::<u16>().unwrap_or(default_port),
         None => default_port,
     };
@@ -104,6 +104,7 @@ async fn main() {
         }
     });
 
+    println!("Starting BG3D on port [{port}]...");
     if port == 443 {
         warp::serve(routes)
             .tls()
