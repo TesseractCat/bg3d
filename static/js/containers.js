@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es'
 
-import { ExtrudeGeometry } from '../deps/ExtrudeGeometryFB';
-import * as BufferGeometryUtils from '../deps/utils/BufferGeometryUtils';
+import { ExtrudeGeometry } from './ExtrudeGeometryFB';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
 
 import Manager from './manager';
 import { Pawn } from './pawn';
@@ -16,7 +16,7 @@ export class Deck extends Pawn {
         size: new THREE.Vector2()
     }
     
-    static cardThickness = 0.01;//0.005;
+    static cardThickness = 0.01;
     static textureCache = new Map();
     static textureLoader = new THREE.TextureLoader().setPath("../games/");
     

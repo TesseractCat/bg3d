@@ -3,14 +3,14 @@ import * as CANNON from 'cannon-es';
 //import RAPIER from '@dimforge/rapier3d-compat';
 import { nanoid } from 'nanoid';
 
-import Stats from '../deps/libs/stats.module';
-import { EffectComposer } from '../deps/postprocessing/EffectComposer';
-import { RenderPass } from '../deps/postprocessing/RenderPass';
-import { ShaderPass } from '../deps/postprocessing/ShaderPass';
-import { SSAOPass } from '../deps/postprocessing/SSAOPass';
-import { GammaCorrectionShader } from '../deps/shaders/GammaCorrectionShader';
-import { OrbitControls } from '../deps/controls/OrbitControls';
-import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
+import Stats from 'three/examples/jsm/libs/stats.module';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass';
+import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { Pawn, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
@@ -149,8 +149,8 @@ export default class Manager {
     id;
     userColors = new Map();
     
-    static physicsTimestep = 1/60;
-    static networkTimestep = 1000/20;
+    static physicsTimestep = 1/60; // Seconds
+    static networkTimestep = 1000/20; // Milliseconds
     lastCallTime;
     
     lastPingSent;
@@ -392,23 +392,24 @@ export default class Manager {
         // Send all dirty pawns (even the ones selected by a client)
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
-            this.sendEvent("request_update_pawns", true,
-                {pawns: to_update.map(p => {
-                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation).toVector3();
-                    let update = {id: p.id};
-                    for (let dirtyParam of p.dirty) {
-                        switch (dirtyParam) {
-                            case "rotation":
-                                update[dirtyParam] = rotation;
-                                break;
-                            default:
-                                update[dirtyParam] = p[dirtyParam];
-                                break;
-                        }
+            let to_update_data = to_update.map(p => {
+                let rotation = new THREE.Euler().setFromQuaternion(p.rotation).toVector3();
+                let update = {id: p.id};
+                for (let dirtyParam of p.dirty) {
+                    switch (dirtyParam) {
+                        case "rotation":
+                            update[dirtyParam] = rotation;
+                            break;
+                        default:
+                            update[dirtyParam] = p[dirtyParam];
+                            break;
                     }
-                    return update;
                 }
-            )});
+                return update;
+            });
+
+            //this.sendEvent("request_update_pawns", true, {pawns: to_update_data});
+            this.sendSocket({type: "update_pawns", pawns: to_update_data});
             to_update.forEach(p => p.dirty.clear());
         }
         this.sendCursor();
@@ -487,10 +488,14 @@ export default class Manager {
         // Update camera aspect ratio
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
+
         // Update domElement size
-        this.renderer.setSize(window.innerWidth/1, window.innerHeight/1);
+        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
+
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+
         // Update composer size
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
@@ -633,8 +638,6 @@ export default class Manager {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        //THREE.BasicShadowMap;
-        //THREE.VSMShadowMap;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         
         this.composer = new EffectComposer(this.renderer);

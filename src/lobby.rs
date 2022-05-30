@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use serde_json::{Value, json};
 use rapier3d::prelude::*;
 
 use crate::user::*;
+use crate::physics::*;
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Vec3 {
@@ -69,9 +71,9 @@ pub enum PawnData {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pawn {
     pub id: u64, // Identifiers
-    pub name: Option<String>,
     
     pub class: String, // Immutable Properties
+    pub name: Option<String>,
     pub mesh: Option<String>,
     #[serde(rename = "meshOffset")]
     pub mesh_offset: Vec3,
@@ -90,62 +92,27 @@ pub struct Pawn {
 	#[serde(skip)]
 	pub rigid_body: Option<RigidBodyHandle>,
 }
-
-pub struct PhysicsWorld {
-    pub rigid_body_set: RigidBodySet,
-    pub collider_set: ColliderSet,
-    pub integration_parameters: IntegrationParameters,
-    pub physics_pipeline: PhysicsPipeline,
-    pub island_manager: IslandManager,
-    pub broad_phase: BroadPhase,
-    pub narrow_phase: NarrowPhase,
-    pub joint_set: JointSet,
-    pub ccd_solver: CCDSolver,
-}
-impl PhysicsWorld {
-    pub fn new(dt: f32) -> PhysicsWorld {
-        let mut w = PhysicsWorld {
-            rigid_body_set: RigidBodySet::new(),
-            collider_set: ColliderSet::new(),
-            integration_parameters: IntegrationParameters {
-                dt: dt,
-                ..Default::default()
-            },
-            physics_pipeline: PhysicsPipeline::new(),
-            island_manager: IslandManager::new(),
-            broad_phase: BroadPhase::new(),
-            narrow_phase: NarrowPhase::new(),
-            joint_set: JointSet::new(),
-            ccd_solver: CCDSolver::new(),
-        };
-		
-		w.collider_set.insert(ColliderBuilder::cuboid(1000.0, 0.5, 1000.0).translation(vector![0.0, -0.5, 0.0]).build());
-		
-		return w;
+impl Pawn {
+    pub fn serialize(&self) -> Value {
+        serde_json::to_value(self).unwrap()
     }
-    pub fn step(&mut self) {
-        self.physics_pipeline.step(
-            &vector![0.0, -15.0, 0.0],
-            &self.integration_parameters,
-			&mut self.island_manager,
-			&mut self.broad_phase,
-			&mut self.narrow_phase,
-			&mut self.rigid_body_set,
-			&mut self.collider_set,
-			&mut self.joint_set,
-			&mut self.ccd_solver,
-			&(),
-			&(),
-        );
+    pub fn serialize_transform(&self) -> Value {
+        json!({
+            "id": self.id,
+            "position": self.position,
+            "rotation": self.rotation,
+        })
     }
 }
 
 pub struct Lobby {
     pub name: String,
     pub host: usize,
-    pub world: PhysicsWorld,
+
     pub users: HashMap<usize, User>,
     pub pawns: HashMap<u64, Pawn>,
+
+    pub world: PhysicsWorld,
 }
 impl Lobby {
     pub fn new() -> Lobby {
@@ -154,7 +121,7 @@ impl Lobby {
             host: 0,
             users: HashMap::new(),
             pawns: HashMap::new(),
-            world: PhysicsWorld::new(50.0/1000.0),
+            world: PhysicsWorld::new(1.0/30.0),
         }
     }
 }

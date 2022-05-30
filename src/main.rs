@@ -1,19 +1,24 @@
+use std::env;
 use std::collections::HashMap;
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
-use std::env;
 
 use futures_util::{FutureExt, StreamExt, SinkExt, TryFutureExt};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+
 use warp::{http::Uri, Filter};
 use warp::ws::{Message, WebSocket};
-use names::Generator;
+
 use serde_json::{Value, json};
+
+use names::Generator;
 use random_color::{Color};
 use rapier3d::prelude::*;
 
 mod lobby;
 mod user;
+mod physics;
+
 use lobby::*;
 use user::*;
 
@@ -24,12 +29,13 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
-    let mut port: u16 = 8080;
-    if args.len() == 2 {
-        port = args[1].parse::<u16>().unwrap_or(8080);
-    }
+    let default_port: u16 = 8080;
+    let mut port: u16 = match env::args().nth(2) {
+        Some(p) => p.parse::<u16>().unwrap_or(default_port),
+        None => default_port,
+    };
     
+    // Paths
     let default = warp::fs::dir("./static").with(warp::compression::gzip());
     
     let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
@@ -54,34 +60,38 @@ async fn main() {
         });
     
     let routes = warp::get().and(
-        /*www.or*/(index).or(default).or(ws).or(game)
+        (index).or(default).or(ws).or(game)
     );
     
     // Physics steps
     tokio::task::spawn(async move {
+        let mut tick: u64 = 0;
+
         loop {
             {
                 let mut lobby_wl = physics_lobbies.write().await;
                 for lobby in lobby_wl.values_mut() {
-					// Simulate physics
+                    // Simulate physics
                     lobby.world.step();
-                    
+
                     // Transfer pawn information from rigidbody
                     let mut dirty_pawns: Vec<&Pawn> = vec![];
-					for pawn in lobby.pawns.values_mut() {
-						let rb_handle = pawn.rigid_body.unwrap();
+                    for pawn in lobby.pawns.values_mut() {
+                        if pawn.selected { continue; } // Ignore selected pawns
+
+                        let rb_handle = pawn.rigid_body.unwrap();
                         let rb = lobby.world.rigid_body_set.get(rb_handle).unwrap();
-						pawn.position = Vec3::from(rb.translation());
-						pawn.rotation = Vec3::from(rb.rotation());
-                        if !rb.is_sleeping() {
+                        pawn.position = Vec3::from(rb.translation());
+                        pawn.rotation = Vec3::from(rb.rotation());
+                        if !rb.is_sleeping() && rb.is_moving() {
                             dirty_pawns.push(pawn);
                         }
-					}
-                    if !dirty_pawns.is_empty() {
+                    }
+                    if !dirty_pawns.is_empty() && tick % 3 == 0 {
                         // Send update
                         let response = json!({
                             "type":"update_pawns",
-                            "pawns":dirty_pawns
+                            "pawns":dirty_pawns.iter().map(|p| p.serialize_transform()).collect::<Vec<Value>>(),
                         });
                         for u in lobby.users.values() {
                             u.tx.send(Message::text(response.to_string()));
@@ -89,7 +99,8 @@ async fn main() {
                     }
                 }
             }
-            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs_f64(1.0/60.0)).await;
+            tick += 1;
         }
     });
 
@@ -136,7 +147,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             5 => Color::Orange,
             6 => Color::Monochrome,
             0 => Color::Pink,
-            _ => Color::Monochrome, // Should never occur
+            _ => Color::Monochrome,
         };
         lobby.users.insert(user_id, User::new(user_id, buffer_tx, color));
     }
@@ -196,12 +207,10 @@ async fn event(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies)
     // Relay event
     if target_host {
         lobby.users.get(&lobby.host).unwrap().tx.send(Message::text(data.to_string()));
-        return;
-    }
-    for u in lobby.users.values() {
-        //if u.id != user_id {
-        u.tx.send(Message::text(data.to_string()));
-        //}
+    } else {
+        for u in lobby.users.values() {
+            u.tx.send(Message::text(data.to_string()));
+        }
     }
 }
 async fn event_callback(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
@@ -223,9 +232,10 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
     let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
     
     // Deserialize collider
-	let rigid_body = RigidBodyBuilder::new_dynamic()
+	let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic() } else { RigidBodyBuilder::fixed() }
 		.translation(Vector::from(&pawn.position))
         .rotation(Rotation::from(&pawn.rotation).scaled_axis())
+        .linear_damping(0.5).angular_damping(0.5)
         .build();
 	pawn.rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
@@ -242,7 +252,7 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
             _ => ColliderBuilder::ball(0.5),
         };
 		lobby.world.collider_set.insert_with_parent(
-            collider.density(5.0).build(),
+            collider.density(1.0).build(),
 			pawn.rigid_body.unwrap(), &mut lobby.world.rigid_body_set);
     }
     
@@ -270,10 +280,7 @@ async fn remove_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
     for id in pawn_ids {
         // Remove rigidbody first
         let rb_handle = lobby.pawns.get(&id).unwrap().rigid_body.unwrap();
-        lobby.world.rigid_body_set.remove(rb_handle,
-            &mut lobby.world.island_manager,
-            &mut lobby.world.collider_set,
-            &mut lobby.world.joint_set);
+        lobby.world.remove_rigidbody(rb_handle);
         lobby.pawns.remove(&id);
     }
     
@@ -296,7 +303,8 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
     // Iterate through and update pawns
     let pawns = data["pawns"].as_array().unwrap();
     for i in 0..pawns.len() {
-        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawns[i]["id"].as_u64().unwrap())?;
+        let pawn_id: u64 = pawns[i]["id"].as_u64().unwrap();
+        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawn_id)?;
         
         // Update struct values
         update_from_serde!(pawn, pawns[i], position);
@@ -306,15 +314,24 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
         update_from_serde!(pawn, pawns[i], data);
         
         // Update physics
-        if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
+        if pawn.moveable {
             let rb_handle = pawn.rigid_body.unwrap();
-            let position: Vector<f32> = Vector::from(&pawn.position);
-            let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
-            let rigid_body = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
-            rigid_body.set_translation(position, true);
-            rigid_body.set_rotation(rotation.scaled_axis(), true);
-            rigid_body.set_linvel(vector![0.0, 0.0, 0.0], true);
-            rigid_body.set_angvel(vector![0.0, 0.0, 0.0], true);
+            let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
+            if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
+                let position: Vector<f32> = Vector::from(&pawn.position);
+                let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
+
+                rb.set_translation(position, true);
+                rb.set_rotation(rotation.scaled_axis(), true);
+                rb.set_linvel(vector![0.0, 0.0, 0.0], true);
+                rb.set_angvel(vector![0.0, 0.0, 0.0], true);
+            }
+            // Don't simulate selected pawns
+            rb.set_body_type(if !pawn.selected {
+                RigidBodyType::Dynamic
+            } else {
+                RigidBodyType::KinematicPositionBased
+            });
         }
     }
     
@@ -432,6 +449,7 @@ async fn ping(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) 
 }
 
 // -- CURSOR EVENTS --
+
 async fn update_cursor(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
     let mut lobby_wl = lobbies.write().await;
     let lobby = lobby_wl.get_mut(lobby_name).unwrap();

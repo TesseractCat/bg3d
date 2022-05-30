@@ -138,17 +138,15 @@ export class Pawn {
         }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
-        if (!this.dirty.has("position")) {
-            if (/*(this.manager.host && !this.networkSelected) || */this.selected) {
-                if (this.position.distanceToSquared(this.lastPosition) > 0.01 ||
-                    this.rotation.angleTo(this.lastRotation) > 0.01) {
-                    
-                    this.dirty.add("position");
-                    this.dirty.add("rotation");
-                    
-                    this.lastPosition.copy(this.position);
-                    this.lastRotation.copy(this.rotation);
-                }
+        if (!this.dirty.has("position") && this.selected) {
+            if (this.position.distanceToSquared(this.lastPosition) > 0.01 ||
+                this.rotation.angleTo(this.lastRotation) > 0.01) {
+
+                this.dirty.add("position");
+                this.dirty.add("rotation");
+
+                this.lastPosition.copy(this.position);
+                this.lastRotation.copy(this.rotation);
             }
         }
     }
