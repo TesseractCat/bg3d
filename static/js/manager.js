@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-//import RAPIER from '@dimforge/rapier3d-compat';
 import { nanoid } from 'nanoid';
 
 import Stats from 'three/examples/jsm/libs/stats.module';
@@ -14,47 +12,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { Pawn, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
-
-CANNON.Shape.prototype.toJSON = function() {
-    var shape = {};
-    switch (this.type) {
-        case CANNON.Shape.types.BOX:
-            shape.type = "Box";
-            shape.halfExtents = {x: this.halfExtents.x, y: this.halfExtents.y, z: this.halfExtents.z};
-            break;
-        case CANNON.Shape.types.CYLINDER:
-            shape.type = "Cylinder";
-            shape.radiusTop = this.radiusTop;
-            shape.radiusBottom = this.radiusBottom;
-            shape.height = this.height;
-            shape.numSegments = this.numSegments;
-            break;
-        default:
-            console.error("Attempting to serialize unhandled shape!");
-            break;
-    }
-    return shape;
-}
-CANNON.Shape.prototype.fromJSON = function(shape) {
-    switch (shape.type) {
-        case "Box":
-            return new CANNON.Box(new CANNON.Vec3().copy(shape.halfExtents));
-        case "Cylinder":
-            return new CANNON.Cylinder(shape.radiusTop, shape.radiusBottom, shape.height, shape.numSegments);
-        default:
-            console.error("Attempting to deserialize unhandled shape!");
-            break;
-    }
-}
-CANNON.Body.prototype.updateCenterOfMass = function() {
-    const centerOfMass = new CANNON.Vec3();
-    this.shapeOffsets.forEach(offset => centerOfMass.vadd(offset, centerOfMass));
-    centerOfMass.scale(1/this.shapes.length, centerOfMass);
-    this.shapeOffsets.forEach(offset => offset.vsub(centerOfMass, offset));
-    const worldCenterOfMass = new CANNON.Vec3();
-    this.vectorToWorldFrame(centerOfMass, worldCenterOfMass);
-    this.position.vadd(worldCenterOfMass, this.position);
-}
 
 class Hand {
     manager;
@@ -129,7 +86,6 @@ export default class Manager {
     renderer;
     composer;
     controls;
-    world;
     socket;
     plane;
     
@@ -149,7 +105,6 @@ export default class Manager {
     id;
     userColors = new Map();
     
-    static physicsTimestep = 1/60; // Seconds
     static networkTimestep = 1000/20; // Milliseconds
     lastCallTime;
     
@@ -163,7 +118,6 @@ export default class Manager {
         this.buildScene();
         this.buildRenderer();
         this.buildControls();
-        await this.buildPhysics();
         
         this.resize();
         
@@ -297,7 +251,6 @@ export default class Manager {
     }
     removePawn(id) {
         this.scene.remove(this.pawns.get(id).mesh);
-        this.world.removeBody(this.pawns.get(id).physicsBody);
         this.pawns.delete(id);
     }
     loadPawn(pawnJSON) {
@@ -332,7 +285,6 @@ export default class Manager {
                 //This pawn has been released, reset the network buffer and update position
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
-                pawn.physicsBody.sleepState = CANNON.Body.AWAKE; // Wake up pawn if not awake
             }
             //TODO: Disable simulateLocally in some cases?
             pawn.networkSelected = pawnJSON.selected;
@@ -421,15 +373,12 @@ export default class Manager {
         }
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        
-        // Physics simulation
+
+        // Calculate delta time
         const time = performance.now() / 1000; // seconds
         let dt = 0;
-        if (!this.lastCallTime) {
-            this.world.step(Manager.physicsTimestep);
-        } else {
+        if (this.lastCallTime) {
             dt = time - this.lastCallTime;
-            this.world.step(Manager.physicsTimestep, dt);
         }
         this.lastCallTime = time;
         
@@ -682,17 +631,6 @@ export default class Manager {
         this.controls.keyPanSpeed = 20;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
         this.controls.listenToKeyEvents(display);
-    }
-    async buildPhysics() {
-        let solver = new CANNON.GSSolver();
-        solver.iterations = 15;
-        this.world = new CANNON.World({
-            gravity: new CANNON.Vec3(0, -15.0, 0),
-            allowSleep: true,
-            solver: solver,
-        });
-        //await RAPIER.init();
-        //this.rWorld = new RAPIER.World(new RAPIER.Vector3(0, -15, 0));
     }
     buildWebSocket(callback) {
         let lobby = window.location.pathname.substring(1);

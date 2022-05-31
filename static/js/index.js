@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
 import {Text} from 'troika-three-text'
 
 import mouseShake from './mouse-shake.js'
@@ -13,26 +12,6 @@ let titleText;
 
 let board;
 
-function setup() {
-    // Ground collider
-    manager.world.addBody(new CANNON.Body({
-        mass: 0,
-        shape: new CANNON.Plane(),
-        quaternion: new CANNON.Quaternion().setFromEuler(-Math.PI / 2, 0, 0)
-    }));
-    
-    /*titleText = new Text();
-    titleText.text = decodeURI(window.location.pathname.substring(1)).toUpperCase();
-    titleText.font = "../fonts/Bayon/Bayon-Regular.ttf"
-    titleText.fontSize = 3.0;
-    titleText.anchorX = '50%';
-    titleText.anchorY = '50%';
-    titleText.position.copy(new THREE.Vector3(0, 2.5, -11));
-    titleText.rotation.copy(new THREE.Euler(-Math.PI/5.0, 0, 0));
-    titleText.color = "#D6CCA9";
-    manager.scene.add(titleText);*/
-}
-
 function animate() {
     requestAnimationFrame(animate);
     manager.animate();
@@ -41,9 +20,8 @@ function animate() {
 // SETUP
 window.onload = function() {
     manager = new Manager();
+    window.manager = manager;
     manager.init((host) => {
-        setup();
-        
         let games = [
             new GAMES.Welcome(manager),
             new GAMES.Chess(manager),

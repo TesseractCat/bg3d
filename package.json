@@ -3,8 +3,6 @@
   "version": "0.1.0",
   "description": "An open source THREE.js based multiplayer board game simulator",
   "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.7.6",
-    "cannon-es": "^0.18.0",
     "esbuild": "^0.13.6",
     "esbuild-plugin-wasm": "^1.0.0",
     "nanoid": "^3.1.30",
@@ -20,6 +18,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "esbuild static/js/index.js --bundle --minify --sourcemap --target=chrome58 --outfile=static/bundle.js",
+    "no_minify": "esbuild static/js/index.js --bundle --sourcemap --target=chrome58 --outfile=static/bundle.js",
     "watch": "esbuild static/js/index.js --watch --bundle --minify --sourcemap --target=chrome58 --outfile=static/bundle.js"
   },
   "author": "tesseractcat",

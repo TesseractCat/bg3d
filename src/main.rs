@@ -264,8 +264,8 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
                     half_extents.y as f32,
                     half_extents.z as f32)
             },
-            lobby::Shape::Cylinder { radius_top, radius_bottom, height, num_segments } => {
-                ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius_top as f32)
+            lobby::Shape::Cylinder { radius, height } => {
+                ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius as f32)
             },
         };
 		lobby.world.insert_with_parent(collider.density(1.0).build(), pawn.rigid_body.unwrap());

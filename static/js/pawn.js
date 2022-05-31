@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
@@ -10,8 +9,6 @@ export class Pawn {
     rotation = new THREE.Quaternion();
     hovered = false;
     selected = false;
-    simulateLocally = false;
-    simulateLocallyTimeout;
     data = {};
     
     selectRotation = new THREE.Vector3();
@@ -21,10 +18,10 @@ export class Pawn {
     
     moveable = true;
     mesh = new THREE.Object3D();
+    colliderShapes;
     meshUrl;
     meshOffset = new THREE.Vector3();
     hoveredOffset = 0;
-    physicsBody;
     
     dirty = new Set();
     lastPosition = new THREE.Vector3();
@@ -37,7 +34,7 @@ export class Pawn {
     
     constructor({manager,
         position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
-        mesh = null, meshOffset = new THREE.Vector3(), physicsBody, moveable = true, id = null, name = null}) {
+        mesh = null, meshOffset = new THREE.Vector3(), colliderShapes = null, moveable = true, id = null, name = null}) {
         
         if (id == null) {
             this.id = Pawn.NEXT_ID;
@@ -46,22 +43,18 @@ export class Pawn {
             this.id = id;
         }
         this.manager = manager;
+        
+        this.position.copy(position); // Apply transform
+        this.rotation.copy(rotation);
+
         this.name = name;
         this.moveable = moveable;
         this.meshUrl = mesh;
         this.meshOffset.copy(meshOffset);
-        this.position.copy(position); // Apply transform
-        this.rotation.copy(rotation);
+        this.colliderShapes = colliderShapes;
         
         // Create new NetworkedTransform
         this.networkTransform = new NetworkedTransform(position, rotation);
-        
-        // Create physics body
-        this.physicsBody = physicsBody;
-        this.physicsBody.position.copy(position);
-        this.physicsBody.quaternion.copy(rotation);
-        if (!this.moveable || true)
-            this.physicsBody.type = CANNON.Body.STATIC;
 
         // Load mesh
         if (mesh != null) { // GLTF URL
@@ -88,17 +81,10 @@ export class Pawn {
     initialized = false;
     init() {
         this.manager.scene.add(this.mesh);
-        this.manager.world.addBody(this.physicsBody);
         this.initialized = true;
     }
     
     animate(dt) {
-        // Follow dynamic physics body
-        if (this.physicsBody.type == CANNON.Body.DYNAMIC) {
-            this.position.copy(this.physicsBody.position);
-            this.rotation.copy(this.physicsBody.quaternion);
-            this.updateMeshTransform();
-        }
         //this.hoveredOffset = new THREE.Vector3(0, this.hoveredOffset, 0)
         //    .lerp(new THREE.Vector3(0, this.hovered ? 0.2 : 0, 0), dt * 15).y;
         
@@ -127,18 +113,14 @@ export class Pawn {
         
         // Handle network interpolation
         this.networkTransform.animate();
-        if (!this.simulateLocally) {
-            //this.setPosition(this.networkTransform.position, false);
-            //this.setRotation(this.networkTransform.rotation, false);
-            this.setPosition(
-                this.position.clone().lerp(this.networkTransform.position, dt * 40),
-                false
-            );
-            this.setRotation(
-                this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40),
-                false
-            );
-        }
+        this.setPosition(
+            this.position.clone().lerp(this.networkTransform.position, dt * 40),
+            false
+        );
+        this.setRotation(
+            this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40),
+            false
+        );
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
         if (!this.dirty.has("position") && this.selected) {
@@ -172,19 +154,12 @@ export class Pawn {
             return;
         
         this.selected = true;
-        clearTimeout(this.simulateLocallyTimeout);
-        this.simulateLocally = true;
         this.dirty.add("selected");
         this.updateMeshTransform(); // FIXME: Needed?
         document.querySelector("#hand-panel").classList.add("minimized");
     }
     release() {
-        this.physicsBody.sleepState = CANNON.Body.AWAKE;
-        
         this.selected = false;
-        // If the client, simulate locally for a bit (2s) while dropping.
-        // This should smooth out dropping as stuff should be settled.
-        this.simulateLocallyTimeout = setTimeout(() => {this.simulateLocally = false;}, 1);//2000);
         
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
@@ -237,8 +212,8 @@ export class Pawn {
             class: this.constructor.className(),
             name: this.name,
             mesh: this.meshUrl, meshOffset: this.meshOffset,
-            mass: this.physicsBody.mass, moveable: this.moveable,
-            shapes: this.physicsBody.shapes.map(x => x.toJSON()),
+            mass: 1.0, moveable: this.moveable,
+            colliderShapes: this.colliderShapes,
             data: this.data
         });
         return out;
@@ -255,14 +230,10 @@ export class Pawn {
     }
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let physicsBody = new CANNON.Body({
-            mass: pawnJSON.mass,
-            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        });
         let pawn = new Pawn({
             manager: manager, name: pawnJSON.name,
             position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
         pawn.meshOffset.copy(pawnJSON.meshOffset);
@@ -288,11 +259,11 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor({manager, rollRotations, position, rotation, mesh, physicsBody, moveable = true, id = null, name = null}) {
+    constructor({manager, rollRotations, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
         super({
             manager: manager, name: name,
             position: position, rotation: rotation,
-            mesh: mesh, physicsBody: physicsBody,
+            mesh: mesh, colliderShapes: colliderShapes,
             moveable: moveable, id: id
         });
         this.data.rollRotations = rollRotations;
@@ -308,15 +279,11 @@ export class Dice extends Pawn {
     static className() { return "Dice"; };
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let physicsBody = new CANNON.Body({
-            mass: pawnJSON.mass,
-            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        });
         let pawn = new Dice({
             manager: manager, name: pawnJSON.name,
             rollRotations: pawnJSON.data.rollRotations,
             position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
         pawn.meshOffset.copy(pawnJSON.meshOffset);

@@ -54,7 +54,7 @@ pub enum Shape {
     #[serde(rename_all = "camelCase")]
     Box { half_extents: Vec3 },
     #[serde(rename_all = "camelCase")]
-    Cylinder { radius_top: f64, radius_bottom: f64, height: f64, num_segments: u64 },
+    Cylinder { radius: f64, height: f64 },
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -77,9 +77,11 @@ pub struct Pawn {
     pub mesh: Option<String>,
     #[serde(rename = "meshOffset")]
     pub mesh_offset: Vec3,
-    pub mass: f64,
+
+    #[serde(rename = "colliderShapes")] // Physics properties
     pub shapes: Vec<Shape>,
     pub moveable: bool,
+    pub mass: f64,
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,

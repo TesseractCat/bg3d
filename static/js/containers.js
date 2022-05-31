@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
 
 import Manager from './manager';
 import { Pawn } from './pawn';
+import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
     data = {
@@ -30,10 +30,9 @@ export class Deck extends Pawn {
         super({
             manager: manager, name: name,
             position: position, rotation: rotation,
-            physicsBody: new CANNON.Body({
-                mass: 5,
-                shape: new CANNON.Box(new CANNON.Vec3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
-            }),
+            colliderShapes: [
+                new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
+            ],
             moveable: moveable, id: id
         });
         
@@ -222,13 +221,12 @@ export class Deck extends Pawn {
         // Resize
         let thickness = Deck.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
-        this.physicsBody.shapes[0].halfExtents.set(
-            this.physicsBody.shapes[0].halfExtents.x,
+
+        this.colliderShapes[0].halfExtents.set(
+            this.colliderShapes[0].halfExtents.x,
             (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
-            this.physicsBody.shapes[0].halfExtents.z);
-        this.physicsBody.shapes[0].updateConvexPolyhedronRepresentation();
-        this.physicsBody.shapes[0].updateBoundingSphereRadius();
-        this.physicsBody.updateBoundingRadius();
+            this.colliderShapes[0].halfExtents.z);
+        this.dirty.add("colliderShapes");
         
         // Load textures
         let faceTexture;
@@ -310,12 +308,12 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor({manager, holds, position, rotation, mesh, meshOffset = new THREE.Vector3(), physicsBody, moveable = true, id = null, name = null}) {
+    constructor({manager, holds, position, rotation, mesh, meshOffset = new THREE.Vector3(), colliderShapes, moveable = true, id = null, name = null}) {
         super({
             manager: manager, name: name,
             position:position, rotation:rotation,
             mesh:mesh, meshOffset:meshOffset,
-            physicsBody:physicsBody,
+            colliderShapes:colliderShapes,
             moveable:moveable, id:id
         });
         this.data.holds = holds;
@@ -357,15 +355,11 @@ export class Container extends Pawn {
     static className() { return "Container"; };
     static deserialize(manager, pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let physicsBody = new CANNON.Body({
-            mass: pawnJSON.mass,
-            shape: new CANNON.Shape().fromJSON(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        });
         let pawn = new Container({
             manager: manager, name: pawnJSON.name,
             holds: pawnJSON.data.holds,
             position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, physicsBody: physicsBody,
+            mesh: pawnJSON.mesh, colliderShapes: colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
         pawn.meshOffset.copy(pawnJSON.meshOffset);
