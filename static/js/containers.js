@@ -240,9 +240,6 @@ export class Deck extends Pawn {
         let backTexture = this.data.back != null ?
             Deck.textureCache.get(this.data.back) :
             Deck.textureCache.get(this.data.contents[this.data.contents.length - 1]);
-        //faceTexture.generateMipmaps = false;
-        //faceTexture.magFilter = THREE.LinearFilter;
-        //faceTexture.minFilter = THREE.LinearFilter;
         
         // Apply new materials
         const sideMaterial = new THREE.MeshStandardMaterial({color: this.data.sideColor});
@@ -252,9 +249,6 @@ export class Deck extends Pawn {
         this.backMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: backTexture
         });
-        /*this.box.material = [
-            sideMaterial, sideMaterial, this.faceMaterial, this.backMaterial, sideMaterial, sideMaterial
-        ];*/
         this.box.material = [
             this.faceMaterial, sideMaterial, this.backMaterial
         ];

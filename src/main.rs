@@ -2,8 +2,8 @@ use std::env;
 use std::collections::HashMap;
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
 
-use futures_util::{FutureExt, StreamExt, SinkExt, TryFutureExt};
-use tokio::time::{sleep, Duration};
+use futures_util::{StreamExt, SinkExt, TryFutureExt};
+use tokio::time::{sleep, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -31,7 +31,7 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 #[tokio::main]
 async fn main() {
     let default_port: u16 = 8080;
-    let mut port: u16 = match env::args().nth(1) {
+    let port: u16 = match env::args().nth(1) {
         Some(p) => p.parse::<u16>().unwrap_or(default_port),
         None => default_port,
     };
@@ -39,13 +39,13 @@ async fn main() {
     // Paths
     let default = warp::fs::dir("./static").with(warp::compression::gzip());
     
-    let index = warp::path::end().or(warp::path!("index.html")).map(|a| {
+    let index = warp::path::end().or(warp::path!("index.html")).map(|_| {
         let mut generator = Generator::default();
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
-    let www = warp::header::exact("host", "www.birdga.me") .map(|| {
-            warp::redirect::permanent(Uri::from_static("https://birdga.me"))
-        });
+    // let www = warp::header::exact("host", "www.birdga.me") .map(|| {
+    //         warp::redirect::permanent(Uri::from_static("https://birdga.me"))
+    //     });
     
     let game = warp::fs::file("./static/index.html");
     
@@ -70,8 +70,9 @@ async fn main() {
         let mut tick: u64 = 0;
 
         loop {
+            let physics_time = Instant::now();
             {
-                let mut lobbies_rl = physics_lobbies.read().await;
+                let lobbies_rl = physics_lobbies.read().await;
                 for lobby in lobbies_rl.values() {
                     let mut lobby = &mut *lobby.write().await;
                     // Simulate physics
@@ -102,6 +103,7 @@ async fn main() {
                     }
                 }
             }
+            //println!("Physics elapsed time: {}", Instant::now().duration_since(physics_time).as_millis());
             sleep(Duration::from_secs_f64(1.0/60.0)).await;
             tick += 1;
         }
@@ -110,8 +112,8 @@ async fn main() {
     tokio::task::spawn(async move  {
         loop {
             {
-                let mut lobbies_rl = cursor_lobbies.read().await;
-                for (lobby_name, lobby) in lobbies_rl.iter() {
+                let lobbies_rl = cursor_lobbies.read().await;
+                for lobby in lobbies_rl.values() {
                     let lobby = lobby.read().await;
                     for user_id in lobby.users.keys() {
                         relay_cursors(*user_id, &lobby);
@@ -144,7 +146,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     // Automatically send buffered messages
     tokio::task::spawn(async move {
         while let Some(message) = buffer_rx.next().await {
-            tx.send(message).unwrap_or_else(|e| {}).await
+            tx.send(message).unwrap_or_else(|_| {}).await
         }
     });
     
@@ -161,7 +163,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             host = true;
         }
 
-        let mut lobbies_rl = lobbies.read().await;
+        let lobbies_rl = lobbies.read().await;
         let mut lobby = lobbies_rl.get(&lobby_name).unwrap().write().await;
 
         if host { lobby.host = user_id; }
@@ -215,7 +217,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
 // --- GENERIC EVENTS ---
 
 async fn event(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobbies_rl = lobbies.read().await;
+    let lobbies_rl = lobbies.read().await;
     let lobby = lobbies_rl.get(lobby_name).unwrap().write().await;
     
     let target_host: bool = serde_json::from_value(data["target"].clone()).unwrap();
@@ -230,7 +232,7 @@ async fn event(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies)
     }
 }
 async fn event_callback(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobbies_rl = lobbies.read().await;
+    let lobbies_rl = lobbies.read().await;
     let lobby = lobbies_rl.get(lobby_name).unwrap().write().await;
     
     let target: usize = serde_json::from_value(data["receiver"].clone()).unwrap();
@@ -265,7 +267,6 @@ async fn add_pawn(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbi
             lobby::Shape::Cylinder { radius_top, radius_bottom, height, num_segments } => {
                 ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius_top as f32)
             },
-            _ => ColliderBuilder::ball(0.5),
         };
 		lobby.world.insert_with_parent(collider.density(1.0).build(), pawn.rigid_body.unwrap());
     }
@@ -303,7 +304,7 @@ async fn remove_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
         u.tx.send(Message::text(data.to_string()));
     }
 }
-macro_rules! update_from_serde {
+macro_rules! update_from_serde { // $to_update.$key = $value[$key]
     ($to_update:ident, $value:expr, $key:ident) => {
         if $value.get(stringify!($key)).is_some() {
             $to_update.$key = serde_json::from_value($value[stringify!($key)].clone()).unwrap();
@@ -312,7 +313,7 @@ macro_rules! update_from_serde {
 }
 async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) -> Option<()> {
     let lobbies_rl = lobbies.read().await;
-    let mut lobby: &mut Lobby = &mut *lobbies_rl.get(lobby_name).unwrap().write().await;
+    let lobby: &mut Lobby = &mut *lobbies_rl.get(lobby_name).unwrap().write().await;
     
     // Iterate through and update pawns
     let pawns = data["pawns"].as_array().unwrap();
@@ -365,7 +366,7 @@ async fn update_pawns(user_id: usize, data: Value, lobby_name: &str, lobbies: &L
 // --- USER EVENTS ---
 
 async fn user_joined(user_id: usize, data: Value, lobby_name: &str, lobbies: &Lobbies) {
-    let mut lobbies_rl = lobbies.read().await;
+    let lobbies_rl = lobbies.read().await;
     let lobby = lobbies_rl.get(lobby_name).unwrap().write().await;
     
     // Get user
@@ -424,6 +425,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
         if lobby.host == user_id {
             // Reassign host
             lobby.host = *lobby.users.keys().next().unwrap();
+
             // Tell the new host
             let response = json!({
                 "type":"assign_host"

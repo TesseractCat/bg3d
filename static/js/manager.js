@@ -754,11 +754,10 @@ export default class Manager {
                 msg.users.sort((a, b) => b.id == this.id ? 1 : -1).forEach(u => {
                     this.addUser(u.id, u.color)
                 });
-            }/* else if (type == "assign_host") {
-                console.log("ASSIGNED HOST");
+            } else if (type == "assign_host") {
                 document.querySelector("#host-panel").style.display = "block";
                 this.host = true;
-            }*/
+            }
             
             if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
