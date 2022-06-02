@@ -222,10 +222,9 @@ export class Deck extends Pawn {
         let thickness = Deck.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
 
-        this.colliderShapes[0].halfExtents.set(
-            this.colliderShapes[0].halfExtents.x,
-            (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
-            this.colliderShapes[0].halfExtents.z);
+        this.colliderShapes[0].halfExtents.setComponent(
+            1, Math.max(thickness, Deck.cardThickness * 10)/2,
+        );
         this.dirty.add("colliderShapes");
         
         // Load textures
@@ -308,11 +307,11 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor({manager, holds, position, rotation, mesh, meshOffset = new THREE.Vector3(), colliderShapes, moveable = true, id = null, name = null}) {
+    constructor({manager, holds, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
         super({
             manager: manager, name: name,
             position:position, rotation:rotation,
-            mesh:mesh, meshOffset:meshOffset,
+            mesh:mesh,
             colliderShapes:colliderShapes,
             moveable:moveable, id:id
         });
@@ -362,7 +361,6 @@ export class Container extends Pawn {
             mesh: pawnJSON.mesh, colliderShapes: colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
-        pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
         return pawn;

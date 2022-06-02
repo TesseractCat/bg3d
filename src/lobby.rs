@@ -56,6 +56,21 @@ pub enum Shape {
     #[serde(rename_all = "camelCase")]
     Cylinder { radius: f64, height: f64 },
 }
+impl Into<ColliderBuilder> for &Shape {
+    fn into(self) -> ColliderBuilder {
+        match self {
+            Shape::Box { half_extents } => {
+                ColliderBuilder::cuboid(half_extents.x as f32,
+                    half_extents.y as f32,
+                    half_extents.z as f32)
+            },
+            Shape::Cylinder { radius, height } => {
+                ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius as f32)
+            },
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PawnData {
@@ -69,24 +84,21 @@ pub enum PawnData {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pawn {
     pub id: u64, // Identifiers
     
     pub class: String, // Immutable Properties
     pub name: Option<String>,
     pub mesh: Option<String>,
-    #[serde(rename = "meshOffset")]
-    pub mesh_offset: Vec3,
 
-    #[serde(rename = "colliderShapes")] // Physics properties
-    pub shapes: Vec<Shape>,
+    pub collider_shapes: Vec<Shape>, // Physics properties
     pub moveable: bool,
     pub mass: f64,
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
     pub selected: bool,
-    #[serde(rename = "selectRotation")]
     pub select_rotation: Vec3,
     
     pub data: PawnData, // Misc
@@ -105,6 +117,28 @@ impl Pawn {
             "rotation": self.rotation,
         })
     }
+    pub fn patch(&mut self, value: &Value) {
+        macro_rules! patch {
+            ($value:expr, $($prop:ident, $key:ident),*,) => {
+                $(
+                    if $value.get(stringify!($key)).is_some() {
+                        self.$prop = serde_json::from_value($value[stringify!($key)].clone()).unwrap();
+                    }
+                )*
+            }
+        }
+        patch!(value,
+               position, position,
+               rotation, rotation,
+               selected, selected,
+               select_rotation, selectRotation,
+               data, data,
+
+               collider_shapes, colliderShapes,
+               moveable, moveable,
+               mass, mass,
+        );
+    }
 }
 
 pub struct Lobby {
@@ -113,6 +147,7 @@ pub struct Lobby {
 
     pub users: HashMap<usize, User>, // FIXME: Make these both u16
     pub pawns: HashMap<u64, Pawn>,
+    pub assets: HashMap<String, String>, // Filename : Base64
 
     pub world: PhysicsWorld,
 }
@@ -121,8 +156,11 @@ impl Lobby {
         Lobby {
             name: "".to_string(),
             host: 0,
+
             users: HashMap::new(),
             pawns: HashMap::new(),
+            assets: HashMap::new(),
+
             world: PhysicsWorld::new(1.0/30.0),
         }
     }

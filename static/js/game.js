@@ -36,7 +36,6 @@ export class Welcome extends Game {
             mesh: 'generic/bird.gltf?v=2', colliderShapes: [
                 new Cylinder(1.5, birdHeight)
             ],
-            meshOffset: new THREE.Vector3(0,-0.5 * birdHeight,0)
         });
         
         this.templates.set(bird.name, bird);
@@ -113,7 +112,6 @@ export class Checkers extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             let checkerBlackBag = new Container({
                 manager: this.manager, holds: this.templates.get("Black Checker").serialize(),
@@ -122,7 +120,6 @@ export class Checkers extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             this.manager.addPawn(checkerRedBag);
             this.manager.addPawn(checkerBlackBag);
@@ -333,7 +330,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             bagX += 3;
             let fivesBag = new Container({
@@ -342,7 +338,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             bagX += 3;
             let tensBag = new Container({
@@ -351,7 +346,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             bagX += 3;
             let fiftiesBag = new Container({
@@ -360,7 +354,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             bagX += 3;
             let hundredsBag = new Container({
@@ -369,7 +362,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             bagX += 3;
             let fiveHundredsBag = new Container({
@@ -378,7 +370,6 @@ export class Monopoly extends Game {
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
                 ],
-                meshOffset: new THREE.Vector3(0,-0.5 * 2.5,0)
             });
             
             this.manager.addPawn(onesBag);

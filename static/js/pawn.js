@@ -18,10 +18,9 @@ export class Pawn {
     
     moveable = true;
     mesh = new THREE.Object3D();
+    boundingBox = new THREE.Box3();
     colliderShapes;
     meshUrl;
-    meshOffset = new THREE.Vector3();
-    hoveredOffset = 0;
     
     dirty = new Set();
     lastPosition = new THREE.Vector3();
@@ -34,7 +33,7 @@ export class Pawn {
     
     constructor({manager,
         position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
-        mesh = null, meshOffset = new THREE.Vector3(), colliderShapes = null, moveable = true, id = null, name = null}) {
+        mesh = null, colliderShapes = null, moveable = true, id = null, name = null}) {
         
         if (id == null) {
             this.id = Pawn.NEXT_ID;
@@ -50,7 +49,6 @@ export class Pawn {
         this.name = name;
         this.moveable = moveable;
         this.meshUrl = mesh;
-        this.meshOffset.copy(meshOffset);
         this.colliderShapes = colliderShapes;
         
         // Create new NetworkedTransform
@@ -60,17 +58,13 @@ export class Pawn {
         if (mesh != null) { // GLTF URL
             this.manager.loader.load(mesh, (gltf) => {
                 gltf.scene.traverse(function (child) {
-                    /*if (child.material != undefined) {
-                        child.material.metalness = 0;
-                        child.material.smoothness = 0;
-                    }*/
                     child.castShadow = true;
                     child.receiveShadow = true;
                 });
 
-                let boundingBox = new THREE.Box3().setFromObject(gltf.scene);
-                this.meshOffset = new THREE.Vector3(0, -0.5 * (boundingBox.max.y - boundingBox.min.y), 0);
-                this.dirty.add("meshOffset");
+                this.boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+                let height = this.boundingBox.getSize(new THREE.Vector3()).y;
+                gltf.scene.translateY(-this.boundingBox.min.y - 0.5 * height);
                 this.mesh.add(gltf.scene);
                 this.updateMeshTransform();
             });
@@ -85,9 +79,6 @@ export class Pawn {
     }
     
     animate(dt) {
-        //this.hoveredOffset = new THREE.Vector3(0, this.hoveredOffset, 0)
-        //    .lerp(new THREE.Vector3(0, this.hovered ? 0.2 : 0, 0), dt * 15).y;
-        
         // Raycast to mesh
         if (this.selected) {
             let raycastableObjects = Array.from(this.manager.pawns.values()).filter(x => x != this).map(x => x.mesh);
@@ -103,9 +94,14 @@ export class Pawn {
             }
             if (hitPoint != undefined) {
                 let newPosition = this.position.clone();
-                newPosition.lerp(hitPoint.add(new THREE.Vector3(0, 2, 0)).sub(this.meshOffset), dt * 10);
+                let height = this.boundingBox.getSize(new THREE.Vector3()).y;
+                newPosition.lerp(hitPoint.add(
+                    new THREE.Vector3(0, 2 + height/2, 0)
+                ), dt * 10);
+
                 let newRotation = this.rotation.clone();
                 newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
+
                 this.setPosition(newPosition);
                 this.setRotation(newRotation);
             }
@@ -199,9 +195,6 @@ export class Pawn {
         if (this.mesh) {
             this.mesh.position.copy(this.position);
             this.mesh.quaternion.copy(this.rotation);
-            this.mesh.translateX(this.meshOffset.x);
-            this.mesh.translateY(this.meshOffset.y + this.hoveredOffset);
-            this.mesh.translateZ(this.meshOffset.z);
         }
     }
     
@@ -211,7 +204,7 @@ export class Pawn {
         Object.assign(out, {
             class: this.constructor.className(),
             name: this.name,
-            mesh: this.meshUrl, meshOffset: this.meshOffset,
+            mesh: this.meshUrl,
             mass: 1.0, moveable: this.moveable,
             colliderShapes: this.colliderShapes,
             data: this.data
@@ -236,7 +229,6 @@ export class Pawn {
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
-        pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
         return pawn;
@@ -286,7 +278,6 @@ export class Dice extends Pawn {
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
-        pawn.meshOffset.copy(pawnJSON.meshOffset);
         pawn.moveable = pawnJSON.moveable;
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;

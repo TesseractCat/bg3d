@@ -603,21 +603,6 @@ export default class Manager {
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
         document.body.appendChild(this.stats.dom);
-        
-        // Allow plugins to be dropped
-        display.addEventListener("dragenter", (e) => e.preventDefault());
-        display.addEventListener("dragleave", (e) => e.preventDefault());
-        display.addEventListener("dragover", (e) => e.preventDefault());
-        display.addEventListener("drop", (e) => {
-            e.preventDefault();
-            
-            if (e.dataTransfer.items && e.dataTransfer.items.length == 1) {
-                let item = e.dataTransfer.items[0];
-                let file = item.getAsFile();
-                
-                console.log("FILE DROPPED", file.name);
-            }
-        });
     }
     buildControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -633,9 +618,10 @@ export default class Manager {
         this.controls.listenToKeyEvents(display);
     }
     buildWebSocket(callback) {
-        let lobby = window.location.pathname.substring(1);
+        let lobby = window.location.pathname;
         this.socket =
-            new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + lobby);
+            new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
+                          + location.host + lobby + "/ws");
         
         this.socket.addEventListener('open', (e) => {
             this.sendSocket({
