@@ -282,6 +282,8 @@ fn event_callback(user_id: usize, data: Value, lobby: &mut Lobby) {
 // --- PAWN EVENTS ---
 
 fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
+    if user_id != lobby.host { return; }
+
     let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
     
     // Deserialize collider
@@ -306,12 +308,12 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
         "pawn":pawn.clone()
     });
     for u in lobby.users.values() {
-        if u.id != user_id {
-            u.tx.send(Message::text(response.to_string()));
-        }
+        u.tx.send(Message::text(response.to_string()));
     }
 }
 fn remove_pawns(user_id: usize, data: Value, lobby: &mut Lobby) {
+    if user_id != lobby.host { return; }
+
     let pawn_ids: Vec<u64> = serde_json::from_value(data["pawns"].clone()).unwrap();
     
     // Remove pawn from lobby
@@ -397,8 +399,11 @@ fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) {
     let url = DataUrl::process(data).unwrap();
     let asset = Asset {
         mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
-        data: url.decode_to_vec().unwrap().0,
+        data: url.decode_to_vec().unwrap().0, // Vec<u8>
     };
+
+    // No assets above 2 MiB
+    if asset.data.len() > 1024 * 1024 * 2 { return; }
 
     lobby.assets.insert(name.to_string(), asset);
 

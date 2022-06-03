@@ -53,10 +53,12 @@ export class Pawn {
         
         // Create new NetworkedTransform
         this.networkTransform = new NetworkedTransform(position, rotation);
-
+    }
+    initialized = false;
+    init() {
         // Load mesh
-        if (mesh != null) { // GLTF URL
-            this.manager.loader.load(mesh, (gltf) => {
+        if (this.meshUrl != null) { // GLTF URL
+            this.manager.loader.load(this.meshUrl, (gltf) => {
                 gltf.scene.traverse(function (child) {
                     child.castShadow = true;
                     child.receiveShadow = true;
@@ -72,9 +74,8 @@ export class Pawn {
         } else { // Don't load GLTF
             this.updateMeshTransform();
         }
-    }
-    initialized = false;
-    init() {
+
+        // Add to scene
         this.manager.scene.add(this.mesh);
         this.initialized = true;
     }

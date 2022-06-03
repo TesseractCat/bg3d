@@ -241,9 +241,8 @@ export default class Manager {
     }
     addPawn(pawn) {
         console.log("Adding pawn with ID: " + pawn.id);
-        pawn.init();
-        this.pawns.set(pawn.id, pawn);
-        //let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
+        // pawn.init();
+        // this.pawns.set(pawn.id, pawn);
         this.sendSocket({
             type:"add_pawn",
             pawn:pawn.serialize()

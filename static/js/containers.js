@@ -358,7 +358,7 @@ export class Container extends Pawn {
             manager: manager, name: pawnJSON.name,
             holds: pawnJSON.data.holds,
             position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, colliderShapes: colliderShapes,
+            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
         pawn.networkSelected = pawnJSON.selected;
