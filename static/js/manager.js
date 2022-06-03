@@ -111,7 +111,7 @@ export default class Manager {
     lastPingSent;
     
     constructor() {
-        this.loader = new GLTFLoader().setPath('../games/');
+        this.loader = new GLTFLoader().setPath(window.location.href + '/');
     }
     
     async init(callback) {
@@ -358,7 +358,6 @@ export default class Manager {
                 return update;
             });
 
-            //this.sendEvent("request_update_pawns", true, {pawns: to_update_data});
             this.sendSocket({type: "update_pawns", pawns: to_update_data});
             to_update.forEach(p => p.dirty.clear());
         }

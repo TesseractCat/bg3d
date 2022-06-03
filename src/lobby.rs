@@ -141,13 +141,18 @@ impl Pawn {
     }
 }
 
+pub struct Asset {
+    pub mime_type: String,
+    pub data: Vec<u8>,
+}
+
 pub struct Lobby {
     pub name: String,
     pub host: usize,
 
     pub users: HashMap<usize, User>, // FIXME: Make these both u16
     pub pawns: HashMap<u64, Pawn>,
-    pub assets: HashMap<String, String>, // Filename : Base64
+    pub assets: HashMap<String, Asset>,
 
     pub world: PhysicsWorld,
 }

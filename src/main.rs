@@ -1,14 +1,16 @@
 use std::env;
 use std::collections::HashMap;
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+use std::ops::{Deref, DerefMut};
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{sleep, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use warp::{http::Uri, Filter};
+use warp::{http::{Uri, Response}, Filter, Rejection, Reply};
 use warp::ws::{Message, WebSocket};
+use data_url::{DataUrl, mime};
 
 use serde_json::{Value, json};
 
@@ -36,40 +38,78 @@ async fn main() {
         None => default_port,
     };
     
-    // Paths
-    let default = warp::fs::dir("./static").with(warp::compression::gzip());
+    // Define our lobbies HashMap
+    let lobbies = Lobbies::default();
     
-    let redirect = warp::path::end().or(warp::path!("index.html")).map(|_| {
+    // Paths
+    let redirect = warp::path::end().or(warp::path("index.html")).map(|_| {
         let mut generator = Generator::default();
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
+
+    let default = warp::fs::dir("./static").with(warp::compression::gzip());
+    let default_assets = warp::path::param::<String>()
+        .and(warp::fs::dir("./static/games"))
+        .map(|lobby, file| file)
+        .with(warp::compression::gzip());
+
+    let lobbies_clone = lobbies.clone();
+    let lobby_assets = warp::path::param::<String>()
+        .and(warp::path::tail())
+        .and_then(move |lobby: String, tail: warp::path::Tail| {
+            let lobbies = lobbies_clone.clone();
+            println!("Someone requested asset path \"{}\" for lobby [{lobby}]", tail.as_str());
+
+            async move {
+                let lobbies_rl = lobbies.read().await;
+                let lobby = match lobbies_rl.get(&lobby) {
+                    Some(l) => l.read().await,
+                    None => return Err(warp::reject::not_found()),
+                };
+                let asset = match lobby.assets.get(tail.as_str()) {
+                    Some(a) => a,
+                    None => return Err(warp::reject::not_found()),
+                };
+                let response = Response::builder()
+                    .header("Content-Type", asset.mime_type.clone())
+                    .body(asset.data.clone());
+                Ok(response)
+            }
+        })
+        .with(warp::compression::gzip());
     
-    let game = warp::fs::file("./static/index.html");
-    
-    let lobbies = Lobbies::default();
-    let physics_lobbies = lobbies.clone();
-    let cursor_lobbies = lobbies.clone();
-    let lobbies = warp::any().map(move || lobbies.clone());
-    
+    let index = warp::path::param::<String>()
+        .and(warp::path::end())
+        .and(warp::fs::file("./static/index.html"))
+        .map(|lobby, file| file)
+        .with(warp::compression::gzip());
+
+    let lobbies_clone = lobbies.clone();
     let ws = warp::path!(String / "ws")
         .and(warp::ws())
-        .and(lobbies)
-        .map(|lobby: String, ws: warp::ws::Ws, lobbies| {
+        .map(move |lobby: String, ws: warp::ws::Ws| {
+            let lobbies = lobbies_clone.clone();
             ws.on_upgrade(move |socket| user_connected(socket, lobby, lobbies))
         });
     
     let routes = warp::get().and(
-        (redirect).or(default).or(ws).or(game)
+        (redirect)
+            .or(default)
+            .or(index)
+            .or(ws)
+            .or(default_assets)
+            .or(lobby_assets)
     );
     
     // Physics steps
+    let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move {
         let mut tick: u64 = 0;
 
         loop {
             let physics_time = Instant::now();
             {
-                let lobbies_rl = physics_lobbies.read().await;
+                let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
                     let mut lobby = &mut *lobby.write().await;
                     // Simulate physics
@@ -106,10 +146,11 @@ async fn main() {
         }
     });
     // Relay cursors
+    let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move  {
         loop {
             {
-                let lobbies_rl = cursor_lobbies.read().await;
+                let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
                     let lobby = lobby.read().await;
                     for user_id in lobby.users.keys() {
@@ -197,19 +238,20 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         let lobby = lobbies_rl.get(&lobby_name).unwrap();
 
         match data["type"].as_str().unwrap_or_default() {
-            "join" => {user_joined(user_id, data, &*lobby.read().await);},
-            "ping" => {ping(user_id, data, &*lobby.read().await);},
+            "join" => {user_joined(user_id, data, lobby.read().await.deref());},
+            "ping" => {ping(user_id, data, lobby.read().await.deref());},
             
-            "add_pawn"     =>     {add_pawn(user_id, data, &mut *lobby.write().await);},
-            "remove_pawns" => {remove_pawns(user_id, data, &mut *lobby.write().await);},
-            "update_pawns" => {update_pawns(user_id, data, &mut *lobby.write().await);},
+            "add_pawn"     => {add_pawn(user_id, data, lobby.write().await.deref_mut());},
+            "remove_pawns" => {remove_pawns(user_id, data, lobby.write().await.deref_mut());},
+            "update_pawns" => {update_pawns(user_id, data, lobby.write().await.deref_mut());},
 
-            "register_asset" => {register_asset(user_id, data, &mut *lobby.write().await);},
+            "register_asset" => {register_asset(user_id, data, lobby.write().await.deref_mut());},
+            "clear_assets" => {clear_assets(user_id, data, lobby.write().await.deref_mut());},
             
-            "send_cursor" => {update_cursor(user_id, data, &mut *lobby.write().await);},
+            "send_cursor" => {update_cursor(user_id, data, lobby.write().await.deref_mut());},
             
-            "event"          =>          {event(user_id, data, &mut *lobby.write().await);},
-            "event_callback" => {event_callback(user_id, data, &mut *lobby.write().await);},
+            "event"          => {event(user_id, data, lobby.write().await.deref_mut());},
+            "event_callback" => {event_callback(user_id, data, lobby.write().await.deref_mut());},
             _ => (),
         }
     }
@@ -347,12 +389,18 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Option<()> {
 // --- ASSET EVENTS ---
 
 fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) {
-    if user_id != lobby.host { return; }
+    if user_id != lobby.host || lobby.assets.len() >= 64 { return; }
 
     let name = data["name"].as_str().unwrap();
     let data = data["data"].as_str().unwrap();
 
-    lobby.assets.insert(name.to_string(), data.to_string());
+    let url = DataUrl::process(data).unwrap();
+    let asset = Asset {
+        mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
+        data: url.decode_to_vec().unwrap().0,
+    };
+
+    lobby.assets.insert(name.to_string(), asset);
 
     println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
 }

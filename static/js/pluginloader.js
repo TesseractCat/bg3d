@@ -36,19 +36,48 @@ export default class PluginLoader {
 
         console.log(manifest, entries);
 
+        // First clear all existing assets
+        this.clearAssets();
+
         // Register box.gltf file and add box
         await this.registerAsset(findEntry(entries, "box.gltf"));
-        //this.manager.addPawn(await this.createBoxPawn(manifest));
+        this.manager.addPawn(await this.createBoxPawn(manifest));
 
         await reader.close();
     }
 
     async registerAsset(entry) {
-        let data = await entry.getData(new zip.Data64URIWriter(""));
+        let extension = entry.filename.split('.')[1].toLowerCase();
+
+        let mimeType = "";
+        switch (extension) {
+            case "gltf":
+                mimeType = "model/gltf+json";
+                break;
+            case "glb":
+                mimeType = "model/gltf-binary";
+                break;
+            case "png":
+                mimeType = "image/png";
+                break;
+            case "jpg":
+            case "jpeg":
+                mimeType = "image/jpeg";
+                break;
+            default:
+                return;
+        }
+        
+        let data = await entry.getData(new zip.Data64URIWriter(mimeType));
         this.manager.sendSocket({
             "type":"register_asset",
             "name": entry.filename,
             "data": data,
+        });
+    }
+    clearAssets() {
+        this.manager.sendSocket({
+            "type":"clear_assets"
         });
     }
 
@@ -58,7 +87,7 @@ export default class PluginLoader {
             position: new THREE.Vector3(0,3.0,0),
             rotation: new THREE.Quaternion(),
             mesh: 'box.gltf', colliderShapes: [
-                new Box(new THREE.Vector3(0.5, 0.5, 0.5))
+                new Box(new THREE.Vector3(10.5/2, 1.5/2, 10.5/2))
             ],
         });
     }

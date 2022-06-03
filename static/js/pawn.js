@@ -63,8 +63,9 @@ export class Pawn {
                 });
 
                 this.boundingBox = new THREE.Box3().setFromObject(gltf.scene);
-                let height = this.boundingBox.getSize(new THREE.Vector3()).y;
-                gltf.scene.translateY(-this.boundingBox.min.y - 0.5 * height);
+                let size = this.boundingBox.getSize(new THREE.Vector3());
+                gltf.scene.translateY(-this.boundingBox.min.y - 0.5 * size.y);
+
                 this.mesh.add(gltf.scene);
                 this.updateMeshTransform();
             });
