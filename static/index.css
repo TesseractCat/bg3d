@@ -139,6 +139,7 @@ canvas {
 }
 
 /* HAND PANEL */
+
 #hand-panel {
     position:absolute;
     bottom:0px;
@@ -169,6 +170,41 @@ canvas {
 #hand-panel.minimized img {
     margin-bottom:-120px;
     pointer-events:none;
+}
+
+/* CONTEXT MENU */
+
+#context-menu {
+    position:absolute;
+    display:none;
+
+    width: 150px;
+    padding: 5px 0px;
+
+    background: aliceblue;
+    border: 1px solid rgba(0,0,0,0.5);
+    border-radius: 2px;
+
+    user-select:none;
+}
+#context-menu button, #context-menu p {
+    display:block;
+    width: 100%;
+    padding-left: 15%;
+}
+#context-menu button {
+    font-size:0.9em;
+    border: none;
+    border-radius:0px;
+    background-color: transparent;
+    text-align: left;
+}
+#context-menu button:hover {
+    background-color: rgba(0,0,0,0.2);
+}
+#context-menu p {
+    font-style: italic;
+    text-transform: capitalize;
 }
 
 /* SHADE */

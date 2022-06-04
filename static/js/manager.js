@@ -80,6 +80,141 @@ class Cursor {
     }
 }
 
+class ContextMenu {
+    manager;
+    element;
+
+    visible = false;
+
+    constructor(manager) {
+        this.manager = manager;
+        this.element = document.querySelector("#context-menu");
+
+        this.element.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+        });
+        document.addEventListener("mousedown", (e) => {
+            if (!this.element.contains(e.target) && this.visible) {
+                this.hide();
+            }
+        });
+    }
+
+    show(event, menu) {
+        // Remove children
+        while (this.element.firstChild) {
+            this.element.firstChild.remove();
+        }
+        
+        // Create buttons
+        for (let entry of menu) {
+            if (entry.length == 0) {
+                let divider = document.createElement("hr");
+
+                this.element.appendChild(divider);
+            } else if (entry.length == 1) {
+                let text = document.createElement("p");
+                text.innerText = entry[0];
+
+                this.element.appendChild(text);
+            } else if (entry.length == 2) {
+                let name = entry[0];
+                let action = entry[1];
+
+                let button = document.createElement("button");
+                button.innerText = name;
+                button.addEventListener("click", () => {
+                    this.hide();
+                    action();
+                });
+
+                this.element.appendChild(button);
+            }
+        }
+
+        this.element.style.left = event.clientX + "px";
+        this.element.style.top = event.clientY + "px";
+        this.element.style.display = "block";
+
+        this.visible = true;
+    }
+    hide() {
+        this.element.style.display = "none";
+
+        this.visible = false;
+    }
+}
+
+class Chat {
+    manager;
+
+    panel;
+    input;
+    entries;
+
+    constructor(manager) {
+        this.manager = manager;
+
+        this.panel = document.querySelector("#chat-panel");
+        this.input = document.querySelector("#chat-input");
+        this.entries = document.querySelector("#chat-entries");
+
+        this.input.addEventListener("keydown", (e) => {
+            if (e.key == "Enter") {
+                if (this.input.value != "") {
+                    this.manager.sendEvent("chat", false, {
+                        id:this.manager.id,
+                        content:this.input.value
+                    });
+                }
+                this.blur();
+            }
+        });
+        this.input.addEventListener("blur", (e) => {
+            this.blur();
+        });
+    }
+
+    focus() {
+        this.panel.style.opacity = "1";
+        this.panel.style.pointerEvents = "auto";
+        this.input.focus();
+        this.input.select();
+    }
+    blur() {
+        this.panel.style.opacity = "0.2";
+        this.panel.style.pointerEvents = "none";
+        this.input.value = "";
+        this.input.blur();
+        display.focus();
+    }
+
+    chatFadeTimeout;
+    addChatEntry(chatJSON) {
+        let entry = document.createElement("p");
+        entry.classList.add("entry");
+        
+        let name = document.createElement("span");
+        name.innerText = "⬤: ";
+        name.style.color = this.manager.userColors.get(chatJSON.id);
+        let text = document.createElement("span");
+        text.innerText = chatJSON.content;
+        
+        entry.appendChild(name);
+        entry.appendChild(text);
+        this.entries.appendChild(entry);
+        this.entries.scrollTop = this.entries.scrollHeight;
+        
+        this.panel.style.opacity = "1";
+        if (this.chatFadeTimeout !== undefined)
+            clearTimeout(this.chatFadeTimeout);
+        this.chatFadeTimeout = setTimeout(() => {
+            if (this.input != document.activeElement)
+                this.panel.style.opacity = "0.2";
+        }, 2000);
+    }
+}
+
 export default class Manager {
     scene;
     camera;
@@ -93,7 +228,10 @@ export default class Manager {
     pingPanel;
     
     pawns = new Map();
+
     hand = new Hand(this);
+    contextMenu = new ContextMenu(this);
+    chat = new Chat(this);
     
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -138,8 +276,9 @@ export default class Manager {
         display.addEventListener('mousemove', (e) => {
             // Fix intermittent chrome bug where mouse move is triggered incorrectly
             // https://bugs.chromium.org/p/chromium/issues/detail?id=721341
-            if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0)
+            if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0) {
                 dragged = true;
+            }
         });
         display.addEventListener("mouseup", (e) => {
             if (dragged)
@@ -156,39 +295,20 @@ export default class Manager {
                     return;
                 }
             }
-            toSelect[0].grab(e.button);
+            if (e.button == 0) {
+                toSelect[0].grab(e.button);
+            } else if (e.button == 2) {
+                console.log(toSelect[0].menu());
+                this.contextMenu.show(e, toSelect[0].menu());
+            }
         });
+        display.addEventListener('wheel', (e) => this.contextMenu.hide());
         
         // Chat
         display.addEventListener("keydown", (e) => {
             if (e.key == "Enter") {
-                //document.querySelector("#chat-panel").style.display = "block";
-                document.querySelector("#chat-panel").style.opacity = "1";
-                document.querySelector("#chat-panel").style.pointerEvents = "auto";
-                document.querySelector("#chat-input").focus();
-                document.querySelector("#chat-input").select();
+                this.chat.focus();
             }
-        });
-        document.querySelector("#chat-input").addEventListener("keydown", (e) => {
-            if (e.key == "Enter") {
-                if (document.querySelector("#chat-input").value != "") {
-                    this.sendEvent("chat", false, {
-                        id:this.id,
-                        content:document.querySelector("#chat-input").value
-                    });
-                }
-                //document.querySelector("#chat-panel").style.display = "none";
-                document.querySelector("#chat-panel").style.opacity = "0.2";
-                document.querySelector("#chat-panel").style.pointerEvents = "none";
-                document.querySelector("#chat-input").value = "";
-                document.querySelector("#chat-input").blur();
-                display.focus();
-            }
-        });
-        document.querySelector("#chat-input").addEventListener("blur", (e) => {
-            document.querySelector("#chat-panel").style.opacity = "0.2";
-            document.querySelector("#chat-panel").style.pointerEvents = "none";
-            document.querySelector("#chat-input").value = "";
         });
         
         // Route events to active pawns
@@ -208,31 +328,6 @@ export default class Manager {
         // Finally make websocket connection
         this.buildWebSocket(callback);
     }
-    chatFadeTimeout;
-    addChatEntry(chatJSON) {
-        let entry = document.createElement("p");
-        entry.classList.add("entry");
-        
-        let name = document.createElement("span");
-        name.innerText = "⬤: ";
-        name.style.color = this.userColors.get(chatJSON.id);
-        let text = document.createElement("span");
-        text.innerText = chatJSON.content;
-        
-        entry.appendChild(name);
-        entry.appendChild(text);
-        document.querySelector("#chat-entries").appendChild(entry);
-        document.querySelector("#chat-entries").scrollTop =
-            document.querySelector("#chat-entries").scrollHeight;
-        
-        document.querySelector("#chat-panel").style.opacity = "1";
-        if (this.chatFadeTimeout !== undefined)
-            clearTimeout(this.chatFadeTimeout);
-        this.chatFadeTimeout = setTimeout(() => {
-            if (document.querySelector("#chat-input") != document.activeElement)
-                document.querySelector("#chat-panel").style.opacity = "0.2";
-        }, 2000);
-    }
     
     clear() {
         this.sendSocket({
@@ -241,8 +336,6 @@ export default class Manager {
     }
     addPawn(pawn) {
         console.log("Adding pawn with ID: " + pawn.id);
-        // pawn.init();
-        // this.pawns.set(pawn.id, pawn);
         this.sendSocket({
             type:"add_pawn",
             pawn:pawn.serialize()
@@ -256,16 +349,16 @@ export default class Manager {
         let pawn;
         switch (pawnJSON.class) {
             case "Pawn":
-                pawn = Pawn.deserialize(this, pawnJSON);
+                pawn = Pawn.deserialize(pawnJSON);
                 break;
             case "Dice":
-                pawn = Dice.deserialize(this, pawnJSON);
+                pawn = Dice.deserialize(pawnJSON);
                 break;
             case "Deck":
-                pawn = Deck.deserialize(this, pawnJSON);
+                pawn = Deck.deserialize(pawnJSON);
                 break;
             case "Container":
-                pawn = Container.deserialize(this, pawnJSON);
+                pawn = Container.deserialize(pawnJSON);
                 break;
             default:
                 console.error("Encountered unknown pawn type!");
@@ -464,7 +557,8 @@ export default class Manager {
                 this.benchmarkTime = performance.now();
             }
         }
-        this.socket.send(json);
+        if (this.socket.readyState == 1)
+            this.socket.send(json);
     }
     pendingEvents = new Map();
     sendEvent(name, target, data, callback) {
@@ -518,7 +612,7 @@ export default class Manager {
                 });
                 break;
             case "chat":
-                this.addChatEntry(eventJSON.data);
+                this.chat.addChatEntry(eventJSON.data);
                 break;
         }
         
@@ -649,7 +743,7 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => {
                         let pawn = this.loadPawn(p);
-                        pawn.init();
+                        pawn.init(this);
                         this.pawns.set(pawn.id, pawn);
                     });
                 }
@@ -695,7 +789,7 @@ export default class Manager {
             if (type == "add_pawn") {
                 let pawn = this.loadPawn(msg.pawn);
                 this.pawns.set(pawn.id, pawn);
-                pawn.init();
+                pawn.init(this);
             } else if (type == "remove_pawns") {
                 msg.pawns.forEach(id => this.removePawn(id));
             } else if (type == "update_pawns") {

@@ -279,10 +279,10 @@ export class Deck extends Pawn {
     }
     
     static className() { return "Deck"; };
-    static deserialize(manager, pawnJSON) {
+    static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Deck({
-            manager: manager, name: pawnJSON.name,
+            name: pawnJSON.name,
             
             contents: pawnJSON.data.contents, back: pawnJSON.data.back,
             sideColor: pawnJSON.data.sideColor, cornerRadius: pawnJSON.data.cornerRadius,
@@ -352,10 +352,10 @@ export class Container extends Pawn {
     }
     
     static className() { return "Container"; };
-    static deserialize(manager, pawnJSON) {
+    static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Container({
-            manager: manager, name: pawnJSON.name,
+            name: pawnJSON.name,
             holds: pawnJSON.data.holds,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,

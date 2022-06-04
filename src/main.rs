@@ -282,7 +282,7 @@ fn event_callback(user_id: usize, data: Value, lobby: &mut Lobby) {
 // --- PAWN EVENTS ---
 
 fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
-    if user_id != lobby.host { return; }
+    if user_id != lobby.host || lobby.pawns.len() >= 256 { return; }
 
     let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
     

@@ -31,8 +31,7 @@ export class Pawn {
     
     static NEXT_ID = 0;
     
-    constructor({manager,
-        position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
+    constructor({position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
         mesh = null, colliderShapes = null, moveable = true, id = null, name = null}) {
         
         if (id == null) {
@@ -41,7 +40,6 @@ export class Pawn {
         } else {
             this.id = id;
         }
-        this.manager = manager;
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
@@ -55,7 +53,9 @@ export class Pawn {
         this.networkTransform = new NetworkedTransform(position, rotation);
     }
     initialized = false;
-    init() {
+    init(manager) {
+        this.manager = manager;
+
         // Load mesh
         if (this.meshUrl != null) { // GLTF URL
             this.manager.loader.load(this.meshUrl, (gltf) => {
@@ -134,6 +134,31 @@ export class Pawn {
         }
     }
     
+    menu() {
+        let commonEntries = [
+            [this.name],
+            [],
+            ["Flip", () => this.flip()],
+            ["Rotate Left", () => this.flip()],
+            ["Rotate Right", () => this.flip()],
+        ];
+        let hostEntries = [
+            [],
+            ["Clone", () => {
+                this.manager.addPawn(this.clone());
+            }],
+            ["Delete", () => {
+                this.manager.sendSocket({
+                    type:"remove_pawns",
+                    pawns:[this.id],
+                });
+            }],
+        ];
+        let entries = commonEntries;
+        if (this.manager.host)
+            entries = entries.concat(hostEntries);
+        return entries;
+    }
     handleEvent(data) {
         return {};
     }
@@ -223,10 +248,10 @@ export class Pawn {
             selectRotation:this.selectRotation,
         };
     }
-    static deserialize(manager, pawnJSON) {
+    static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Pawn({
-            manager: manager, name: pawnJSON.name,
+            name: pawnJSON.name,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
@@ -239,7 +264,7 @@ export class Pawn {
         // Serialize and Deserialize to clone
         let serialized = this.serialize();
         let serializedJSON = JSON.stringify(serialized);
-        let pawn = this.constructor.deserialize(this.manager, JSON.parse(serializedJSON));
+        let pawn = this.constructor.deserialize(JSON.parse(serializedJSON));
         // Increment ID
         pawn.id = Pawn.NEXT_ID;
         Pawn.NEXT_ID += 1;
@@ -271,10 +296,10 @@ export class Dice extends Pawn {
     }
     
     static className() { return "Dice"; };
-    static deserialize(manager, pawnJSON) {
+    static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Dice({
-            manager: manager, name: pawnJSON.name,
+            name: pawnJSON.name,
             rollRotations: pawnJSON.data.rollRotations,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,

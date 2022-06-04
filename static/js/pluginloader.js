@@ -82,9 +82,15 @@ export default class PluginLoader {
     }
 
     async createBoxPawn(manifest) {
+        let intersections = this.manager.raycaster.intersectObject(this.manager.scene, true);
+        console.log(intersections);
+
+        let point = intersections.length != 0 ?
+            intersections[0].point : new THREE.Vector3(0,0,0);
+
         return new Pawn({
             manager: this.manager, name: manifest.name,
-            position: new THREE.Vector3(0,3.0,0),
+            position: point.add(new THREE.Vector3(0,3,0)),
             rotation: new THREE.Quaternion(),
             mesh: 'box.gltf', colliderShapes: [
                 new Box(new THREE.Vector3(10.5/2, 1.5/2, 10.5/2))

@@ -14,7 +14,6 @@ export class Game {
     }
     init(clear, callback) {
         if (clear) {
-            //this.manager.clear();
             this.manager.sendEvent("clear_pawns", true, {}, () => callback());
         } else {
             callback();
@@ -30,7 +29,7 @@ export class Welcome extends Game {
         
         let birdHeight = 4.3;
         let bird = new Pawn({
-            manager: this.manager, name: "Bird Statue",
+            name: "Bird Statue",
             position: new THREE.Vector3(-1.9,2.8,-1.35),
             rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/6, 0)),
             mesh: 'generic/bird.gltf?v=2', colliderShapes: [
@@ -44,7 +43,7 @@ export class Welcome extends Game {
     init(clear) {
         super.init(clear, () => {
             let deck = new Deck({
-                manager: this.manager, name: "welcome", contents: ["generic/welcome.png"],
+                name: "welcome", contents: ["generic/welcome.png"],
                 sideColor: 0x000000, cornerRadius: 0.06,
                 position: new THREE.Vector3(0.9, 0, 0),// new THREE.Quaternion()/*.setFromEuler(new THREE.Euler(0, -Math.PI/12, 0))*/,
                 size: new THREE.Vector2(1.25 * 8, 1 * 8),
@@ -64,14 +63,14 @@ export class Checkers extends Game {
         super(manager);
         
         let checkerRed = new Pawn({
-            manager: this.manager, name: "Red Checker",
+            name: "Red Checker",
             mesh: 'checkers/checker_red.gltf?v=2',
             colliderShapes: [
                 new Cylinder(0.8, 0.35)
             ]
         });
         let checkerBlack = new Pawn({
-            manager: this.manager, name: "Black Checker",
+            name: "Black Checker",
             mesh: 'checkers/checker_black.gltf?v=2',
             colliderShapes: [
                 new Cylinder(0.8, 0.35)
@@ -84,7 +83,6 @@ export class Checkers extends Game {
     init(clear) {
         super.init(clear, () => {
             let board = new Pawn({
-                manager: this.manager,
                 position: new THREE.Vector3(0,0.5,0),
                 mesh: 'checkers/checkerboard.gltf',
                 colliderShapes: [
@@ -106,7 +104,7 @@ export class Checkers extends Game {
             }
             
             let checkerRedBag = new Container({
-                manager: this.manager, holds: this.templates.get("Red Checker").serialize(),
+                holds: this.templates.get("Red Checker").serialize(),
                 name: "Red Checkers",
                 position: new THREE.Vector3(-11, 2.5, -3),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
@@ -114,7 +112,7 @@ export class Checkers extends Game {
                 ],
             });
             let checkerBlackBag = new Container({
-                manager: this.manager, holds: this.templates.get("Black Checker").serialize(),
+                holds: this.templates.get("Black Checker").serialize(),
                 name: "Black Checkers",
                 position: new THREE.Vector3(-11, 2.5, 3),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
@@ -137,7 +135,6 @@ export class Chess extends Game {
     init(clear) {
         super.init(clear, () => {
             let board = new Pawn({
-                manager: this.manager,
                 position: new THREE.Vector3(0,0.5,0),
                 mesh: 'checkers/checkerboard.gltf',
                 colliderShapes: [
@@ -195,14 +192,14 @@ export class Chess extends Game {
     
     getPiece(name, radius, height) {
         let white = new Pawn({
-            manager: this.manager, name: name,
+            name: name,
             mesh: 'chess/' + name + '_white.gltf?v=2',
             colliderShapes: [
                 new Cylinder(radius, height)
             ]
         });
         let black = new Pawn({
-            manager: this.manager, name: name,
+            name: name,
             mesh: 'chess/' + name + '_black.gltf?v=2',
             colliderShapes: [
                 new Cylinder(radius, height)
@@ -240,7 +237,7 @@ export class Cards extends Game {
             }
         }
         let deckTemplate = new Deck({
-            manager: this.manager, name: "Standard Deck",
+            name: "Standard Deck",
             contents: cards, back: "generic/cards/Red_back.jpg",
             cornerRadius: 0.08, sideColor: 0xffffff,
             size: new THREE.Vector2(2.5 * 1.0, 3.5 * 1.0)
@@ -256,7 +253,7 @@ export class Cards extends Game {
             this.manager.addPawn(deck);
             
             /*let pokerChips = new Deck({
-                manager: this.manager, name: "Poker Chip",
+                name: "Poker Chip",
                 contents: Array(10).fill("poker/chip.jpg"),
                 cornerRadius: 0.52, sideColor: 0x12225a,
                 size: new THREE.Vector2(1.5, 1.5),
@@ -273,7 +270,6 @@ export class Monopoly extends Game {
     init(clear) {
         super.init(clear, () => {
             let board = new Pawn({
-                manager: this.manager,
                 position: new THREE.Vector3(0, 0.1, 0),
                 mesh: 'monopoly/board.gltf',
                 colliderShapes: [
@@ -291,27 +287,27 @@ export class Monopoly extends Game {
             ];
 
             let ones = new Deck({
-                manager: this.manager, name: "1",
+                name: "1",
                 contents: Array(5).fill("monopoly/1.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             let fives = new Deck({
-                manager: this.manager, name: "5",
+                name: "5",
                 contents: Array(5).fill("monopoly/5.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             let tens = new Deck({
-                manager: this.manager, name: "10",
+                name: "10",
                 contents: Array(5).fill("monopoly/10.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             let fifties = new Deck({
-                manager: this.manager, name: "50",
+                name: "50",
                 contents: Array(2).fill("monopoly/50.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             let hundreds = new Deck({
-                manager: this.manager, name: "100",
+                name: "100",
                 contents: Array(2).fill("monopoly/100.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             let fiveHundreds = new Deck({
-                manager: this.manager, name: "500",
+                name: "500",
                 contents: Array(2).fill("monopoly/500.jpg"), size: new THREE.Vector2(5, 2.8)
             });
             for (let pos of playerPositions) {
@@ -325,7 +321,7 @@ export class Monopoly extends Game {
             
             let bagX = -(9 + 6)/2;
             let onesBag = new Container({
-                manager: this.manager, holds: ones.serialize(), name: "5 x 1s",
+                holds: ones.serialize(), name: "5 x 1s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -333,7 +329,7 @@ export class Monopoly extends Game {
             });
             bagX += 3;
             let fivesBag = new Container({
-                manager: this.manager, holds: fives.serialize(), name: "5 x 5s",
+                holds: fives.serialize(), name: "5 x 5s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -341,7 +337,7 @@ export class Monopoly extends Game {
             });
             bagX += 3;
             let tensBag = new Container({
-                manager: this.manager, holds: tens.serialize(), name: "5 x 10s",
+                holds: tens.serialize(), name: "5 x 10s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -349,7 +345,7 @@ export class Monopoly extends Game {
             });
             bagX += 3;
             let fiftiesBag = new Container({
-                manager: this.manager, holds: fifties.serialize(), name: "2 x 50s",
+                holds: fifties.serialize(), name: "2 x 50s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -357,7 +353,7 @@ export class Monopoly extends Game {
             });
             bagX += 3;
             let hundredsBag = new Container({
-                manager: this.manager, holds: hundreds.serialize(), name: "2 x 100s",
+                holds: hundreds.serialize(), name: "2 x 100s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -365,7 +361,7 @@ export class Monopoly extends Game {
             });
             bagX += 3;
             let fiveHundredsBag = new Container({
-                manager: this.manager, holds: fiveHundreds.serialize(), name: "2 x 500s",
+                holds: fiveHundreds.serialize(), name: "2 x 500s",
                 position: new THREE.Vector3(bagX, 5, -21.5),
                 mesh: 'generic/bag.gltf?v=2', colliderShapes: [
                     new Cylinder(1.5, 2.5)
@@ -380,14 +376,14 @@ export class Monopoly extends Game {
             this.manager.addPawn(fiveHundredsBag);
             
             let chance = new Deck({
-                manager: this.manager, name: "chance",
+                name: "chance",
                 contents: [...Array(16).keys()].map(i => "monopoly/chance/" + i + ".jpg"),
                 position: new THREE.Vector3(4.5, 3, 4.5), rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4, 0)),
                 size: new THREE.Vector2(5/1.5, 2.8/1.5)
             });
             this.manager.addPawn(chance);
             let chest = new Deck({
-                manager: this.manager, name: "chest",
+                name: "chest",
                 contents: [...Array(16).keys()].map(i => "monopoly/chest/" + i + ".jpg"),
                 position: new THREE.Vector3(-4.5, 3, -4.5), rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/4 + Math.PI, 0)),
                 size: new THREE.Vector2(5/1.5, 2.8/1.5)
@@ -396,7 +392,7 @@ export class Monopoly extends Game {
             
             for (let i = 0; i < 28; i++) {
                 let property = new Deck({
-                    manager: this.manager, name: "properties", contents: ["monopoly/properties/" + i + ".jpg"],
+                    name: "properties", contents: ["monopoly/properties/" + i + ".jpg"],
                     position: new THREE.Vector3(((i%6) - 2.5) * 5, 1, 20 + Math.floor(i/6) * 5),
                     size: new THREE.Vector2(1 * 3.5, 1.16*3.5)
                 });
@@ -404,7 +400,7 @@ export class Monopoly extends Game {
             }
             
             let die = new Dice({
-                manager: this.manager, rollRotations: [
+                rollRotations: [
                     {x:0, y:0, z:0},
                     {x:Math.PI/2, y:0, z:0},
                     {x:Math.PI, y:0, z:0},
