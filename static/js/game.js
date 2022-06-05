@@ -400,6 +400,7 @@ export class Monopoly extends Game {
             }
             
             let die = new Dice({
+                name: 'Dice',
                 rollRotations: [
                     {x:0, y:0, z:0},
                     {x:Math.PI/2, y:0, z:0},

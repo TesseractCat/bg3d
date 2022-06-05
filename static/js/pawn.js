@@ -138,9 +138,9 @@ export class Pawn {
         let commonEntries = [
             [this.name],
             [],
-            ["Flip", () => this.flip()],
-            ["Rotate Left", () => this.flip()],
-            ["Rotate Right", () => this.flip()],
+            ["Flip", () => {}],
+            ["Rotate Left", () => {}],
+            ["Rotate Right", () => {}],
         ];
         let hostEntries = [
             [],
@@ -250,7 +250,7 @@ export class Pawn {
     }
     static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Pawn({
+        let pawn = new this({
             name: pawnJSON.name,
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
@@ -278,9 +278,9 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor({manager, rollRotations, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
+    constructor({rollRotations, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
         super({
-            manager: manager, name: name,
+            name: name,
             position: position, rotation: rotation,
             mesh: mesh, colliderShapes: colliderShapes,
             moveable: moveable, id: id
@@ -297,17 +297,8 @@ export class Dice extends Pawn {
     
     static className() { return "Dice"; };
     static deserialize(pawnJSON) {
-        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Dice({
-            name: pawnJSON.name,
-            rollRotations: pawnJSON.data.rollRotations,
-            position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
-            moveable: pawnJSON.moveable, id: pawnJSON.id
-        });
-        pawn.moveable = pawnJSON.moveable;
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.selectRotation = pawnJSON.selectRotation;
+        let pawn = super.deserialize(pawnJSON);
+        pawn.data.rollRotations = pawnJSON.data.rollRotations;
         return pawn;
     }
 }

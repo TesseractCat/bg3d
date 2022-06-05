@@ -284,7 +284,10 @@ fn event_callback(user_id: usize, data: Value, lobby: &mut Lobby) {
 fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
     if user_id != lobby.host || lobby.pawns.len() >= 256 { return; }
 
-    let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone()).unwrap();
+    let mut pawn: Pawn = match serde_json::from_value(data["pawn"].clone()) {
+        Ok(p) => p,
+        Err(_) => return,
+    };
     
     // Deserialize collider
 	let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic() } else { RigidBodyBuilder::fixed() }
@@ -395,6 +398,8 @@ fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) {
 
     let name = data["name"].as_str().unwrap();
     let data = data["data"].as_str().unwrap();
+
+    if lobby.assets.get(name).is_some() { return; }
 
     let url = DataUrl::process(data).unwrap();
     let asset = Asset {

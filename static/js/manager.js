@@ -12,6 +12,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { Pawn, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
+import { GameBox } from './pluginloader';
 
 class Hand {
     manager;
@@ -298,7 +299,6 @@ export default class Manager {
             if (e.button == 0) {
                 toSelect[0].grab(e.button);
             } else if (e.button == 2) {
-                console.log(toSelect[0].menu());
                 this.contextMenu.show(e, toSelect[0].menu());
             }
         });
@@ -359,6 +359,9 @@ export default class Manager {
                 break;
             case "Container":
                 pawn = Container.deserialize(pawnJSON);
+                break;
+            case "GameBox":
+                pawn = GameBox.deserialize(pawnJSON);
                 break;
             default:
                 console.error("Encountered unknown pawn type!");
@@ -758,7 +761,7 @@ export default class Manager {
                     pings++;
                 }, 500);
                 // Create webworker to manage animate() when page not focused
-                let animateWorker = new Worker('js/loop.js');
+                let animateWorker = new Worker('/js/loop.js');
                 animateWorker.onmessage = (e) => {
                     if (document.hidden) {
                         this.animate();

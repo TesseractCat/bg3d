@@ -353,16 +353,8 @@ export class Container extends Pawn {
     
     static className() { return "Container"; };
     static deserialize(pawnJSON) {
-        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Container({
-            name: pawnJSON.name,
-            holds: pawnJSON.data.holds,
-            position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
-            moveable: pawnJSON.moveable, id: pawnJSON.id
-        });
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.selectRotation = pawnJSON.selectRotation;
+        let pawn = super.deserialize(pawnJSON);
+        pawn.data.holds = pawnJSON.data.holds;
         return pawn;
     }
 }
