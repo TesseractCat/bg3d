@@ -24,17 +24,11 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor({manager, name, contents, back, sideColor = 0xcccccc,
-        position, rotation, size, cornerRadius = 0.02, moveable = true, id = null}) {
-        
-        super({
-            manager: manager, name: name,
-            position: position, rotation: rotation,
-            colliderShapes: [
-                new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
-            ],
-            moveable: moveable, id: id
-        });
+    constructor({contents, back, sideColor = 0xcccccc, size, cornerRadius = 0.02, ...rest}) {
+        rest.colliderShapes = [
+            new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
+        ];
+        super(rest);
         
         this.data.contents = contents;
         this.data.back = back;
@@ -307,14 +301,8 @@ export class Container extends Pawn {
         holds: {}
     }
     
-    constructor({manager, holds, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
-        super({
-            manager: manager, name: name,
-            position:position, rotation:rotation,
-            mesh:mesh,
-            colliderShapes:colliderShapes,
-            moveable:moveable, id:id
-        });
+    constructor({holds, ...rest}) {
+        super(rest);
         this.data.holds = holds;
     }
     

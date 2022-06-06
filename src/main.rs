@@ -415,6 +415,8 @@ fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) {
     println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
 }
 fn clear_assets(user_id: usize, data: Value, lobby: &mut Lobby) {
+    if user_id != lobby.host { return; }
+
     lobby.assets = HashMap::new();
 
     println!("User <{user_id}> clearing assets for lobby [{}]", lobby.name);

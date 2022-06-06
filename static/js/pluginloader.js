@@ -3,7 +3,7 @@ import * as zip from '@zip.js/zip.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import Manager from './manager';
-import { Pawn } from './pawn';
+import { Pawn, Deck } from './pawns';
 import { Box, Cylinder } from './shapes';
 
 export class GameBox extends Pawn {
@@ -24,21 +24,13 @@ export class GameBox extends Pawn {
                 [this.name + ' Box'],
                 [],
                 ["Open", () => this.open()],
-                ["Delete", () => {
-                    this.manager.sendSocket({
-                        type:"remove_pawns",
-                        pawns:[this.id],
-                    });
-                }],
+                ["Delete", () => this.manager.removePawn(this.id)],
             ];
         }
     }
 
     open() {
-        this.manager.sendSocket({
-            type:"remove_pawns",
-            pawns:[this.id],
-        });
+        this.manager.removePawn(this.id);
     }
     
     static className() { return "GameBox"; };
@@ -61,6 +53,9 @@ export default class PluginLoader {
     }
 
     async loadFromFile(file) {
+        if (!this.manager.host)
+            return;
+
         console.log("Loading plugin...");
         let reader = new zip.ZipReader(new zip.BlobReader(file));
 
@@ -105,15 +100,35 @@ export default class PluginLoader {
 
         await reader.close();
         console.log("Plugin loaded!");
+        document.querySelector("#games").value = "Custom";
+    }
+    async loadScript(url) {
+        let scriptBlob = await (await fetch(url)).blob();
+        scriptBlob = new Blob([
+            `importScripts("${window.location.protocol}//${window.location.host}/prelude.js");\n\n`,
+            scriptBlob
+        ], {type: "text/javascript"});
+
+        if (this.pluginWorker)
+            this.pluginWorker.terminate();
+
+        this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
+        this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
+
+        // Clear all existing assets
+        this.clearAssets();
+        this.manager.sendEvent("clear_pawns", true, {});
+
+        this.callWorker("start");
     }
     callWorker(action) {
         let resultPromise = new Promise((resolve, reject) => {
             let wait = (e) => {
-                    let data = e.data;
-                    if (data.type == "return") {
-                        this.pluginWorker.removeEventListener('message', wait);
-                        resolve(data.result);
-                    }
+                let data = e.data;
+                if (data.type == "return") {
+                    this.pluginWorker.removeEventListener('message', wait);
+                    resolve(data.result);
+                }
             };
             this.pluginWorker.addEventListener('message', wait);
         });
@@ -125,17 +140,32 @@ export default class PluginLoader {
     }
     async onWorker(message) {
         let data = message.data;
-        console.log(data);
+        let respond = (result) => {
+            this.pluginWorker.postMessage({
+                type:"return",
+                result:result,
+            });
+        }
 
         if (data.type == "addPawn") {
-            let pawn = new Pawn(data.pawn);
-            console.log(pawn);
+            data.pawn.rotation = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler().setFromVector3(data.pawn.rotation)
+            );
+            let pawn;
+            switch (data.pawn.type) {
+            case "Pawn":
+                pawn = new Pawn(data.pawn);
+                break;
+            case "Deck":
+                pawn = new Deck(data.pawn);
+                break;
+            default:
+                break;
+            }
             this.manager.addPawn(pawn);
+            respond(pawn.id);
         } else if (data.type == "removePawn") {
-            this.manager.sendSocket({
-                type:"remove_pawns",
-                pawns:[data.pawn],
-            });
+            this.manager.addPawn(pawn.id);
         }
     }
 

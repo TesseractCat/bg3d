@@ -26,8 +26,6 @@ function addPiece(piece, positions) {
 }
 
 self.start = async function() {
-    console.log("Starting chess...");
-
     // Spawn board
     addPawn(new Pawn({
         name: 'Board',

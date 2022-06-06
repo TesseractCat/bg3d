@@ -4,7 +4,6 @@ import mouseShake from './mouse-shake.js'
 
 import Manager from './manager';
 import {Pawn, Deck, Dice} from './pawns';
-import * as GAMES from './game';
 
 import PluginLoader from './pluginloader'
 
@@ -27,36 +26,39 @@ window.onload = function() {
 
     manager.init((host) => {
         let games = [
-            new GAMES.Welcome(manager),
-            new GAMES.Chess(manager),
-            new GAMES.Checkers(manager),
-            new GAMES.Cards(manager),
-            new GAMES.Monopoly(manager),
+            ['Welcome', 'games/welcome.js'],
+            ['Chess', 'games/chess.js'],
         ];
         games.forEach((g, i) => {
+            let name = g[0];
             let gameOption = document.createElement("option");
-            gameOption.value = g.name;
-            gameOption.innerText = g.name;
+            gameOption.value = name;
+            gameOption.innerText = name;
             document.querySelector("#games").appendChild(gameOption);
             
-            if (g.templates.size > 0) {
-                let pieceGroup = document.createElement("optgroup");
-                pieceGroup.label = g.name;
-                for (const piece of g.templates.keys()) {
-                    let pieceOption = document.createElement("option");
-                    pieceOption.value = i + "/" + piece;
-                    pieceOption.innerText = piece;
-                    pieceGroup.appendChild(pieceOption);
-                }
-                document.querySelector("#pieces").appendChild(pieceGroup);
-            }
+            // if (g.templates.size > 0) {
+            //     let pieceGroup = document.createElement("optgroup");
+            //     pieceGroup.label = g.name;
+            //     for (const piece of g.templates.keys()) {
+            //         let pieceOption = document.createElement("option");
+            //         pieceOption.value = i + "/" + piece;
+            //         pieceOption.innerText = piece;
+            //         pieceGroup.appendChild(pieceOption);
+            //     }
+            //     document.querySelector("#pieces").appendChild(pieceGroup);
+            // }
         });
+        let gameOption = document.createElement("option");
+        gameOption.value = 'Custom';
+        gameOption.innerText = 'Custom';
+        gameOption.style.display = 'none';
+        document.querySelector("#games").appendChild(gameOption);
+
         document.querySelector("#games").addEventListener("change", (e) => {
-            for (let g of games) {
-                if (g.name == e.target.value) {
-                    g.init(true);
-                    return;
-                }
+            let game = games[e.target.selectedIndex];
+            if (game) {
+                let url = game[1];
+                pluginLoader.loadScript(url);
             }
         });
         document.querySelector("#add-piece").addEventListener("click", (e) => {
@@ -72,7 +74,7 @@ window.onload = function() {
         
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
-            games[0].init(false);
+            pluginLoader.loadScript(games[0][1]);
         }
         
         animate();

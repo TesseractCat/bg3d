@@ -342,8 +342,11 @@ export default class Manager {
         });
     }
     removePawn(id) {
-        this.scene.remove(this.pawns.get(id).mesh);
-        this.pawns.delete(id);
+        console.log("Removing pawn with ID: " + id);
+        this.sendSocket({
+            type:"remove_pawns",
+            pawns:[id],
+        });
     }
     loadPawn(pawnJSON) {
         let pawn;
@@ -794,7 +797,10 @@ export default class Manager {
                 this.pawns.set(pawn.id, pawn);
                 pawn.init(this);
             } else if (type == "remove_pawns") {
-                msg.pawns.forEach(id => this.removePawn(id));
+                msg.pawns.forEach(id => {
+                    this.scene.remove(this.pawns.get(id).mesh);
+                    this.pawns.delete(id);
+                });
             } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
             }

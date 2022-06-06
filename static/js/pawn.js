@@ -43,6 +43,7 @@ export class Pawn {
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
+        this.selectRotation.copy(new THREE.Euler().setFromQuaternion(this.rotation));
 
         this.name = name;
         this.moveable = moveable;
@@ -148,10 +149,7 @@ export class Pawn {
                 this.manager.addPawn(this.clone());
             }],
             ["Delete", () => {
-                this.manager.sendSocket({
-                    type:"remove_pawns",
-                    pawns:[this.id],
-                });
+                this.manager.removePawn(this.id);
             }],
         ];
         let entries = commonEntries;
@@ -278,13 +276,8 @@ export class Dice extends Pawn {
         rollRotations: []
     }
     
-    constructor({rollRotations, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
-        super({
-            name: name,
-            position: position, rotation: rotation,
-            mesh: mesh, colliderShapes: colliderShapes,
-            moveable: moveable, id: id
-        });
+    constructor({rollRotations, ...rest}) {
+        super(rest);
         this.data.rollRotations = rollRotations;
     }
     
