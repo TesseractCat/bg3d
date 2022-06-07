@@ -75,6 +75,8 @@ impl Into<ColliderBuilder> for &Shape {
 #[serde(untagged)]
 pub enum PawnData {
     #[serde(rename_all = "camelCase")]
+    SnapPoint { radius: f64, size: Vec2, scale: f64 },
+    #[serde(rename_all = "camelCase")]
     Deck { contents: Vec<String>, back: Option<String>, side_color: u64, corner_radius: f64, size: Vec2 },
     #[serde(rename_all = "camelCase")]
     Dice { roll_rotations: Vec<Vec3> },

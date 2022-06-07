@@ -18,4 +18,18 @@ self.start = async function() {
         moveable: false
     });
     addPawn(deck);
+
+    addPawn(new SnapPoint({
+        position: new Vector3(-1.9,0,-1.35),
+    }));
+
+    // let bag = new Container({
+    //     name: "Bird Bag", holds: bird,
+    //     position: new Vector3(1.9,1.25,-1.35),
+    //     rotation: new Vector3(0, -Math.PI/6, 0),
+    //     mesh: 'generic/bag.gltf', colliderShapes: [
+    //         new Cylinder(1.5, 2.5)
+    //     ],
+    // })
+    // addPawn(bag);
 }

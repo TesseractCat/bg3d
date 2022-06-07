@@ -68,7 +68,7 @@ class Pawn {
     name;
     colliderShapes;
 
-    constructor({position = new Vector3(), rotation = new Vector3(), mesh, moveable = true, name, colliderShapes = []}) {
+    constructor({position = new Vector3(), rotation = new Vector3(), mesh, moveable, name, colliderShapes = []}) {
         this.position = position;
         this.rotation = rotation;
 
@@ -78,21 +78,48 @@ class Pawn {
         this.colliderShapes = colliderShapes;
     }
 }
+class SnapPoint extends Pawn {
+    type = 'SnapPoint';
+
+    radius;
+    size;
+    scale;
+
+    constructor({radius, size, scale, ...rest}) {
+        super(rest);
+        this.radius = radius;
+        this.size = size;
+        this.scale = scale;
+    }
+}
 class Deck extends Pawn {
     type = 'Deck';
 
     contents;
+    back;
     sideColor;
     cornerRadius;
     size;
     
-    constructor({contents=[], sideColor=0xcccccc, cornerRadius=0.05, size=new Vector2(), ...rest}) {
+    constructor({contents, back, sideColor, cornerRadius, size, ...rest}) {
         super(rest);
 
         this.contents = contents;
+        this.back = back;
         this.sideColor = sideColor;
         this.cornerRadius = cornerRadius;
         this.size = size;
+    }
+}
+class Container extends Pawn {
+    type = 'Container';
+
+    holds;
+    
+    constructor({holds, ...rest}) {
+        super(rest);
+
+        this.holds = holds;
     }
 }
 

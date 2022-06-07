@@ -3,7 +3,7 @@ import * as zip from '@zip.js/zip.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import Manager from './manager';
-import { Pawn, Deck } from './pawns';
+import { Pawn, SnapPoint, Deck, Container, Dice } from './pawns';
 import { Box, Cylinder } from './shapes';
 
 export class GameBox extends Pawn {
@@ -92,8 +92,10 @@ export default class PluginLoader {
         this.manager.sendEvent("clear_pawns", true, {});
 
         // Register all plugin assets
+        console.log(entries);
         for (let entry of entries) {
-            await this.registerAsset(entry);
+            if (!entry.directory)
+                await this.registerAsset(entry);
         }
 
         this.callWorker("start");
@@ -148,25 +150,47 @@ export default class PluginLoader {
         }
 
         if (data.type == "addPawn") {
-            data.pawn.rotation = new THREE.Quaternion().setFromEuler(
-                new THREE.Euler().setFromVector3(data.pawn.rotation)
-            );
-            let pawn;
-            switch (data.pawn.type) {
-            case "Pawn":
-                pawn = new Pawn(data.pawn);
-                break;
-            case "Deck":
-                pawn = new Deck(data.pawn);
-                break;
-            default:
-                break;
+            let pawn = this.loadPawn(data.pawn);
+            if (pawn) {
+                this.manager.addPawn(pawn);
+                respond(pawn.id);
+            } else {
+                respond(-1);
             }
-            this.manager.addPawn(pawn);
-            respond(pawn.id);
         } else if (data.type == "removePawn") {
-            this.manager.addPawn(pawn.id);
+            this.manager.removePawn(pawn.id);
         }
+    }
+
+    loadPawn(pawn) {
+        if (pawn.rotation) {
+            pawn.rotation = new THREE.Quaternion().setFromEuler(
+                new THREE.Euler().setFromVector3(pawn.rotation)
+            );
+        }
+
+        let result;
+        switch (pawn.type) {
+        case "Pawn":
+            result = new Pawn(pawn);
+            break;
+        case "SnapPoint":
+            result = new SnapPoint(pawn);
+            break;
+        case "Deck":
+            result = new Deck(pawn);
+            break;
+        case "Container":
+            pawn.holds = this.loadPawn(pawn.holds).serialize();
+            result = new Container(pawn);
+            break;
+        case "Dice":
+            result = new Dice(pawn);
+            break;
+        default:
+            break;
+        }
+        return result;
     }
 
     async registerAsset(entry) {

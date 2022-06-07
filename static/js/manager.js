@@ -10,7 +10,7 @@ import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectio
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import { Pawn, Dice, Deck, Container  } from './pawns';
+import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 import { GameBox } from './pluginloader';
 
@@ -354,6 +354,9 @@ export default class Manager {
             case "Pawn":
                 pawn = Pawn.deserialize(pawnJSON);
                 break;
+            case "SnapPoint":
+                pawn = SnapPoint.deserialize(pawnJSON);
+                break;
             case "Dice":
                 pawn = Dice.deserialize(pawnJSON);
                 break;
@@ -362,9 +365,6 @@ export default class Manager {
                 break;
             case "Container":
                 pawn = Container.deserialize(pawnJSON);
-                break;
-            case "GameBox":
-                pawn = GameBox.deserialize(pawnJSON);
                 break;
             default:
                 console.error("Encountered unknown pawn type!");

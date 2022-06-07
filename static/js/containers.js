@@ -18,13 +18,13 @@ export class Deck extends Pawn {
     
     static cardThickness = 0.01;
     static textureCache = new Map();
-    static textureLoader = new THREE.TextureLoader().setPath("../games/");
+    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
     
     box;
     faceMaterial;
     backMaterial;
     
-    constructor({contents, back, sideColor = 0xcccccc, size, cornerRadius = 0.02, ...rest}) {
+    constructor({contents = [], back = "", sideColor = 0xcccccc, size = new THREE.Vector2(), cornerRadius = 0.02, ...rest}) {
         rest.colliderShapes = [
             new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
         ];
@@ -80,6 +80,18 @@ export class Deck extends Pawn {
         shape.lineTo(x + radius, y);
         shape.quadraticCurveTo(x, y, x, y + radius);
         return shape;
+    }
+
+    menu() {
+        let entries = super.menu();
+        entries.splice(2, 0, []);
+        entries.splice(2, 0, ["Take", () => {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                this.updateDeck();
+                this.manager.pawns.get(card_id).grab(0);
+            });
+        }]);
+        return entries;
     }
     
     animate(dt) {
@@ -306,6 +318,17 @@ export class Container extends Pawn {
         this.data.holds = holds;
     }
     
+    menu() {
+        let entries = super.menu();
+        entries.splice(2, 0, []);
+        entries.splice(2, 0, ["Take", () => {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
+                this.manager.pawns.get(item_id).grab(0);
+            });
+        }]);
+        return entries;
+    }
+
     flip() { }
     
     handleEvent(data) {

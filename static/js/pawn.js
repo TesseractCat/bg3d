@@ -5,34 +5,37 @@ import { NetworkedTransform } from './transform';
 
 // Local instance of moveable object with mesh
 export class Pawn {
+    // Serialized
     position = new THREE.Vector3(0,0,0);
     rotation = new THREE.Quaternion();
-    hovered = false;
-    selected = false;
     data = {};
     
     selectRotation = new THREE.Vector3();
     
     id;
     name;
-    
-    moveable = true;
-    mesh = new THREE.Object3D();
-    boundingBox = new THREE.Box3();
-    colliderShapes;
     meshUrl;
     
+    moveable = true;
+    colliderShapes;
+    
+    // Non-Serialized
     dirty = new Set();
     lastPosition = new THREE.Vector3();
     lastRotation = new THREE.Quaternion();
     
     networkSelected = false;
     networkTransform;
+
+    mesh = new THREE.Object3D();
+    boundingBox = new THREE.Box3();
+    hovered = false;
+    selected = false;
     
     static NEXT_ID = 0;
     
     constructor({position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
-        mesh = null, colliderShapes = null, moveable = true, id = null, name = null}) {
+        mesh = null, colliderShapes = [], moveable = true, id = null, name = null}) {
         
         if (id == null) {
             this.id = Pawn.NEXT_ID;
@@ -82,8 +85,8 @@ export class Pawn {
     }
     
     animate(dt) {
-        // Raycast to mesh
         if (this.selected) {
+            // Raycast for movement
             let raycastableObjects = Array.from(this.manager.pawns.values()).filter(x => x != this).map(x => x.mesh);
             raycastableObjects.push(this.manager.plane);
             let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
@@ -95,11 +98,25 @@ export class Pawn {
                     break;
                 }
             }
-            if (hitPoint != undefined) {
+            if (hitPoint) {
+                // Snap points
+                let snapPoints = Array.from(this.manager.pawns.values()).filter(x => x instanceof SnapPoint);
+                let snapped = false;
+
+                for (let snapPoint of snapPoints) {
+                    let snappedPoint = snapPoint.snapsTo(hitPoint);
+                    if (snappedPoint) {
+                        snapped = true;
+                        hitPoint.copy(snappedPoint);
+                        break;
+                    }
+                }
+
+                // Lerp
                 let newPosition = this.position.clone();
                 let height = this.boundingBox.getSize(new THREE.Vector3()).y;
-                newPosition.lerp(hitPoint.add(
-                    new THREE.Vector3(0, 2 + height/2, 0)
+                newPosition.lerp(hitPoint.clone().add(
+                    new THREE.Vector3(0, height/2 + (snapped ? 0.5 : 2), 0)
                 ), dt * 10);
 
                 let newRotation = this.rotation.clone();
@@ -256,6 +273,7 @@ export class Pawn {
         });
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
+        pawn.data = pawnJSON.data;
         return pawn;
     }
     clone() {
@@ -269,6 +287,49 @@ export class Pawn {
         return pawn;
     }
     processData() { }
+}
+
+export class SnapPoint extends Pawn {
+    data = {
+        radius: 0,
+        size: new THREE.Vector2(),
+        scale: 0,
+    }
+
+    constructor({radius=1, size=new THREE.Vector2(1,1), scale=1, ...rest}) {
+        rest.moveable = false;
+        rest.colliderShapes = [];
+        super(rest);
+        this.data.radius = radius;
+        this.data.size = size;
+        this.data.scale = scale;
+    }
+
+    snapsTo(position) {
+        let halfExtents = new THREE.Vector3(this.data.size.x - 1, 0, this.data.size.y - 1).divideScalar(2.0);
+
+        // Transform position into local space
+        let localPosition = this.mesh.worldToLocal(position.clone());
+        localPosition.divideScalar(this.data.scale);
+        localPosition.add(halfExtents);
+        // Round to nearest half: 0.5, 1.5, 2.5, ... 
+        let roundedPosition = localPosition.clone().round();
+
+        let distance = localPosition.distanceTo(roundedPosition);
+        if (distance < this.data.radius/this.data.scale
+            && roundedPosition.x < this.data.size.x && roundedPosition.x >= 0
+            && roundedPosition.z < this.data.size.y && roundedPosition.z >= 0) {
+
+            // Transform rounded position back into object space
+            let resultPosition = roundedPosition.clone();
+            resultPosition.sub(halfExtents);
+            resultPosition.multiplyScalar(this.data.scale);
+
+            return this.mesh.localToWorld(resultPosition);
+        }
+    }
+
+    static className() { return "SnapPoint"; };
 }
 
 export class Dice extends Pawn {
@@ -289,9 +350,4 @@ export class Dice extends Pawn {
     }
     
     static className() { return "Dice"; };
-    static deserialize(pawnJSON) {
-        let pawn = super.deserialize(pawnJSON);
-        pawn.data.rollRotations = pawnJSON.data.rollRotations;
-        return pawn;
-    }
 }

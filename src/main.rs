@@ -282,7 +282,7 @@ fn event_callback(user_id: usize, data: Value, lobby: &mut Lobby) {
 // --- PAWN EVENTS ---
 
 fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
-    if user_id != lobby.host || lobby.pawns.len() >= 256 { return; }
+    if user_id != lobby.host || lobby.pawns.len() >= 1024 { return; }
 
     let mut pawn: Pawn = match serde_json::from_value(data["pawn"].clone()) {
         Ok(p) => p,
@@ -394,7 +394,7 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Option<()> {
 // --- ASSET EVENTS ---
 
 fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) {
-    if user_id != lobby.host || lobby.assets.len() >= 64 { return; }
+    if user_id != lobby.host || lobby.assets.len() >= 256 { return; }
 
     let name = data["name"].as_str().unwrap();
     let data = data["data"].as_str().unwrap();
