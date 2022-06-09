@@ -56,9 +56,9 @@ pub enum Shape {
     #[serde(rename_all = "camelCase")]
     Cylinder { radius: f64, height: f64 },
 }
-impl Into<ColliderBuilder> for &Shape {
-    fn into(self) -> ColliderBuilder {
-        match self {
+impl From<&Shape> for ColliderBuilder {
+    fn from(shape: &Shape) -> ColliderBuilder {
+        match shape {
             Shape::Box { half_extents } => {
                 ColliderBuilder::cuboid(half_extents.x as f32,
                     half_extents.y as f32,

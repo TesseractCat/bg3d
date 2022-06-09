@@ -281,9 +281,9 @@ export default class Manager {
                 dragged = true;
             }
         });
-        display.addEventListener("mouseup", (e) => {
-            if (dragged)
-                return;
+        display.addEventListener('mouse' + 'down', (e) => {
+            // if (dragged)
+            //     return;
             let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
             );
@@ -298,8 +298,22 @@ export default class Manager {
             }
             if (e.button == 0) {
                 toSelect[0].grab(e.button);
-            } else if (e.button == 2) {
-                this.contextMenu.show(e, toSelect[0].menu());
+                this.controls.saveState();
+                this.controls.reset();
+            }
+        });
+        display.addEventListener('mouseup', (e) => {
+            if (e.button == 0) {
+                let selected = Array.from(this.pawns.values()).filter(p => p.selected);
+                for (let pawn of selected) {
+                    pawn.release();
+                }
+            } else if (e.button == 2 && !dragged) {
+                let toSelect = Array.from(this.pawns.values()).filter(p => 
+                    p.moveable && (p.hovered || p.selected)
+                );
+                if (toSelect.length != 0)
+                    this.contextMenu.show(e, toSelect[0].menu());
             }
         });
         display.addEventListener('wheel', (e) => this.contextMenu.hide());
@@ -713,6 +727,7 @@ export default class Manager {
         
         this.controls.keyPanSpeed = 20;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
+        //this.controls.mouseButtons = { MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
         this.controls.listenToKeyEvents(display);
     }
     buildWebSocket(callback) {

@@ -94,7 +94,9 @@ export class Pawn {
             let hitPoint;
             for (var i = 0; i < hits.length; i++) {
                 if (hits[i].object != this.mesh) {
+                    let hitBox = new THREE.Box3().setFromObject(hits[i].object);
                     hitPoint = hits[i].point.clone();
+                    hitPoint.y = hitBox.max.y;
                     break;
                 }
             }

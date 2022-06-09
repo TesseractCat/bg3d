@@ -298,8 +298,8 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
 	pawn.rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     for shape in &pawn.collider_shapes {
-        let collider: ColliderBuilder = shape.into();
-        lobby.world.insert_with_parent(collider.density(1.0).build(), pawn.rigid_body.unwrap());
+        let collider: ColliderBuilder = ColliderBuilder::from(shape).density(1.0).friction(0.7);
+        lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
     }
     
     // Add pawn to lobby
@@ -353,28 +353,37 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Option<()> {
                 lobby.world.remove_collider(handle);
             }
             for shape in &pawn.collider_shapes {
-                let collider: ColliderBuilder = shape.into();
-                lobby.world.insert_with_parent(collider.density(1.0).build(), pawn.rigid_body.unwrap());
+                let collider: ColliderBuilder = ColliderBuilder::from(shape).density(1.0).friction(0.7);
+                lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
             }
         }
         if pawn.moveable {
             let rb_handle = pawn.rigid_body.unwrap();
             let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
-            if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
-                let position: Vector<f32> = Vector::from(&pawn.position);
-                let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
-
-                rb.set_translation(position, true);
-                rb.set_rotation(rotation.scaled_axis(), true);
-                rb.set_linvel(vector![0.0, 0.0, 0.0], true);
-                rb.set_angvel(vector![0.0, 0.0, 0.0], true);
-            }
             // Don't simulate selected pawns
             rb.set_body_type(if !pawn.selected {
                 RigidBodyType::Dynamic
             } else {
                 RigidBodyType::KinematicPositionBased
             });
+            for collider_handle in rb.colliders().iter() {
+                let collider = lobby.world.collider_set.get_mut(*collider_handle).unwrap();
+                collider.set_sensor(pawn.selected);
+            }
+            // Update position and velocity
+            if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
+                let old_position: &Vector<f32> = rb.translation();
+                let position: Vector<f32> = Vector::from(&pawn.position);
+
+                let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
+                let velocity: Vector<f32> = (position - old_position) * 10.0;
+
+                let wake = true;
+                rb.set_translation(position, wake);
+                rb.set_rotation(rotation.scaled_axis(), wake);
+                rb.set_linvel(velocity, wake);
+                rb.set_angvel(vector![0.0, 0.0, 0.0], wake);
+            }
         }
     }
     

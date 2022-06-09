@@ -51,7 +51,7 @@ window.onload = function() {
         let gameOption = document.createElement("option");
         gameOption.value = 'Custom';
         gameOption.innerText = 'Custom';
-        gameOption.style.display = 'none';
+        gameOption.setAttribute("hidden", "");
         document.querySelector("#games").appendChild(gameOption);
 
         document.querySelector("#games").addEventListener("change", (e) => {
