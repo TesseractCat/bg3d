@@ -6,7 +6,7 @@ use rapier3d::prelude::*;
 use crate::user::*;
 use crate::physics::*;
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec3 {
         pub x: f64,
         pub y: f64,
@@ -42,13 +42,13 @@ impl From<&Vec3> for Rotation<f32> {
 	}
 }
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec2 {
         pub x: f64,
         pub y: f64,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Shape {
     #[serde(rename_all = "camelCase")]
@@ -71,21 +71,19 @@ impl From<&Shape> for ColliderBuilder {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum PawnData {
-    #[serde(rename_all = "camelCase")]
-    SnapPoint { radius: f64, size: Vec2, scale: f64 },
+    Container { holds: Box<Pawn>, capacity: Option<u64> },
+    SnapPoint { radius: f64, size: Vec2, scale: f64, snaps: Vec<String> },
     #[serde(rename_all = "camelCase")]
     Deck { contents: Vec<String>, back: Option<String>, side_color: u64, corner_radius: f64, size: Vec2 },
     #[serde(rename_all = "camelCase")]
     Dice { roll_rotations: Vec<Vec3> },
-    #[serde(rename_all = "camelCase")]
-    Container { holds: Box<Pawn> },
     Pawn {},
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Pawn {
     pub id: u64, // Identifiers

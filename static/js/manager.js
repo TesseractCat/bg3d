@@ -521,8 +521,10 @@ export default class Manager {
                     }
                 });
                 display.style.cursor = pawnHovered ? "pointer" : "auto";
-                if (pawnHovered && pawn != null && pawn.constructor.className() == "Container") {
+                if (pawnHovered && pawn != null && pawn instanceof Container) {
                     tooltip.innerText = pawn.name;
+                    if (pawn.data.capacity !== undefined)
+                        tooltip.innerText += ` [${pawn.data.capacity}]`;
                     tooltip.style.display = "block";
                 } else {
                     tooltip.style.display = "none";

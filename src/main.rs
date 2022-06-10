@@ -288,6 +288,10 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) {
         Ok(p) => p,
         Err(_) => return,
     };
+    // if data["pawn"]["data"].get("holds").is_some() {
+    //     println!("{:?}", data["pawn"]["data"]["holds"]);
+    //     let test: Pawn = serde_json::from_value(data["pawn"]["data"]["holds"].clone()).unwrap();
+    // }
     
     // Deserialize collider
 	let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic() } else { RigidBodyBuilder::fixed() }

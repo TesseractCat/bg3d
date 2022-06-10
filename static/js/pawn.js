@@ -28,7 +28,7 @@ export class Pawn {
     networkTransform;
 
     mesh = new THREE.Object3D();
-    boundingBox = new THREE.Box3();
+    size = new THREE.Vector3();
     hovered = false;
     selected = false;
     
@@ -68,12 +68,13 @@ export class Pawn {
                     child.receiveShadow = true;
                 });
 
-                this.boundingBox = new THREE.Box3().setFromObject(gltf.scene);
-                let size = this.boundingBox.getSize(new THREE.Vector3());
-                gltf.scene.translateY(-this.boundingBox.min.y - 0.5 * size.y);
+                let boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+                let height = boundingBox.max.y - boundingBox.min.y;
+                gltf.scene.translateY(-boundingBox.min.y - 0.5 * height);
 
                 this.mesh.add(gltf.scene);
                 this.updateMeshTransform();
+                this.updateBoundingBox();
             });
         } else { // Don't load GLTF
             this.updateMeshTransform();
@@ -106,6 +107,8 @@ export class Pawn {
                 let snapped = false;
 
                 for (let snapPoint of snapPoints) {
+                    if (snapPoint.data.snaps.length != 0 && !snapPoint.data.snaps.includes(this.name))
+                        continue;
                     let snappedPoint = snapPoint.snapsTo(hitPoint);
                     if (snappedPoint) {
                         snapped = true;
@@ -116,9 +119,8 @@ export class Pawn {
 
                 // Lerp
                 let newPosition = this.position.clone();
-                let height = this.boundingBox.getSize(new THREE.Vector3()).y;
                 newPosition.lerp(hitPoint.clone().add(
-                    new THREE.Vector3(0, height/2 + (snapped ? 0.5 : 2), 0)
+                    new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 2), 0)
                 ), dt * 10);
 
                 let newRotation = this.rotation.clone();
@@ -177,7 +179,7 @@ export class Pawn {
         return entries;
     }
     handleEvent(data) {
-        return {};
+        return undefined;
     }
     keyDown(e) {
         if (e.key == 'f')
@@ -241,6 +243,18 @@ export class Pawn {
             this.mesh.quaternion.copy(this.rotation);
         }
     }
+    updateBoundingBox() {
+        let p = this.mesh.position.clone();
+        let r = this.mesh.quaternion.clone();
+        this.mesh.position.set(0,0,0);
+        this.mesh.quaternion.identity();
+
+        let boundingBox = new THREE.Box3().setFromObject(this.mesh);
+        this.size = boundingBox.getSize(new THREE.Vector3());
+
+        this.mesh.position.copy(p);
+        this.mesh.quaternion.copy(r);
+    }
     
     static className() { return "Pawn"; };
     serialize() {
@@ -296,15 +310,17 @@ export class SnapPoint extends Pawn {
         radius: 0,
         size: new THREE.Vector2(),
         scale: 0,
+        snaps: [],
     }
 
-    constructor({radius=1, size=new THREE.Vector2(1,1), scale=1, ...rest}) {
+    constructor({radius=1, size=new THREE.Vector2(1,1), scale=1, snaps=[], ...rest}) {
         rest.moveable = false;
         rest.colliderShapes = [];
         super(rest);
         this.data.radius = radius;
         this.data.size = size;
         this.data.scale = scale;
+        this.data.snaps = snaps;
     }
 
     snapsTo(position) {

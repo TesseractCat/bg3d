@@ -113,6 +113,9 @@ window.onload = function() {
             pluginLoader.loadFromFile(file);
         }
     });
+
+    // Disable context menu
+    document.addEventListener('contextmenu', e => e.preventDefault());
 };
 window.onresize = function() {
     manager.resize();

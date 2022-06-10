@@ -87,8 +87,10 @@ export class Deck extends Pawn {
         entries.splice(2, 0, []);
         entries.splice(2, 0, ["Take", () => {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
-                this.updateDeck();
-                this.manager.pawns.get(card_id).grab(0);
+                if (card_id) {
+                    this.updateDeck();
+                    this.manager.pawns.get(card_id).grab(0);
+                }
             });
         }]);
         return entries;
@@ -133,7 +135,8 @@ export class Deck extends Pawn {
                 break;
             case "grab_card":
                 let card = this.spawnCard();
-                out = card.id;
+                if (card)
+                    out = card.id;
                 break;
             case "shuffle":
                 this.shuffle();
@@ -143,7 +146,10 @@ export class Deck extends Pawn {
     }
     
     spawnCard() {
-        //Create a new deck of length 1 and grab that instead
+        if (this.data.contents.length == 1)
+            return;
+
+        // Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck({
             manager: this.manager, name: this.name,
@@ -227,6 +233,7 @@ export class Deck extends Pawn {
         // Resize
         let thickness = Deck.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
+        this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
             1, Math.max(thickness, Deck.cardThickness * 10)/2,
@@ -310,12 +317,14 @@ export class Deck extends Pawn {
 
 export class Container extends Pawn {
     data = {
-        holds: {}
+        holds: {},
+        capacity: undefined,
     }
     
-    constructor({holds, ...rest}) {
+    constructor({holds, capacity, ...rest}) {
         super(rest);
         this.data.holds = holds;
+        this.data.capacity = capacity;
     }
     
     menu() {
@@ -323,7 +332,8 @@ export class Container extends Pawn {
         entries.splice(2, 0, []);
         entries.splice(2, 0, ["Take", () => {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                this.manager.pawns.get(item_id).grab(0);
+                if (item_id)
+                    this.manager.pawns.get(item_id).grab(0);
             });
         }]);
         return entries;
@@ -336,17 +346,28 @@ export class Container extends Pawn {
         switch (data.name) {
             case "grab_item":
                 let item = this.spawnItem();
-                out = item.id;
+                if (item)
+                    out = item.id;
                 break;
         }
         return out;
     }
     
     spawnItem() {
+        if (this.data.capacity !== undefined) {
+            if (this.data.capacity == 0)
+                return;
+        }
+
         let item = this.manager.loadPawn(this.data.holds).clone();
-        // FIXME: Update networkTransform or something
+
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
         this.manager.addPawn(item);
+
+        if (this.data.capacity) {
+            this.data.capacity -= 1;
+            this.dirty.add("data");
+        }
         
         return item;
     }
@@ -363,9 +384,4 @@ export class Container extends Pawn {
     }
     
     static className() { return "Container"; };
-    static deserialize(pawnJSON) {
-        let pawn = super.deserialize(pawnJSON);
-        pawn.data.holds = pawnJSON.data.holds;
-        return pawn;
-    }
 }

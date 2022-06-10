@@ -84,12 +84,14 @@ class SnapPoint extends Pawn {
     radius;
     size;
     scale;
+    snaps;
 
-    constructor({radius, size, scale, ...rest}) {
+    constructor({radius, size, scale, snaps, ...rest}) {
         super(rest);
         this.radius = radius;
         this.size = size;
         this.scale = scale;
+        this.snaps = snaps;
     }
 }
 class Deck extends Pawn {
@@ -110,16 +112,26 @@ class Deck extends Pawn {
         this.cornerRadius = cornerRadius;
         this.size = size;
     }
+
+    shuffle() {
+        for (let i = this.contents.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.contents[i], this.contents[j]]
+                = [this.contents[j], this.contents[i]];
+        }
+    }
 }
 class Container extends Pawn {
     type = 'Container';
 
     holds;
+    capacity;
     
-    constructor({holds, ...rest}) {
+    constructor({holds, capacity, ...rest}) {
         super(rest);
 
         this.holds = holds;
+        this.capacity = capacity;
     }
 }
 
