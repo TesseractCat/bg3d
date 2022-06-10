@@ -380,7 +380,8 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Option<()> {
                 let position: Vector<f32> = Vector::from(&pawn.position);
 
                 let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
-                let velocity: Vector<f32> = (position - old_position) * 10.0;
+                let time_difference = (Instant::now() - pawn.last_updated).as_secs_f32();
+                let velocity: Vector<f32> = (position - old_position)/time_difference;
 
                 let wake = true;
                 rb.set_translation(position, wake);
@@ -389,6 +390,9 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Option<()> {
                 rb.set_angvel(vector![0.0, 0.0, 0.0], wake);
             }
         }
+
+        // Refresh last updated
+        pawn.last_updated = Instant::now();
     }
     
     // Relay to other users that these pawns were changed

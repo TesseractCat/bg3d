@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use serde_json::{Value, json};
+use tokio::time::Instant;
 use rapier3d::prelude::*;
 
 use crate::user::*;
@@ -106,6 +107,8 @@ pub struct Pawn {
 
 	#[serde(skip)]
 	pub rigid_body: Option<RigidBodyHandle>,
+	#[serde(skip, default = "Instant::now")]
+    pub last_updated: Instant,
 }
 impl Pawn {
     pub fn serialize(&self) -> Value {
