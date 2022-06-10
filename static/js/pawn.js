@@ -15,6 +15,7 @@ export class Pawn {
     id;
     name;
     meshUrl;
+    tint;
     
     moveable = true;
     colliderShapes;
@@ -34,8 +35,10 @@ export class Pawn {
     
     static NEXT_ID = 0;
     
-    constructor({position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
-        mesh = null, colliderShapes = [], moveable = true, id = null, name = null}) {
+    constructor({
+        position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
+        mesh = null, colliderShapes = [], tint,
+        moveable = true, id = null, name = null}) {
         
         if (id == null) {
             this.id = Pawn.NEXT_ID;
@@ -51,6 +54,7 @@ export class Pawn {
         this.name = name;
         this.moveable = moveable;
         this.meshUrl = mesh;
+        this.tint = tint;
         this.colliderShapes = colliderShapes;
         
         // Create new NetworkedTransform
@@ -63,9 +67,13 @@ export class Pawn {
         // Load mesh
         if (this.meshUrl != null) { // GLTF URL
             this.manager.loader.load(this.meshUrl, (gltf) => {
-                gltf.scene.traverse(function (child) {
+                gltf.scene.traverse((child) => {
                     child.castShadow = true;
                     child.receiveShadow = true;
+
+                    if (child instanceof THREE.Mesh && this.tint !== undefined) {
+                        child.material.color.multiply(new THREE.Color(this.tint));
+                    }
                 });
 
                 let boundingBox = new THREE.Box3().setFromObject(gltf.scene);
@@ -262,7 +270,7 @@ export class Pawn {
         Object.assign(out, {
             class: this.constructor.className(),
             name: this.name,
-            mesh: this.meshUrl,
+            mesh: this.meshUrl, tint: this.tint,
             mass: 1.0, moveable: this.moveable,
             colliderShapes: this.colliderShapes,
             data: this.data
@@ -284,7 +292,8 @@ export class Pawn {
         let pawn = new this({
             name: pawnJSON.name,
             position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, colliderShapes: pawnJSON.colliderShapes,
+            mesh: pawnJSON.mesh, tint: pawnJSON.tint,
+            colliderShapes: pawnJSON.colliderShapes,
             moveable: pawnJSON.moveable, id: pawnJSON.id
         });
         pawn.networkSelected = pawnJSON.selected;

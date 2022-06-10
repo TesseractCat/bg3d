@@ -281,9 +281,11 @@ export default class Manager {
                 dragged = true;
             }
         });
-        display.addEventListener('mouse' + 'down', (e) => {
+        display.addEventListener('mousedown', (e) => {
             // if (dragged)
             //     return;
+            if (e.button != 0)
+                return;
             let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
             );
@@ -309,6 +311,8 @@ export default class Manager {
                     pawn.release();
                 }
             } else if (e.button == 2 && !dragged) {
+                if (Array.from(this.pawns.values()).filter(p => p.selected).length != 0)
+                    return;
                 let toSelect = Array.from(this.pawns.values()).filter(p => 
                     p.moveable && (p.hovered || p.selected)
                 );

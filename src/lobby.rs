@@ -91,6 +91,7 @@ pub struct Pawn {
     pub class: String, // Immutable Properties
     pub name: Option<String>,
     pub mesh: Option<String>,
+    pub tint: Option<u64>,
 
     pub collider_shapes: Vec<Shape>, // Physics properties
     pub moveable: bool,

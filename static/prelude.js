@@ -63,16 +63,23 @@ class Pawn {
 
     position;
     rotation;
+
     mesh;
+    tint;
+
     moveable;
     name;
     colliderShapes;
 
-    constructor({position = new Vector3(), rotation = new Vector3(), mesh, moveable, name, colliderShapes = []}) {
+    constructor({position = new Vector3(), rotation = new Vector3(),
+                 mesh, tint,
+                 moveable, name, colliderShapes = []}) {
         this.position = position;
         this.rotation = rotation;
 
         this.mesh = mesh;
+        this.tint = tint;
+
         this.moveable = moveable;
         this.name = name;
         this.colliderShapes = colliderShapes;
