@@ -92,21 +92,32 @@ export class Pawn {
         this.manager.scene.add(this.mesh);
         this.initialized = true;
     }
+    dispose() {
+        // TODO
+    }
     
     animate(dt) {
         if (this.selected) {
             // Raycast for movement
-            let raycastableObjects = Array.from(this.manager.pawns.values()).filter(x => x != this).map(x => x.mesh);
+            let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
+            let raycastableObjects = raycastablePawns.map(x => x.mesh);
             raycastableObjects.push(this.manager.plane);
             let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
             
             let hitPoint;
-            for (var i = 0; i < hits.length; i++) {
-                if (hits[i].object != this.mesh) {
-                    let hitBox = new THREE.Box3().setFromObject(hits[i].object);
-                    hitPoint = hits[i].point.clone();
-                    hitPoint.y = hitBox.max.y;
-                    break;
+            if (hits.length != 0) {
+                let hitPawn;
+                hits[0].object.traverseAncestors((ancestor) => {
+                    for (let p of raycastablePawns) {
+                        if (ancestor == p.mesh) {
+                            hitPawn = p;
+                            break;
+                        }
+                    }
+                });
+                hitPoint = hits[0].point.clone();
+                if (hitPawn) {
+                    hitPoint.y = hitPawn.position.y + hitPawn.size.y/2;
                 }
             }
             if (hitPoint) {
@@ -128,7 +139,7 @@ export class Pawn {
                 // Lerp
                 let newPosition = this.position.clone();
                 newPosition.lerp(hitPoint.clone().add(
-                    new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 2), 0)
+                    new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 1), 0)
                 ), dt * 10);
 
                 let newRotation = this.rotation.clone();
@@ -339,12 +350,12 @@ export class SnapPoint extends Pawn {
         let localPosition = this.mesh.worldToLocal(position.clone());
         localPosition.divideScalar(this.data.scale);
         localPosition.add(halfExtents);
-        // Round to nearest half: 0.5, 1.5, 2.5, ... 
         let roundedPosition = localPosition.clone().round();
 
         let distance = localPosition.distanceTo(roundedPosition);
         if (distance < this.data.radius/this.data.scale
             && roundedPosition.x < this.data.size.x && roundedPosition.x >= 0
+            && roundedPosition.y == 0
             && roundedPosition.z < this.data.size.y && roundedPosition.z >= 0) {
 
             // Transform rounded position back into object space

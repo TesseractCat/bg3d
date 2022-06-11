@@ -96,6 +96,7 @@ export default class PluginLoader {
         for (let entry of entries) {
             if (!entry.directory)
                 await this.registerAsset(entry);
+            // FIXME: Wait until all assets are successfully registered
         }
 
         this.callWorker("start");

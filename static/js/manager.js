@@ -820,6 +820,7 @@ export default class Manager {
             } else if (type == "remove_pawns") {
                 msg.pawns.forEach(id => {
                     this.scene.remove(this.pawns.get(id).mesh);
+                    this.pawns.get(id).dispose();
                     this.pawns.delete(id);
                 });
             } else if (type == "update_pawns") {

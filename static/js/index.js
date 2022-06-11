@@ -10,8 +10,6 @@ import PluginLoader from './pluginloader'
 let manager;
 let pluginLoader;
 
-let board;
-
 function animate() {
     requestAnimationFrame(animate);
     manager.animate();
