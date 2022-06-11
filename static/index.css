@@ -160,6 +160,8 @@ canvas {
     margin-bottom:-80px;
     transition:margin-bottom 0.2s;
     user-select:none;
+
+    box-shadow: -10px 10px 20px rgb(0 0 0 / 30%);
 }
 #hand-panel img:first-child {
     margin-left:0px;

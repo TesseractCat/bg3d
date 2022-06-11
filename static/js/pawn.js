@@ -34,7 +34,14 @@ export class Pawn {
     hovered = false;
     selectStaticPosition;
     
-    static NEXT_ID = 0;
+    static nextId() {
+        // Generate a random 52 bit integer (max safe js uint)
+        // https://stackoverflow.com/a/70167319
+        let [upper,lower] = new Uint32Array(Float64Array.of(Math.random()).buffer);
+        upper = upper & 1048575; // upper & (2^20 - 1)
+        upper = upper * Math.pow(2, 32); // upper << 32
+        return upper + lower;
+    }
     
     constructor({
         position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
@@ -42,8 +49,7 @@ export class Pawn {
         moveable = true, id = null, name = null}) {
         
         if (id == null) {
-            this.id = Pawn.NEXT_ID;
-            Pawn.NEXT_ID += 1;
+            this.id = Pawn.nextId();
         } else {
             this.id = id;
         }
@@ -116,18 +122,20 @@ export class Pawn {
                     grabPoint.y = boundingBox.max.y;
                 }
 
-                // Snap points
-                let snapPoints = Array.from(this.manager.pawns.values()).filter(x => x instanceof SnapPoint);
+                if (grabPoint) {
+                    // Snap points
+                    let snapPoints = Array.from(this.manager.pawns.values()).filter(x => x instanceof SnapPoint);
 
-                for (let snapPoint of snapPoints) {
-                    if (snapPoint.data.snaps.length != 0 && !snapPoint.data.snaps.includes(this.name))
-                        continue;
-                    let snappedPoint = snapPoint.snapsTo(grabPoint);
-                    if (snappedPoint) {
-                        snapped = true;
-                        grabPoint.x = snappedPoint.x;
-                        grabPoint.z = snappedPoint.z;
-                        break;
+                    for (let snapPoint of snapPoints) {
+                        if (snapPoint.data.snaps.length != 0 && !snapPoint.data.snaps.includes(this.name))
+                            continue;
+                        let snappedPoint = snapPoint.snapsTo(grabPoint);
+                        if (snappedPoint) {
+                            snapped = true;
+                            grabPoint.x = snappedPoint.x;
+                            grabPoint.z = snappedPoint.z;
+                            break;
+                        }
                     }
                 }
             }
@@ -345,8 +353,7 @@ export class Pawn {
         let serializedJSON = JSON.stringify(serialized);
         let pawn = this.constructor.deserialize(JSON.parse(serializedJSON));
         // Increment ID
-        pawn.id = Pawn.NEXT_ID;
-        Pawn.NEXT_ID += 1;
+        pawn.id = Pawn.nextId();
         return pawn;
     }
     processData() { }
