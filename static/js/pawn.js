@@ -10,6 +10,7 @@ export class Pawn {
     rotation = new THREE.Quaternion();
     data = {};
     
+    selected = false;
     selectRotation = new THREE.Vector3();
     
     id;
@@ -31,7 +32,7 @@ export class Pawn {
     mesh = new THREE.Object3D();
     size = new THREE.Vector3();
     hovered = false;
-    selected = false;
+    selectStaticPosition;
     
     static NEXT_ID = 0;
     
@@ -93,57 +94,54 @@ export class Pawn {
         this.initialized = true;
     }
     dispose() {
-        // TODO
+        // TODO: Implement dispose
     }
     
     animate(dt) {
         if (this.selected) {
-            // Raycast for movement
-            let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-            let raycastableObjects = raycastablePawns.map(x => x.mesh);
-            raycastableObjects.push(this.manager.plane);
-            let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
-            
-            let hitPoint;
-            if (hits.length != 0) {
-                let hitPawn;
-                hits[0].object.traverseAncestors((ancestor) => {
-                    for (let p of raycastablePawns) {
-                        if (ancestor == p.mesh) {
-                            hitPawn = p;
-                            break;
-                        }
-                    }
-                });
-                hitPoint = hits[0].point.clone();
-                if (hitPawn) {
-                    hitPoint.y = hitPawn.position.y + hitPawn.size.y/2;
+            let grabPoint = this.selectStaticPosition;
+            let snapped = false;
+
+            if (grabPoint === undefined) {
+                // Raycast for movement
+                let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
+                let raycastableObjects = raycastablePawns.map(x => x.mesh);
+                raycastableObjects.push(this.manager.plane);
+                let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+
+                if (hits.length != 0) {
+                    grabPoint = hits[0].point.clone();
+
+                    let boundingBox = new THREE.Box3().setFromObject(hits[0].object);
+                    grabPoint.y = boundingBox.max.y;
                 }
-            }
-            if (hitPoint) {
+
                 // Snap points
                 let snapPoints = Array.from(this.manager.pawns.values()).filter(x => x instanceof SnapPoint);
-                let snapped = false;
 
                 for (let snapPoint of snapPoints) {
                     if (snapPoint.data.snaps.length != 0 && !snapPoint.data.snaps.includes(this.name))
                         continue;
-                    let snappedPoint = snapPoint.snapsTo(hitPoint);
+                    let snappedPoint = snapPoint.snapsTo(grabPoint);
                     if (snappedPoint) {
                         snapped = true;
-                        hitPoint.copy(snappedPoint);
+                        grabPoint.x = snappedPoint.x;
+                        grabPoint.z = snappedPoint.z;
                         break;
                     }
                 }
-
+            }
+            if (grabPoint) {
                 // Lerp
                 let newPosition = this.position.clone();
-                newPosition.lerp(hitPoint.clone().add(
+                newPosition.lerp(grabPoint.clone().add(
                     new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 1), 0)
                 ), dt * 10);
 
                 let newRotation = this.rotation.clone();
-                newRotation.slerp(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(this.selectRotation)), dt * 10);
+                newRotation.slerp(new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler().setFromVector3(this.selectRotation, 'ZYX')
+                ), dt * 10);
 
                 this.setPosition(newPosition);
                 this.setRotation(newRotation);
@@ -179,9 +177,9 @@ export class Pawn {
         let commonEntries = [
             [this.name],
             [],
-            ["Flip", () => {}],
-            ["Rotate Left", () => {}],
-            ["Rotate Right", () => {}],
+            ["Flip", () => this.flip()],
+            ["Rotate Left", () => this.rotate(1)],
+            ["Rotate Right", () => this.rotate(-1)],
         ];
         let hostEntries = [
             [],
@@ -211,12 +209,12 @@ export class Pawn {
     
     grab(button) {
         // If we are trying to select something that is already selected
-        if (this.networkSelected) 
+        if (this.networkSelected)
             return;
         
         this.selected = true;
         this.dirty.add("selected");
-        this.updateMeshTransform(); // FIXME: Needed?
+        //this.updateMeshTransform(); // FIXME: Needed?
         document.querySelector("#hand-panel").classList.add("minimized");
     }
     release() {
@@ -231,11 +229,38 @@ export class Pawn {
         
         document.querySelector("#hand-panel").classList.remove("minimized");
     }
+    async selectAndRun(action, firstDelay = 100, secondDelay = 400) {
+        this.selected = true;
+        this.selectStaticPosition = this.position.clone();
+        this.dirty.add("selected");
+
+        await new Promise(r => setTimeout(r, firstDelay));
+
+        action();
+
+        await new Promise(r => setTimeout(r, secondDelay));
+
+        this.selected = false;
+        this.selectStaticPosition = undefined;
+        this.dirty.add("selected");
+    }
     flip() {
-        this.selectRotation.x = Math.abs(this.selectRotation.x - Math.PI) < 0.01 ? 0 : Math.PI;
+        if (!this.selected) {
+            this.selectAndRun(() => this.flip());
+            return;
+        }
+
+        let tau = Math.PI * 2;
+        let modRot = ((this.selectRotation.x % tau) + tau) % tau;
+        this.selectRotation.x = modRot < Math.PI/2 ? Math.PI : 0;
         this.dirty.add("selectRotation");
     }
     rotate(m) {
+        if (!this.selected) {
+            this.selectAndRun(() => this.rotate(m));
+            return;
+        }
+
         this.selectRotation.y += m * Math.PI/8;
         this.dirty.add("selectRotation");
     }
@@ -289,7 +314,9 @@ export class Pawn {
         return out;
     }
     serializeState() {
-        let rotation = new THREE.Euler().setFromQuaternion(this.rotation).toVector3();
+        let rotation = new THREE.Vector3().copy(
+            new THREE.Euler().setFromQuaternion(this.rotation)
+        );
         return {
             id:this.id,
             selected:this.selected,

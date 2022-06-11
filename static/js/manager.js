@@ -400,9 +400,10 @@ export default class Manager {
             if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
                 //This pawn has been released, reset the network buffer and update position
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
-                pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+                pawn.setRotation(new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                ));
             }
-            //TODO: Disable simulateLocally in some cases?
             pawn.networkSelected = pawnJSON.selected;
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
@@ -459,7 +460,7 @@ export default class Manager {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
             let to_update_data = to_update.map(p => {
-                let rotation = new THREE.Euler().setFromQuaternion(p.rotation).toVector3();
+                let rotation = new THREE.Euler().setFromQuaternion(p.rotation, 'ZYX').toVector3();
                 let update = {id: p.id};
                 for (let dirtyParam of p.dirty) {
                     switch (dirtyParam) {
