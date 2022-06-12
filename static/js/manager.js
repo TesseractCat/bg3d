@@ -32,6 +32,7 @@ class Hand {
         let imageElement = document.createElement("img");
         imageElement.src = `${window.location.pathname}/${cardProps.data.contents[0]}`;
         imageElement.style.borderRadius = `${cardProps.data.cornerRadius}in`;
+        imageElement.setAttribute('draggable', false);
         imageElement.addEventListener("mousedown",
             () => this.takeCard(imageElement));
         imageElement.oncontextmenu = function() {
