@@ -541,7 +541,7 @@ export default class Manager {
                 display.style.cursor = pawnHovered ? "pointer" : "auto";
                 if (pawnHovered && pawn != null && pawn instanceof Container) {
                     tooltip.innerText = pawn.name;
-                    if (pawn.data.capacity !== undefined)
+                    if (pawn.data.capacity !== undefined && pawn.data.capacity != null)
                         tooltip.innerText += ` [${pawn.data.capacity}]`;
                     tooltip.style.display = "block";
                 } else {

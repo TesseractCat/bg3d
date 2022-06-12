@@ -1,4 +1,5 @@
 // Classes
+// All classes are easily cloneable, as they always clone parameters
 
 class Vector3 {
     x;
@@ -14,7 +15,6 @@ class Vector3 {
         this.x = rhs.x;
         this.y = rhs.y;
         this.z = rhs.z;
-
         return this;
     }
     clone() {
@@ -43,8 +43,14 @@ class Box {
     type = "Box";
     halfExtents;
 
-    constructor(halfExtents) {
+    constructor(halfExtents = new Vector3()) {
         this.halfExtents = new Vector3().copy(halfExtents);
+    }
+    copy(rhs) {
+        this.halfExtents.copy(rhs.halfExtents);
+    }
+    clone() {
+        return new Box(this.halfExtents);
     }
 }
 class Cylinder {
@@ -55,6 +61,9 @@ class Cylinder {
     constructor(radius, height) {
         this.radius = radius;
         this.height = height;
+    }
+    clone() {
+        return new Cylinder(this.radius, this.height);
     }
 }
 
@@ -71,18 +80,29 @@ class Pawn {
     name;
     colliderShapes;
 
+    #id = null;
+
     constructor({position = new Vector3(), rotation = new Vector3(),
                  mesh, tint,
                  moveable, name, colliderShapes = []}) {
-        this.position = position;
-        this.rotation = rotation;
+        this.position = new Vector3().copy(position);
+        this.rotation = new Vector3().copy(rotation);
 
         this.mesh = mesh;
         this.tint = tint;
 
         this.moveable = moveable;
         this.name = name;
-        this.colliderShapes = colliderShapes;
+        this.colliderShapes = colliderShapes.map(shape => shape.clone());
+    }
+
+    async create() {
+        this.id = await addPawn(this);
+        return this;
+    }
+
+    clone() {
+        return new this.constructor(this);
     }
 }
 class SnapPoint extends Pawn {
@@ -93,12 +113,13 @@ class SnapPoint extends Pawn {
     scale;
     snaps;
 
-    constructor({radius, size, scale, snaps, ...rest}) {
+    constructor({radius, size, scale, snaps = [], ...rest}) {
         super(rest);
+
         this.radius = radius;
         this.size = size;
         this.scale = scale;
-        this.snaps = snaps;
+        this.snaps = [...snaps];
     }
 }
 class Deck extends Pawn {
@@ -113,7 +134,7 @@ class Deck extends Pawn {
     constructor({contents, back, sideColor, cornerRadius, size, ...rest}) {
         super(rest);
 
-        this.contents = contents;
+        this.contents = [...contents];
         this.back = back;
         this.sideColor = sideColor;
         this.cornerRadius = cornerRadius;
@@ -137,7 +158,7 @@ class Container extends Pawn {
     constructor({holds, capacity, ...rest}) {
         super(rest);
 
-        this.holds = holds;
+        this.holds = holds.clone();
         this.capacity = capacity;
     }
 }
@@ -146,10 +167,10 @@ class Dice extends Pawn {
 
     rollRotations;
 
-    constructor({rollRotations, ...rest}) {
+    constructor({rollRotations = [], ...rest}) {
         super(rest);
 
-        this.rollRotations = rollRotations;
+        this.rollRotations = rollRotations.map(rot => rot.clone());
     }
 }
 

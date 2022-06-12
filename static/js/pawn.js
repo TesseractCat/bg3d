@@ -191,8 +191,8 @@ export class Pawn {
             ],
             [
                 ["Flip", () => this.flip()],
-                ["Rotate Left", () => this.rotate(1)],
-                ["Rotate Right", () => this.rotate(-1)],
+                ["Rotate Left", () => this.rotate(2)],
+                ["Rotate Right", () => this.rotate(-2)],
             ],
         ];
         let hostEntries = [
@@ -217,6 +217,10 @@ export class Pawn {
             this.rotate(1);
         if (e.key == 'e')
             this.rotate(-1);
+        if (e.key == 'Q')
+            this.rotate(2);
+        if (e.key == 'E')
+            this.rotate(-2);
     }
     
     grab(button) {

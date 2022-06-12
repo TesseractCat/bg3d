@@ -26,6 +26,7 @@ window.onload = function() {
         let games = [
             ['Welcome', 'games/welcome.js'],
             ['Chess', 'games/chess.js'],
+            ['Go', 'games/go.js'],
         ];
         games.forEach((g, i) => {
             let name = g[0];

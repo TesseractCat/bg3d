@@ -20,18 +20,22 @@ function getPiece(name, radius, height) {
     return [white, black];
 }
 function addPiece(piece, positions) {
+    let [white, black] = piece;
+
     positions.forEach((p) => {
-        piece[1].position = chessToWorldPos(p);
-        addPawn(piece[1]);
-        piece[0].position = chessToWorldPos(new Vector2(p.x, 7 - p.y));
-        piece[0].rotation.y = Math.PI;
-        addPawn(piece[0]);
+        black.position = chessToWorldPos(p);
+        black.rotation.y = 0;
+        black.create();
+
+        white.position = chessToWorldPos(new Vector2(p.x, 7 - p.y));
+        white.rotation.y = Math.PI;
+        white.create();
     });
 }
 
 self.start = async function() {
     // Spawn board
-    addPawn(new Pawn({
+    new Pawn({
         name: 'Board',
         position: new Vector3(0,0.5,0),
         mesh: 'checkers/checkerboard.gltf',
@@ -39,7 +43,15 @@ self.start = async function() {
             new Box(new Vector3(8.0,0.5,8.0))
         ],
         moveable: false
-    }));
+    }).create();
+
+    // Snap positions
+    new SnapPoint({
+        position: new Vector3(0,1,0),
+        size: new Vector2(8,8),
+        radius: 1,
+        scale: 2,
+    }).create();
 
     // Define pieces
     let queen = getPiece('queen', 0.7, 2.81);
@@ -85,12 +97,4 @@ self.start = async function() {
         new Vector2(7, 1),
     ];
     addPiece(pawn, pawnPositions);
-
-    // Snap positions
-    addPawn(new SnapPoint({
-        position: new Vector3(0,1,0),
-        size: new Vector2(8,8),
-        radius: 1,
-        scale: 2,
-    }));
 }

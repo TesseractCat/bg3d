@@ -8,7 +8,6 @@ self.start = async function() {
             new Cylinder(1.5, birdHeight)
         ],
     });
-    addPawn(bird);
 
     let deck = new Deck({
         name: "Welcome", contents: ["generic/welcome.png"],
@@ -17,28 +16,26 @@ self.start = async function() {
         size: new Vector2(1.25 * 8, 1 * 8),
         moveable: false
     });
-    addPawn(deck);
 
-    addPawn(new SnapPoint({
+    let birdSnap = new SnapPoint({
         position: new Vector3(-1.9,0,-1.35),
-    }));
+    });
 
     let die = new Dice({
         name: 'Die', position: new Vector3(0,1,0),
         mesh: 'generic/die.gltf',
         rollRotations: [
-            {x:0, y:0, z:0},
-            {x:Math.PI/2, y:0, z:0},
-            {x:Math.PI, y:0, z:0},
-            {x:-Math.PI/2, y:0, z:0},
-            {x:0, y:0, z:Math.PI/2},
-            {x:0, y:0, z:-Math.PI/2},
+            new Vector3(0, 0, 0),
+            new Vector3(Math.PI/2, 0, 0),
+            new Vector3(Math.PI, 0, 0),
+            new Vector3(-Math.PI/2, 0, 0),
+            new Vector3(0, 0, Math.PI/2),
+            new Vector3(0, 0, -Math.PI/2),
         ],
         colliderShapes: [
             new Box(new Vector3(1/3,1/3,1/3))
         ]
     });
-    addPawn(die);
 
     // let bag = new Container({
     //     name: "Bird Bag", holds: bird,
@@ -48,5 +45,12 @@ self.start = async function() {
     //         new Cylinder(1.5, 2.5)
     //     ],
     // })
-    // addPawn(bag);
+
+    await Promise.all([
+        bird.create(),
+        birdSnap.create(),
+        deck.create(),
+        die.create(),
+        // bag.create(),
+    ]);
 }
