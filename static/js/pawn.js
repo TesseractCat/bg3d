@@ -78,8 +78,11 @@ export class Pawn {
                     child.castShadow = true;
                     child.receiveShadow = true;
 
-                    if (child instanceof THREE.Mesh && this.tint !== undefined) {
-                        child.material.color.multiply(new THREE.Color(this.tint));
+                    if (child instanceof THREE.Mesh) {
+                        if (this.tint !== undefined)
+                            child.material.color.multiply(new THREE.Color(this.tint));
+                        if (child.material.map !== null)
+                            child.material.map.anisotropy = 4;
                     }
                 });
 
@@ -182,15 +185,17 @@ export class Pawn {
     }
     
     menu() {
-        let commonEntries = [
-            [this.name],
-            [],
-            ["Flip", () => this.flip()],
-            ["Rotate Left", () => this.rotate(1)],
-            ["Rotate Right", () => this.rotate(-1)],
+        let entries = [
+            [
+                [this.name],
+            ],
+            [
+                ["Flip", () => this.flip()],
+                ["Rotate Left", () => this.rotate(1)],
+                ["Rotate Right", () => this.rotate(-1)],
+            ],
         ];
         let hostEntries = [
-            [],
             ["Clone", () => {
                 this.manager.addPawn(this.clone());
             }],
@@ -198,9 +203,8 @@ export class Pawn {
                 this.manager.removePawn(this.id);
             }],
         ];
-        let entries = commonEntries;
         if (this.manager.host)
-            entries = entries.concat(hostEntries);
+            entries.push(hostEntries);
         return entries;
     }
     handleEvent(data) {
@@ -413,11 +417,25 @@ export class Dice extends Pawn {
         super(rest);
         this.data.rollRotations = rollRotations;
     }
+
+    menu() {
+        let entries = super.menu();
+        entries.splice(1, 1, [
+            ["Roll", () => this.shake()]
+        ]);
+        return entries;
+    }
     
     flip() { }
     rotate(m) { }
     shake() {
-        this.selectRotation = this.data.rollRotations[Math.floor(Math.random() * this.data.rollRotations.length)];
+        if (!this.selected) {
+            this.selectAndRun(() => this.shake());
+            return;
+        }
+
+        let value = Math.floor(Math.random() * this.data.rollRotations.length);
+        this.selectRotation = this.data.rollRotations[value];
         this.dirty.add("selectRotation");
     }
     

@@ -87,17 +87,19 @@ export default class PluginLoader {
             }
         }
 
-        // First clear all existing assets
-        this.clearAssets();
-        this.manager.sendEvent("clear_pawns", true, {});
+        // First clear all existing assets and pawns
+        this.clear();
 
         // Register all plugin assets
         console.log(entries);
         for (let entry of entries) {
             if (!entry.directory)
                 await this.registerAsset(entry);
-            // FIXME: Wait until all assets are successfully registered
         }
+        // Wait until assets are complete (send empty event)
+        console.log("Waiting until assets complete...");
+        await new Promise(r => this.manager.sendEvent("assets_complete", false, {}, r));
+        console.log("Done!");
 
         this.callWorker("start");
 
@@ -119,8 +121,7 @@ export default class PluginLoader {
         this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
 
         // Clear all existing assets
-        this.clearAssets();
-        this.manager.sendEvent("clear_pawns", true, {});
+        this.clear();
 
         this.callWorker("start");
     }
@@ -228,25 +229,10 @@ export default class PluginLoader {
             "data": data,
         });
     }
-    clearAssets() {
+    clear() {
         this.manager.sendSocket({
             "type":"clear_assets"
         });
-    }
-
-    async createBoxPawn(manifest) {
-        let intersections = this.manager.raycaster.intersectObject(this.manager.scene, true);
-
-        let point = intersections.length != 0 ?
-            intersections[0].point : new THREE.Vector3(0,0,0);
-
-        return new GameBox({
-            manager: this.manager, name: manifest.name,
-            position: point.add(new THREE.Vector3(0,3,0)),
-            rotation: new THREE.Quaternion(),
-            mesh: 'box.gltf', colliderShapes: [
-                new Box(new THREE.Vector3(10.5/2, 1.5/2, 10.5/2))
-            ],
-        });
+        this.manager.sendEvent("clear_pawns", true, {});
     }
 }

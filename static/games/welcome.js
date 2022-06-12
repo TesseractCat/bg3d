@@ -23,6 +23,23 @@ self.start = async function() {
         position: new Vector3(-1.9,0,-1.35),
     }));
 
+    let die = new Dice({
+        name: 'Die', position: new Vector3(0,1,0),
+        mesh: 'generic/die.gltf',
+        rollRotations: [
+            {x:0, y:0, z:0},
+            {x:Math.PI/2, y:0, z:0},
+            {x:Math.PI, y:0, z:0},
+            {x:-Math.PI/2, y:0, z:0},
+            {x:0, y:0, z:Math.PI/2},
+            {x:0, y:0, z:-Math.PI/2},
+        ],
+        colliderShapes: [
+            new Box(new Vector3(1/3,1/3,1/3))
+        ]
+    });
+    addPawn(die);
+
     // let bag = new Container({
     //     name: "Bird Bag", holds: bird,
     //     position: new Vector3(1.9,1.25,-1.35),

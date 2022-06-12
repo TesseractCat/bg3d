@@ -84,15 +84,16 @@ export class Deck extends Pawn {
 
     menu() {
         let entries = super.menu();
-        entries.splice(2, 0, []);
-        entries.splice(2, 0, ["Take", () => {
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
-                if (card_id) {
-                    this.updateDeck();
-                    this.manager.pawns.get(card_id).grab(0);
-                }
-            });
-        }]);
+        entries.splice(1, 0, [
+            ["Take", () => {
+                this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                    if (card_id) {
+                        this.updateDeck();
+                        this.manager.pawns.get(card_id).grab(0);
+                    }
+                });
+            }]  
+        ]);
         return entries;
     }
     
@@ -108,6 +109,7 @@ export class Deck extends Pawn {
     loadTexture(texture) {
         let t = Deck.textureLoader.load(texture);
         t.encoding = THREE.sRGBEncoding;
+        t.anisotropy = 4;
         Deck.textureCache.set(texture, t);
     }
     
@@ -329,13 +331,14 @@ export class Container extends Pawn {
     
     menu() {
         let entries = super.menu();
-        entries.splice(2, 0, []);
-        entries.splice(2, 0, ["Take", () => {
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                if (item_id)
-                    this.manager.pawns.get(item_id).grab(0);
-            });
-        }]);
+        entries.splice(1, 0, [
+            ["Take", () => {
+                this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
+                    if (item_id)
+                        this.manager.pawns.get(item_id).grab(0);
+                });
+            }]  
+        ]);
         return entries;
     }
 

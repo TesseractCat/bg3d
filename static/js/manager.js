@@ -17,9 +17,11 @@ import { GameBox } from './pluginloader';
 class Hand {
     manager;
     cards = [];
+    element;
     
     constructor(manager) {
         this.manager = manager;
+        this.element = document.querySelector("#hand-panel");
     }
     
     pushCard(deck) {
@@ -35,7 +37,7 @@ class Hand {
         imageElement.oncontextmenu = function() {
             return false;
         }
-        document.querySelector("#hand-panel").appendChild(imageElement);
+        this.element.appendChild(imageElement);
     }
     takeCard(elem) {
         if ([...this.manager.pawns.values()].filter(p => p.selected).length != 0)
@@ -59,6 +61,13 @@ class Hand {
                 elem.remove();
             });
         }
+    }
+    clear() {
+        // Remove children
+        while (this.element.firstChild) {
+            this.element.firstChild.remove();
+        }
+        this.cards = [];
     }
 }
 
@@ -108,28 +117,31 @@ class ContextMenu {
         }
         
         // Create buttons
-        for (let entry of menu) {
-            if (entry.length == 0) {
+        for (let [i, section] of menu.entries()) {
+            for (let entry of section) {
+                if (entry.length == 1) {
+                    let text = document.createElement("p");
+                    text.innerText = entry[0];
+
+                    this.element.appendChild(text);
+                } else if (entry.length == 2) {
+                    let [name, action] = entry;
+
+                    let button = document.createElement("button");
+                    button.innerText = name;
+                    button.addEventListener("click", () => {
+                        this.hide();
+                        action();
+                    });
+
+                    this.element.appendChild(button);
+                }
+            }
+
+            // Create divider
+            if (i != menu.length - 1) {
                 let divider = document.createElement("hr");
-
                 this.element.appendChild(divider);
-            } else if (entry.length == 1) {
-                let text = document.createElement("p");
-                text.innerText = entry[0];
-
-                this.element.appendChild(text);
-            } else if (entry.length == 2) {
-                let name = entry[0];
-                let action = entry[1];
-
-                let button = document.createElement("button");
-                button.innerText = name;
-                button.addEventListener("click", () => {
-                    this.hide();
-                    action();
-                });
-
-                this.element.appendChild(button);
             }
         }
 
@@ -630,6 +642,7 @@ export default class Manager {
                     type:"remove_pawns",
                     pawns:Array.from(this.pawns.values()).map(p => p.id)
                 });
+                this.hand.clear();
                 break;
             case "request_update_pawns":
                 eventJSON.data.pawns.forEach(p => this.updatePawn(p));
@@ -644,7 +657,7 @@ export default class Manager {
         }
         
         // Callback 
-        if (eventJSON.callback) {
+        if (eventJSON.callback && this.host) {
             this.sendSocket({
                 type:"event_callback",
                 receiver:eventJSON.sender,

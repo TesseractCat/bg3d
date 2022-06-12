@@ -141,6 +141,17 @@ class Container extends Pawn {
         this.capacity = capacity;
     }
 }
+class Dice extends Pawn {
+    type = 'Dice';
+
+    rollRotations;
+
+    constructor({rollRotations, ...rest}) {
+        super(rest);
+
+        this.rollRotations = rollRotations;
+    }
+}
 
 // Functions
 
