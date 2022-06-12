@@ -113,7 +113,10 @@ window.onload = function() {
     });
 
     // Disable context menu
-    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('contextmenu', e => {
+        if (e.target.id != 'game-link')
+            e.preventDefault();
+    });
 };
 window.onresize = function() {
     manager.resize();
