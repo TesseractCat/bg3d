@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
+import { MeshStandardDitheredMaterial } from './MeshStandardDitheredMaterial';
 
 // Local instance of moveable object with mesh
 export class Pawn {
@@ -83,6 +84,17 @@ export class Pawn {
                             child.material.color.multiply(new THREE.Color(this.tint));
                         if (child.material.map !== null)
                             child.material.map.anisotropy = 4;
+
+                        child.material = new MeshStandardDitheredMaterial().copy(child.material);
+
+                        child.material.opacity = 0.0;
+                        let fadeInInterval = setInterval(() => {
+                            child.material.opacity += 6.0/60.0;
+                            if (child.material.opacity >= 1) {
+                                child.material.opacity = 1;
+                                clearInterval(fadeInInterval);
+                            }
+                        }, 1000.0/60.0);
                     }
                 });
 

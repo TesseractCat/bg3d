@@ -331,6 +331,7 @@ export class Container extends Pawn {
     
     menu() {
         let entries = super.menu();
+        entries[1].splice(0, 1);
         entries.splice(1, 0, [
             ["Take", () => {
                 this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
@@ -355,6 +356,16 @@ export class Container extends Pawn {
         }
         return out;
     }
+    keyDown(e) {
+        super.keyDown(e);
+
+        if (!this.selected && e.key == 't') {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
+                if (item_id)
+                    this.manager.pawns.get(item_id).grab(0);
+            });
+        }
+    }
     
     spawnItem() {
         if (this.data.capacity !== undefined) {
@@ -377,13 +388,8 @@ export class Container extends Pawn {
     grab(button) {
         if (this.selected || this.networkSelected)
             return;
-        if (button == 0) {
+        if (button == 0)
             super.grab();
-        } else if (button == 2) {
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                this.manager.pawns.get(item_id).grab(0);
-            });
-        }
     }
     
     static className() { return "Container"; };

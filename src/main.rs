@@ -223,7 +223,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         let message = match result {
             Ok(r) => r,
             Err(e) => {
-                println!("websocket error: {}", e);
+                println!("Websocket error: {}", e);
                 break;
             }
         };

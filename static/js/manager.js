@@ -345,8 +345,9 @@ export default class Manager {
         // Route events to active pawns
         document.addEventListener("keydown", (e) => {
             this.pawns.forEach(p => {
-                if (p.selected)
+                if (p.selected || p.hovered) {
                     p.keyDown(e);
+                }
             });
         });
         document.addEventListener('mouseshake', (e) => {
