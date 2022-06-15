@@ -121,7 +121,7 @@ async fn main() {
                     for pawn in lobby.pawns.values_mut() {
                         if pawn.selected { continue; } // Ignore selected pawns
 
-                        let rb_handle = pawn.rigid_body.unwrap();
+                        let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
                         let rb = lobby.world.rigid_body_set.get(rb_handle).unwrap();
                         pawn.position = Vec3::from(rb.translation());
                         pawn.rotation = Vec3::from(rb.rotation());
@@ -238,7 +238,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).unwrap();
 
-        let event_result = match data["type"].as_str().unwrap_or_default() {
+        let event_type: String = data["type"].as_str().unwrap_or_default().to_string();
+        let event_result = match event_type.as_str() {
             "join" => user_joined(user_id, data, lobby.read().await.deref()),
             "ping" => ping(user_id, data, lobby.read().await.deref()),
             
@@ -258,7 +259,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         };
 
         if event_result.is_err() {
-            println!("Error encountered while handling event: {:?}", event_result);
+            println!("Error encountered while handling event [{}]: {:?}",
+                     event_type, event_result);
         }
     }
     user_disconnected(user_id, &lobby_name, &lobbies).await;
@@ -344,7 +346,7 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
     // Iterate through and update pawns
     let pawns = data["pawns"].as_array().ok_or("Malformed update_pawns")?;
     for i in 0..pawns.len() {
-        let pawn_id: u64 = pawns[i]["id"].as_u64().unwrap();
+        let pawn_id: u64 = pawns[i]["id"].as_u64().ok_or("Malformed update_pawns")?;
         let pawn: &mut Pawn = lobby.pawns.get_mut(&pawn_id).ok_or("Trying to update missing pawn")?;
         
         // Update struct values

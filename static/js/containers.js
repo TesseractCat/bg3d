@@ -24,7 +24,8 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor({contents = [], back = "", sideColor = 0xcccccc, size = new THREE.Vector2(), cornerRadius = 0.02, ...rest}) {
+    constructor({contents = [], back = "", sideColor = 0xcccccc, size = new THREE.Vector2(), cornerRadius = 0.02,
+                 ...rest}) {
         rest.colliderShapes = [
             new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
         ];
@@ -265,6 +266,7 @@ export class Deck extends Pawn {
             Deck.textureCache.get(this.data.contents[this.data.contents.length - 1]);
         
         // Apply new materials
+        // TODO: Dispose old materials
         const sideMaterial = new THREE.MeshStandardMaterial({color: this.data.sideColor});
         this.faceMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: faceTexture

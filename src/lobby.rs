@@ -129,16 +129,20 @@ impl Pawn {
             }
         }
         patch!(value,
-               position, position,
-               rotation, rotation,
                selected, selected,
-               select_rotation, selectRotation,
                data, data,
 
                collider_shapes, colliderShapes,
                moveable, moveable,
                mass, mass,
         );
+        if self.moveable {
+            patch!(value,
+                   position, position,
+                   rotation, rotation,
+                   select_rotation, selectRotation,
+            );
+        }
     }
 }
 

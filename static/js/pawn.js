@@ -261,7 +261,7 @@ export class Pawn {
         document.querySelector("#hand-panel").classList.remove("minimized");
     }
     async selectAndRun(action, firstDelay = 100, secondDelay = 400) {
-        if (this.networkSelected)
+        if (this.networkSelected || !this.moveable)
             return;
 
         this.selected = true;
