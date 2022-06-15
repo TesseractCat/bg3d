@@ -84,16 +84,19 @@ export class Deck extends Pawn {
 
     menu() {
         let entries = super.menu();
-        entries.splice(1, 0, [
-            ["Take", () => {
-                this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
-                    if (card_id) {
-                        this.updateDeck();
-                        this.manager.pawns.get(card_id).grab(0);
-                    }
-                });
-            }]  
-        ]);
+        if (this.data.contents.length > 1) {
+            entries.splice(1, 0, [
+                ["Take", () => {
+                    this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                        if (card_id) {
+                            this.updateDeck();
+                            this.manager.pawns.get(card_id).grab(0);
+                        }
+                    });
+                }],
+                ["Shuffle", () => this.shuffle()]
+            ]);
+        }
         return entries;
     }
     
@@ -120,6 +123,14 @@ export class Deck extends Pawn {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "remove"}, () => {
                 this.manager.hand.pushCard(this);
                 //console.log(this.manager.hand);
+            });
+        }
+        if (!this.selected && e.key == 't') {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                if (card_id) {
+                    this.updateDeck();
+                    this.manager.pawns.get(card_id).grab(0);
+                }
             });
         }
     }
@@ -267,7 +278,6 @@ export class Deck extends Pawn {
     }
     
     shuffle() {
-        console.assert(this.manager.host);
         if (this.data.contents.length > 1) {
             //Shuffle
             //this.data.contents = arrayShuffle(this.data.contents);

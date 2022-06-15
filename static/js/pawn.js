@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
-import { MeshStandardDitheredMaterial } from './MeshStandardDitheredMaterial';
+import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 // Local instance of moveable object with mesh
 export class Pawn {
@@ -86,14 +86,17 @@ export class Pawn {
                             child.material.map.anisotropy = 4;
 
                         child.material = new MeshStandardDitheredMaterial().copy(child.material);
+                        child.customDepthMaterial = new DepthDitheredMaterial().clone();
 
                         child.material.opacity = 0.0;
+                        child.customDepthMaterial.uniforms.opacity.value = 0.0;
                         let fadeInInterval = setInterval(() => {
                             child.material.opacity += 6.0/60.0;
                             if (child.material.opacity >= 1) {
                                 child.material.opacity = 1;
                                 clearInterval(fadeInInterval);
                             }
+                            child.customDepthMaterial.uniforms.opacity.value = child.material.opacity;
                         }, 1000.0/60.0);
                     }
                 });
@@ -226,13 +229,13 @@ export class Pawn {
         if (e.key == 'f')
             this.flip();
         if (e.key == 'q')
-            this.rotate(1);
-        if (e.key == 'e')
-            this.rotate(-1);
-        if (e.key == 'Q')
             this.rotate(2);
-        if (e.key == 'E')
+        if (e.key == 'e')
             this.rotate(-2);
+        if (e.key == 'Q')
+            this.rotate(1);
+        if (e.key == 'E')
+            this.rotate(-1);
     }
     
     grab(button) {
@@ -258,6 +261,9 @@ export class Pawn {
         document.querySelector("#hand-panel").classList.remove("minimized");
     }
     async selectAndRun(action, firstDelay = 100, secondDelay = 400) {
+        if (this.networkSelected)
+            return;
+
         this.selected = true;
         this.selectStaticPosition = this.position.clone();
         this.dirty.add("selected");

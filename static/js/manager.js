@@ -344,8 +344,9 @@ export default class Manager {
         
         // Route events to active pawns
         document.addEventListener("keydown", (e) => {
+            let existsSelected = Array.from(this.pawns.values()).filter(p => p.selected).length != 0;
             this.pawns.forEach(p => {
-                if (p.selected || p.hovered) {
+                if ((existsSelected && p.selected) || (!existsSelected && p.hovered)) {
                     p.keyDown(e);
                 }
             });
