@@ -111,9 +111,6 @@ pub struct Pawn {
     pub last_updated: Instant,
 }
 impl Pawn {
-    pub fn serialize(&self) -> Value {
-        serde_json::to_value(self).unwrap()
-    }
     pub fn serialize_transform(&self) -> Value {
         json!({
             "id": self.id,
