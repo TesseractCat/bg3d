@@ -1,6 +1,6 @@
 use std::env;
 use std::collections::HashMap;
-use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
 
@@ -11,12 +11,12 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use warp::{http::{Uri, Response}, Filter};
 use warp::ws::{Message, WebSocket};
-use data_url::{DataUrl};
+use data_url::DataUrl;
 
 use serde_json::{Value, json};
 
 use names::Generator;
-use random_color::{Color};
+use random_color::Color;
 use rapier3d::prelude::*;
 
 mod lobby;
@@ -237,7 +237,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                      event_type, event_result);
         }
     }
-    user_disconnected(user_id, &lobby_name, &lobbies).await;
+    match user_disconnected(user_id, &lobby_name, &lobbies).await {
+        Err(e) => println!("Error encountered while user disconnected: {:?}", e),
+        _ => (),
+    };
 }
 
 // --- GENERIC EVENTS ---

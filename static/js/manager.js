@@ -64,6 +64,7 @@ class Hand {
         }
     }
     clear() {
+        console.log("Clearing hand...");
         // Remove children
         while (this.element.firstChild) {
             this.element.firstChild.remove();
@@ -413,7 +414,8 @@ export default class Manager {
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawnJSON.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
-                //This pawn has been released, reset the network buffer and update position
+                // This pawn has been released, reset the network buffer and update position
+                // FIXME: Sometimes has errors
                 pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
                 pawn.setRotation(new THREE.Quaternion().setFromEuler(
                     new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
