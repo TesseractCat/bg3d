@@ -167,6 +167,8 @@ class Chat {
     input;
     entries;
 
+    focused = false;
+
     constructor(manager) {
         this.manager = manager;
 
@@ -174,6 +176,17 @@ class Chat {
         this.input = document.querySelector("#chat-input");
         this.entries = document.querySelector("#chat-entries");
 
+        let clickingPanel = false;
+        this.panel.addEventListener("mousedown", () => {
+            if (!this.focused)
+                clickingPanel = true;
+        });
+        document.addEventListener("mouseup", () => {
+            if (clickingPanel) {
+                this.focus();
+                clickingPanel = false;
+            }
+        });
         this.input.addEventListener("keydown", (e) => {
             if (e.key == "Enter") {
                 if (this.input.value != "") {
@@ -191,14 +204,20 @@ class Chat {
     }
 
     focus() {
+        this.focused = true;
+
+        this.panel.style.cursor = "auto";
         this.panel.style.opacity = "1";
-        this.panel.style.pointerEvents = "auto";
+        this.input.style.pointerEvents = "auto";
         this.input.focus();
         this.input.select();
     }
     blur() {
+        this.focused = false;
+
+        this.panel.style.cursor = "pointer";
         this.panel.style.opacity = "0.2";
-        this.panel.style.pointerEvents = "none";
+        this.input.style.pointerEvents = "none";
         this.input.value = "";
         this.input.blur();
         display.focus();
@@ -226,7 +245,7 @@ class Chat {
         this.chatFadeTimeout = setTimeout(() => {
             if (this.input != document.activeElement)
                 this.panel.style.opacity = "0.2";
-        }, 2000);
+        }, 4000);
     }
 }
 
@@ -345,6 +364,9 @@ export default class Manager {
         
         // Route events to active pawns
         document.addEventListener("keydown", (e) => {
+            if (this.chat.focused)
+                return;
+
             let existsSelected = Array.from(this.pawns.values()).filter(p => p.selected).length != 0;
             this.pawns.forEach(p => {
                 if ((existsSelected && p.selected) || (!existsSelected && p.hovered)) {

@@ -121,7 +121,7 @@ canvas {
     
     /*display:none;*/
     
-    pointer-events:none;
+    cursor:pointer;
     transition:opacity 0.2s;
     opacity:0.2;
 }
@@ -136,6 +136,8 @@ canvas {
     border:1px solid grey;
     padding:5px;
     box-sizing:border-box;
+
+    pointer-events:none;
 }
 
 /* HAND PANEL */
