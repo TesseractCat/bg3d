@@ -29,8 +29,6 @@ use user::*;
 //TODO: Replace this with Dashmap?
 type Lobbies = Arc<RwLock<HashMap<String, RwLock<Lobby>>>>;
 
-static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
-
 #[tokio::main]
 async fn main() {
     let default_port: u16 = 8080;
@@ -112,33 +110,7 @@ async fn main() {
             {
                 let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
-                    let lobby = &mut *lobby.write().await;
-                    // Simulate physics
-                    lobby.world.step();
-
-                    // Transfer pawn information from rigidbody
-                    let mut dirty_pawns: Vec<&Pawn> = vec![];
-                    for pawn in lobby.pawns.values_mut() {
-                        if pawn.selected { continue; } // Ignore selected pawns
-
-                        let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
-                        let rb = lobby.world.rigid_body_set.get(rb_handle).unwrap();
-                        pawn.position = Vec3::from(rb.translation());
-                        pawn.rotation = Vec3::from(rb.rotation());
-                        if !rb.is_sleeping() && rb.is_moving() {
-                            dirty_pawns.push(pawn);
-                        }
-                    }
-                    if !dirty_pawns.is_empty() && tick % 3 == 0 {
-                        // Send update
-                        let response = json!({
-                            "type":"update_pawns",
-                            "pawns":dirty_pawns.iter().map(|p| p.serialize_transform()).collect::<Vec<Value>>(),
-                        });
-                        for u in lobby.users.values() {
-                            u.tx.send(Message::text(response.to_string()));
-                        }
-                    }
+                    lobby.write().await.step(tick % 3 == 0);
                 }
             }
             //println!("Physics elapsed time: {}", Instant::now().duration_since(physics_time).as_millis());
@@ -176,7 +148,6 @@ async fn main() {
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
-    let user_id = NEXT_USER_ID.fetch_add(1, Ordering::Relaxed);
     let (mut tx, mut rx) = ws.split();
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
@@ -190,7 +161,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     });
     
     // Track user
-    {
+    let user_id: usize = {
         let mut host: bool = false;
         if lobbies.read().await.get(&lobby_name).is_none() {
             let mut lobbies_wl = lobbies.write().await;
@@ -204,6 +175,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
 
         let lobbies_rl = lobbies.read().await;
         let mut lobby = lobbies_rl.get(&lobby_name).unwrap().write().await;
+        let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
         let color: Color = match (user_id + 1) % 7 {
@@ -217,7 +189,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             _ => Color::Monochrome,
         };
         lobby.users.insert(user_id, User::new(user_id, buffer_tx, color));
-    }
+
+        user_id
+    };
     
     // Continually process received messages
     while let Some(result) = rx.next().await {

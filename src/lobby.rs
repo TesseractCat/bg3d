@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use warp::ws::Message;
 use serde::{Serialize, Deserialize};
 use serde_json::{Value, json};
 use tokio::time::Instant;
@@ -160,6 +163,8 @@ pub struct Lobby {
     pub assets: HashMap<String, Asset>,
 
     pub world: PhysicsWorld,
+
+    next_user_id: AtomicUsize,
 }
 impl Lobby {
     pub fn new() -> Lobby {
@@ -172,6 +177,41 @@ impl Lobby {
             assets: HashMap::new(),
 
             world: PhysicsWorld::new(1.0/30.0),
+
+            next_user_id: AtomicUsize::new(0),
+        }
+    }
+
+    pub fn next_user_id(&self) -> usize {
+        self.next_user_id.fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub fn step(&mut self, send_update_pawns: bool) {
+        // Simulate physics
+        self.world.step();
+
+        // Transfer pawn information from rigidbodies
+        let mut dirty_pawns: Vec<&Pawn> = vec![];
+        for pawn in self.pawns.values_mut() {
+            if pawn.selected { continue; } // Ignore selected pawns
+
+            let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
+            let rb = self.world.rigid_body_set.get(rb_handle).unwrap();
+            pawn.position = Vec3::from(rb.translation());
+            pawn.rotation = Vec3::from(rb.rotation());
+            if !rb.is_sleeping() && rb.is_moving() {
+                dirty_pawns.push(pawn);
+            }
+        }
+        if !dirty_pawns.is_empty() && send_update_pawns {
+            // Send update
+            let response = json!({
+                "type":"update_pawns",
+                "pawns":dirty_pawns.iter().map(|p| p.serialize_transform()).collect::<Vec<Value>>(),
+            });
+            for u in self.users.values() {
+                u.tx.send(Message::text(response.to_string()));
+            }
         }
     }
 }
