@@ -233,6 +233,6 @@ export default class PluginLoader {
         this.manager.sendSocket({
             "type":"clear_assets"
         });
-        this.manager.sendEvent("clear_pawns", true, {});
+        this.manager.clearPawns();
     }
 }

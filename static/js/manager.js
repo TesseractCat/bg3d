@@ -363,7 +363,7 @@ export default class Manager {
         this.buildWebSocket(callback);
     }
     
-    clear() {
+    clearPawns() {
         this.sendSocket({
             type:"clear_pawns",
         });
@@ -844,6 +844,13 @@ export default class Manager {
                 });
             } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
+            } else if (type == "clear_pawns") {
+                [...this.pawns.keys()].forEach(id => {
+                    this.scene.remove(this.pawns.get(id).mesh);
+                    this.pawns.get(id).dispose();
+                    this.pawns.delete(id);
+                });
+                this.hand.clear();
             }
             
             if (type == "connect") {

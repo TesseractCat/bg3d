@@ -219,6 +219,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             
             "add_pawn"     => add_pawn(user_id, data, lobby.write().await.deref_mut()),
             "remove_pawns" => remove_pawns(user_id, data, lobby.write().await.deref_mut()),
+            "clear_pawns"  => clear_pawns(user_id, data, lobby.write().await.deref_mut()),
             "update_pawns" => update_pawns(user_id, data, lobby.write().await.deref_mut()),
 
             "register_asset" => register_asset(user_id, data, lobby.write().await.deref_mut()),
@@ -313,7 +314,21 @@ fn remove_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
         lobby.pawns.remove(&id);
     }
     
-    // Tell other users that this was removed
+    for u in lobby.users.values() {
+        u.tx.send(Message::text(data.to_string()))?;
+    }
+    Ok(())
+}
+fn clear_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+    if user_id != lobby.host { Err("Failed to clear pawns")?; }
+
+    // Remove pawn rigidbodies from lobby
+    for (id, _) in lobby.pawns.iter() {
+        let rb_handle = lobby.pawns.get(&id).ok_or("Trying to remove missing pawn")?.rigid_body.unwrap();
+        lobby.world.remove_rigidbody(rb_handle);
+    }
+    lobby.pawns = HashMap::new();
+    
     for u in lobby.users.values() {
         u.tx.send(Message::text(data.to_string()))?;
     }
