@@ -38,7 +38,7 @@ impl PhysicsWorld {
         };
 		
         // Ground plane
-		w.collider_set.insert(ColliderBuilder::cuboid(1000.0, 0.5, 1000.0).translation(vector![0.0, -0.5, 0.0]).build());
+		w.collider_set.insert(ColliderBuilder::halfspace(Vector::y_axis()).build());
 		
 		return w;
     }

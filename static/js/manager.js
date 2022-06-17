@@ -430,25 +430,29 @@ export default class Manager {
     }
     updatePawn(pawnJSON) {
         if (!this.pawns.has(pawnJSON.id)) {
-            console.warn("Attempting to update non existent pawn");
+            console.warn("Attempting to update non-existent pawn");
             return;
         }
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawnJSON.hasOwnProperty('selected')) {
-            if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
-                // This pawn has been released, reset the network buffer and update position
-                // FIXME: Sometimes has errors
-                pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
-                pawn.setRotation(new THREE.Quaternion().setFromEuler(
-                    new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
-                ));
+            if (pawn.networkSelected && !pawnJSON.selected) {
+                // This pawn has been grabbed/released, reset the network buffer and update position
+                if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
+                    pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
+                    pawn.setRotation(new THREE.Quaternion().setFromEuler(
+                        new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                    ));
+                }
             }
             pawn.networkSelected = pawnJSON.selected;
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
                 new THREE.Vector3().copy(pawnJSON.position),
-                new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')));
+                new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                )
+            );
         }
         if (pawnJSON.hasOwnProperty('selectRotation')) {
             pawn.selectRotation = pawnJSON.selectRotation;
@@ -726,8 +730,8 @@ export default class Manager {
         this.scene.add(ambientLight);
         
         // Setup ground plane
-        const geom = new THREE.PlaneGeometry( 200, 200 );
-        geom.rotateX(- Math.PI/2);
+        const geom = new THREE.PlaneGeometry(200, 200);
+        geom.rotateX(-Math.PI/2);
         const material = new THREE.ShadowMaterial();
         material.opacity = 0.3;
         this.plane = new THREE.Mesh(geom, material);
@@ -750,14 +754,6 @@ export default class Manager {
 
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
-        /*const ssaoPass = new SSAOPass(this.scene, this.camera, 20, 20);
-        ssaoPass.minDistance /= 30;
-        ssaoPass.maxDistance /= 30;
-        ssaoPass.kernelRadius = 16/30;
-        ssaoPass.output = 0;
-        this.composer.addPass(ssaoPass);
-        const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader)
-        this.composer.addPass(gammaCorrectionPass);*/
 
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
