@@ -340,9 +340,22 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
     for i in 0..pawns.len() {
         let pawn_id: u64 = pawns[i]["id"].as_u64().ok_or("Malformed update_pawns")?;
         let pawn: &mut Pawn = lobby.pawns.get_mut(&pawn_id).ok_or("Trying to update missing pawn")?;
+
+        match pawn.selected_user {
+            Some(selected_user_id) if selected_user_id != user_id => {
+                println!("User <{user_id}> trying to update non-owned pawn");
+                continue;
+            },
+            _ => {},
+        };
         
         // Update struct values
         pawn.patch(&pawns[i]);
+        pawn.selected_user = if pawns[i]["selected"].as_bool().unwrap_or(true) {
+            Some(user_id)
+        } else {
+            None
+        };
         
         // Update physics
         if pawns[i].get("colliderShapes").is_some() {
@@ -363,14 +376,14 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
             let rb_handle = pawn.rigid_body.unwrap();
             let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
             // Don't simulate selected pawns
-            rb.set_body_type(if !pawn.selected {
+            rb.set_body_type(if pawn.selected_user.is_none() {
                 RigidBodyType::Dynamic
             } else {
                 RigidBodyType::KinematicPositionBased
             });
             for collider_handle in rb.colliders().iter() {
                 let collider = lobby.world.collider_set.get_mut(*collider_handle).unwrap();
-                collider.set_sensor(pawn.selected);
+                collider.set_sensor(pawn.selected_user.is_some());
             }
             // Update position and velocity
             if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {

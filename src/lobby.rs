@@ -103,7 +103,8 @@ pub struct Pawn {
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
-    pub selected: bool,
+	#[serde(skip)]
+    pub selected_user: Option<usize>,
     pub select_rotation: Vec3,
     
     pub data: PawnData, // Misc
@@ -132,7 +133,6 @@ impl Pawn {
             }
         }
         patch!(value,
-               selected, selected,
                data, data,
 
                collider_shapes, colliderShapes,
@@ -193,7 +193,7 @@ impl Lobby {
         // Transfer pawn information from rigidbodies
         let mut dirty_pawns: Vec<&Pawn> = vec![];
         for pawn in self.pawns.values_mut() {
-            if pawn.selected { continue; } // Ignore selected pawns
+            if pawn.selected_user.is_some() { continue; } // Ignore selected pawns
 
             let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
             let rb = self.world.rigid_body_set.get(rb_handle).unwrap();

@@ -545,6 +545,7 @@ export default class Manager {
         if (!document.hidden) {
             // Raycast for selectable
             // (don't raycast ground plane to stop card's being below the ground issues)
+            // FIXME: Don't do this on mobile devices
             let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
             this.pawns.forEach((p, k) => p.hovered = false);
