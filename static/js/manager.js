@@ -578,10 +578,13 @@ export default class Manager {
             }
             
             // Raycast for cursor plane
-            raycastableObjects.push(this.plane);
-            hovered = this.raycaster.intersectObjects(raycastableObjects, true);
-            if (hovered.length > 0)
+            if (hovered.length > 0) {
                 this.cursorPosition.copy(hovered[0].point);
+            } else {
+                let planeIntersection = this.raycaster.intersectObjects([this.plane], true);
+                if (planeIntersection.length > 0)
+                    this.cursorPosition.copy(planeIntersection[0].point);
+            }
         }
         
         // Lerp all cursors
