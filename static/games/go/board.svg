@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:export-ydpi="300"
+   inkscape:export-xdpi="300"
+   inkscape:export-filename="C:\Users\Tesse\Desktop\BG3D\static\games\go\board.png"
+   sodipodi:docname="board.svg"
+   id="svg12"
+   version="1.1"
+   viewBox="0 0 96 96"
+   height="960"
+   width="960">
+  <metadata
+     id="metadata18">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs16">
+    <filter
+       height="1.0000384"
+       y="-1.92e-05"
+       width="1.0000384"
+       x="-1.92e-05"
+       id="filter855"
+       style="color-interpolation-filters:sRGB"
+       inkscape:collect="always">
+      <feGaussianBlur
+         id="feGaussianBlur857"
+         stdDeviation="0.000768"
+         inkscape:collect="always" />
+    </filter>
+  </defs>
+  <sodipodi:namedview
+     inkscape:current-layer="svg12"
+     inkscape:window-maximized="1"
+     inkscape:window-y="-8"
+     inkscape:window-x="1912"
+     inkscape:cy="346.04651"
+     inkscape:cx="480"
+     inkscape:zoom="0.89583333"
+     showgrid="false"
+     id="namedview14"
+     inkscape:window-height="1027"
+     inkscape:window-width="2560"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0"
+     guidetolerance="10"
+     gridtolerance="10"
+     objecttolerance="10"
+     borderopacity="1"
+     bordercolor="#666666"
+     pagecolor="#ffffff" />
+  <rect
+     inkscape:export-ydpi="100"
+     inkscape:export-xdpi="100"
+     style="fill:#ffd478;fill-opacity:1;filter:url(#filter855);opacity:0.99700002"
+     id="rect2"
+     fill="#DCB35C"
+     height="96"
+     width="96" />
+  <rect
+     id="rect4"
+     fill="none"
+     stroke-width=".2"
+     stroke="#000"
+     y="3"
+     x="3"
+     height="90"
+     width="90" />
+  <path
+     id="path6"
+     d="m3,8h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90m0,5h-90m0,5h90"
+     fill="none"
+     stroke-width=".2"
+     stroke="#000" />
+  <path
+     id="path8"
+     d="m8,3v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90m5,0v-90m5,0v90"
+     fill="none"
+     stroke-width=".2"
+     stroke="#000" />
+  <path
+     id="path10"
+     d="m18,78l0,0m30,0l0,0m30,0l0,0m0-30l0,0m-30,0l0,0m-30,0l0,0m0-30l0,0m30,0l0,0m30,0l0,0"
+     stroke-linecap="round"
+     stroke-width=".8"
+     stroke="#000" />
+</svg>

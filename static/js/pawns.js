@@ -1,2 +1,2 @@
-export { Pawn, Dice } from './pawn';
+export { Pawn, SnapPoint, Dice } from './pawn';
 export { Deck, Container } from './containers';

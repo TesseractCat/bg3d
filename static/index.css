@@ -121,7 +121,7 @@ canvas {
     
     /*display:none;*/
     
-    pointer-events:none;
+    cursor:pointer;
     transition:opacity 0.2s;
     opacity:0.2;
 }
@@ -136,9 +136,12 @@ canvas {
     border:1px solid grey;
     padding:5px;
     box-sizing:border-box;
+
+    pointer-events:none;
 }
 
 /* HAND PANEL */
+
 #hand-panel {
     position:absolute;
     bottom:0px;
@@ -159,6 +162,8 @@ canvas {
     margin-bottom:-80px;
     transition:margin-bottom 0.2s;
     user-select:none;
+
+    box-shadow: -10px 10px 20px rgb(0 0 0 / 30%);
 }
 #hand-panel img:first-child {
     margin-left:0px;
@@ -169,6 +174,41 @@ canvas {
 #hand-panel.minimized img {
     margin-bottom:-120px;
     pointer-events:none;
+}
+
+/* CONTEXT MENU */
+
+#context-menu {
+    position:absolute;
+    display:none;
+
+    width: 150px;
+    padding: 5px 0px;
+
+    background: aliceblue;
+    border: 1px solid rgba(0,0,0,0.5);
+    border-radius: 2px;
+
+    user-select:none;
+}
+#context-menu button, #context-menu p {
+    display:block;
+    width: 100%;
+    padding-left: 15%;
+}
+#context-menu button {
+    font-size:0.9em;
+    border: none;
+    border-radius:0px;
+    background-color: transparent;
+    text-align: left;
+}
+#context-menu button:hover {
+    background-color: rgba(0,0,0,0.2);
+}
+#context-menu p {
+    font-style: italic;
+    text-transform: capitalize;
 }
 
 /* SHADE */

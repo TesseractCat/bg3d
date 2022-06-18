@@ -1,37 +1,14 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
-import {Text} from 'troika-three-text'
 
-import mouseShake from '../deps/mouse-shake'
+import mouseShake from './mouse-shake.js'
 
 import Manager from './manager';
 import {Pawn, Deck, Dice} from './pawns';
-import * as GAMES from './game';
+
+import PluginLoader from './pluginloader'
 
 let manager;
-let titleText;
-
-let board;
-
-function setup() {
-    manager.world.addBody(new CANNON.Body({
-        mass: 0,
-        shape: new CANNON.Plane(),
-        quaternion: new CANNON.Quaternion().setFromEuler(-Math.PI / 2, 0, 0)
-    }));
-    
-    titleText = new Text();
-    titleText.text = decodeURI(window.location.pathname.substring(1)).toUpperCase();
-    titleText.font = "../fonts/Bayon/Bayon-Regular.ttf"
-    //titleText.font = "../fonts/Lora/Lora-Regular.ttf"
-    titleText.fontSize = 3.0;
-    titleText.anchorX = '50%';
-    titleText.anchorY = '50%';
-    titleText.position.copy(new THREE.Vector3(0, 2.5, -11));
-    titleText.rotation.copy(new THREE.Euler(-Math.PI/5.0, 0, 0));
-    titleText.color = "#D6CCA9";
-    //manager.scene.add(titleText);
-}
+let pluginLoader;
 
 function animate() {
     requestAnimationFrame(animate);
@@ -41,40 +18,46 @@ function animate() {
 // SETUP
 window.onload = function() {
     manager = new Manager();
+    window.manager = manager;
+
+    pluginLoader = new PluginLoader(manager);
+
     manager.init((host) => {
-        setup();
-        
         let games = [
-            new GAMES.Welcome(manager),
-            new GAMES.Chess(manager),
-            new GAMES.Checkers(manager),
-            new GAMES.Cards(manager),
-            new GAMES.Monopoly(manager),
+            ['Welcome', 'games/welcome.js'],
+            ['Chess', 'games/chess.js'],
+            ['Go', 'games/go.js'],
         ];
         games.forEach((g, i) => {
+            let name = g[0];
             let gameOption = document.createElement("option");
-            gameOption.value = g.name;
-            gameOption.innerText = g.name;
+            gameOption.value = name;
+            gameOption.innerText = name;
             document.querySelector("#games").appendChild(gameOption);
             
-            if (g.templates.size > 0) {
-                let pieceGroup = document.createElement("optgroup");
-                pieceGroup.label = g.name;
-                for (const piece of g.templates.keys()) {
-                    let pieceOption = document.createElement("option");
-                    pieceOption.value = i + "/" + piece;
-                    pieceOption.innerText = piece;
-                    pieceGroup.appendChild(pieceOption);
-                }
-                document.querySelector("#pieces").appendChild(pieceGroup);
-            }
+            // if (g.templates.size > 0) {
+            //     let pieceGroup = document.createElement("optgroup");
+            //     pieceGroup.label = g.name;
+            //     for (const piece of g.templates.keys()) {
+            //         let pieceOption = document.createElement("option");
+            //         pieceOption.value = i + "/" + piece;
+            //         pieceOption.innerText = piece;
+            //         pieceGroup.appendChild(pieceOption);
+            //     }
+            //     document.querySelector("#pieces").appendChild(pieceGroup);
+            // }
         });
+        let gameOption = document.createElement("option");
+        gameOption.value = 'Custom';
+        gameOption.innerText = 'Custom';
+        gameOption.setAttribute("hidden", "");
+        document.querySelector("#games").appendChild(gameOption);
+
         document.querySelector("#games").addEventListener("change", (e) => {
-            for (let g of games) {
-                if (g.name == e.target.value) {
-                    g.init(true);
-                    return;
-                }
+            let game = games[e.target.selectedIndex];
+            if (game) {
+                let url = game[1];
+                pluginLoader.loadScript(url);
             }
         });
         document.querySelector("#add-piece").addEventListener("click", (e) => {
@@ -90,15 +73,17 @@ window.onload = function() {
         
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
-            games[0].init(false);
+            pluginLoader.loadScript(games[0][1]);
         }
         
         animate();
     });
     
+    // Show link
     document.getElementById("game-link").innerText = window.location.host + window.location.pathname;
     document.getElementById("game-link").href = window.location.href;
     
+    // Overlay functionality
     document.getElementById("overlay-collapse").addEventListener("click", function() {
         const elem = document.getElementById("overlay-collapse");
         let collapsed = elem.innerText == "+";
@@ -111,6 +96,27 @@ window.onload = function() {
             overlay.style.width = "10px";
             overlay.style.maxHeight = "10px";
         }
+    });
+        
+    // Allow plugins to be dropped
+    document.body.addEventListener("dragenter", (e) => e.preventDefault());
+    document.body.addEventListener("dragleave", (e) => e.preventDefault());
+    document.body.addEventListener("dragover", (e) => e.preventDefault());
+    document.body.addEventListener("drop", (e) => {
+        e.preventDefault();
+
+        if (e.dataTransfer.items && e.dataTransfer.items.length == 1) {
+            let item = e.dataTransfer.items[0];
+            let file = item.getAsFile();
+
+            pluginLoader.loadFromFile(file);
+        }
+    });
+
+    // Disable context menu
+    document.addEventListener('contextmenu', e => {
+        if (e.target.id != 'game-link')
+            e.preventDefault();
     });
 };
 window.onresize = function() {

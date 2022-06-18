@@ -1,13 +1,17 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es'
 
-import { ExtrudeGeometry } from '../deps/ExtrudeGeometryFB';
-import * as BufferGeometryUtils from '../deps/utils/BufferGeometryUtils';
+import { ExtrudeGeometry } from './ExtrudeGeometryFB';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
 
 import Manager from './manager';
 import { Pawn } from './pawn';
+import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
+    static cardThickness = 0.01;
+    static textureCache = new Map();
+    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
+
     data = {
         contents: [],
         back: "",
@@ -16,26 +20,16 @@ export class Deck extends Pawn {
         size: new THREE.Vector2()
     }
     
-    static cardThickness = 0.01;//0.005;
-    static textureCache = new Map();
-    static textureLoader = new THREE.TextureLoader().setPath("../games/");
-    
     box;
     faceMaterial;
     backMaterial;
     
-    constructor({manager, name, contents, back, sideColor = 0xcccccc,
-        position, rotation, size, cornerRadius = 0.02, moveable = true, id = null}) {
-        
-        super({
-            manager: manager, name: name,
-            position: position, rotation: rotation,
-            physicsBody: new CANNON.Body({
-                mass: 5,
-                shape: new CANNON.Box(new CANNON.Vec3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
-            }),
-            moveable: moveable, id: id
-        });
+    constructor({contents = [], back = "", sideColor = 0xcccccc, size = new THREE.Vector2(), cornerRadius = 0.02,
+                 ...rest}) {
+        rest.colliderShapes = [
+            new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
+        ];
+        super(rest);
         
         this.data.contents = contents;
         this.data.back = back;
@@ -88,6 +82,24 @@ export class Deck extends Pawn {
         shape.quadraticCurveTo(x, y, x, y + radius);
         return shape;
     }
+
+    menu() {
+        let entries = super.menu();
+        if (this.data.contents.length > 1) {
+            entries.splice(1, 0, [
+                ["Take", () => {
+                    this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                        if (card_id) {
+                            this.updateDeck();
+                            this.manager.pawns.get(card_id).grab(0);
+                        }
+                    });
+                }],
+                ["Shuffle", () => this.shuffle()]
+            ]);
+        }
+        return entries;
+    }
     
     animate(dt) {
         super.animate(dt);
@@ -101,6 +113,7 @@ export class Deck extends Pawn {
     loadTexture(texture) {
         let t = Deck.textureLoader.load(texture);
         t.encoding = THREE.sRGBEncoding;
+        t.anisotropy = 4;
         Deck.textureCache.set(texture, t);
     }
     
@@ -111,6 +124,14 @@ export class Deck extends Pawn {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "remove"}, () => {
                 this.manager.hand.pushCard(this);
                 //console.log(this.manager.hand);
+            });
+        }
+        if (!this.selected && e.key == 't') {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_card"}, (card_id) => {
+                if (card_id) {
+                    this.updateDeck();
+                    this.manager.pawns.get(card_id).grab(0);
+                }
             });
         }
     }
@@ -128,7 +149,8 @@ export class Deck extends Pawn {
                 break;
             case "grab_card":
                 let card = this.spawnCard();
-                out = card.id;
+                if (card)
+                    out = card.id;
                 break;
             case "shuffle":
                 this.shuffle();
@@ -138,7 +160,10 @@ export class Deck extends Pawn {
     }
     
     spawnCard() {
-        //Create a new deck of length 1 and grab that instead
+        if (this.data.contents.length == 1)
+            return;
+
+        // Create a new deck of length 1 and grab that instead
         let idx = this.flipped() ? this.data.contents.length - 1 : 0;
         let cardPawn = new Deck({
             manager: this.manager, name: this.name,
@@ -222,13 +247,12 @@ export class Deck extends Pawn {
         // Resize
         let thickness = Deck.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
-        this.physicsBody.shapes[0].halfExtents.set(
-            this.physicsBody.shapes[0].halfExtents.x,
-            (Math.max(thickness, Deck.cardThickness * 10) * 1.15)/2,
-            this.physicsBody.shapes[0].halfExtents.z);
-        this.physicsBody.shapes[0].updateConvexPolyhedronRepresentation();
-        this.physicsBody.shapes[0].updateBoundingSphereRadius();
-        this.physicsBody.updateBoundingRadius();
+        this.updateBoundingBox();
+
+        this.colliderShapes[0].halfExtents.setComponent(
+            1, Math.max(thickness, Deck.cardThickness * 10)/2,
+        );
+        this.dirty.add("colliderShapes");
         
         // Load textures
         let faceTexture;
@@ -240,11 +264,9 @@ export class Deck extends Pawn {
         let backTexture = this.data.back != null ?
             Deck.textureCache.get(this.data.back) :
             Deck.textureCache.get(this.data.contents[this.data.contents.length - 1]);
-        //faceTexture.generateMipmaps = false;
-        //faceTexture.magFilter = THREE.LinearFilter;
-        //faceTexture.minFilter = THREE.LinearFilter;
         
         // Apply new materials
+        // TODO: Dispose old materials
         const sideMaterial = new THREE.MeshStandardMaterial({color: this.data.sideColor});
         this.faceMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: faceTexture
@@ -252,16 +274,12 @@ export class Deck extends Pawn {
         this.backMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
             map: backTexture
         });
-        /*this.box.material = [
-            sideMaterial, sideMaterial, this.faceMaterial, this.backMaterial, sideMaterial, sideMaterial
-        ];*/
         this.box.material = [
             this.faceMaterial, sideMaterial, this.backMaterial
         ];
     }
     
     shuffle() {
-        console.assert(this.manager.host);
         if (this.data.contents.length > 1) {
             //Shuffle
             //this.data.contents = arrayShuffle(this.data.contents);
@@ -288,10 +306,10 @@ export class Deck extends Pawn {
     }
     
     static className() { return "Deck"; };
-    static deserialize(manager, pawnJSON) {
+    static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new Deck({
-            manager: manager, name: pawnJSON.name,
+            name: pawnJSON.name,
             
             contents: pawnJSON.data.contents, back: pawnJSON.data.back,
             sideColor: pawnJSON.data.sideColor, cornerRadius: pawnJSON.data.cornerRadius,
@@ -313,20 +331,30 @@ export class Deck extends Pawn {
 
 export class Container extends Pawn {
     data = {
-        holds: {}
+        holds: {},
+        capacity: undefined,
     }
     
-    constructor({manager, holds, position, rotation, mesh, meshOffset = new THREE.Vector3(), physicsBody, moveable = true, id = null, name = null}) {
-        super({
-            manager: manager, name: name,
-            position:position, rotation:rotation,
-            mesh:mesh, meshOffset:meshOffset,
-            physicsBody:physicsBody,
-            moveable:moveable, id:id
-        });
+    constructor({holds, capacity, ...rest}) {
+        super(rest);
         this.data.holds = holds;
+        this.data.capacity = capacity;
     }
     
+    menu() {
+        let entries = super.menu();
+        entries[1].splice(0, 1);
+        entries.splice(1, 0, [
+            ["Take", () => {
+                this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
+                    if (item_id)
+                        this.manager.pawns.get(item_id).grab(0);
+                });
+            }]  
+        ]);
+        return entries;
+    }
+
     flip() { }
     
     handleEvent(data) {
@@ -334,67 +362,47 @@ export class Container extends Pawn {
         switch (data.name) {
             case "grab_item":
                 let item = this.spawnItem();
-                out = item.id;
+                if (item)
+                    out = item.id;
                 break;
         }
         return out;
     }
+    keyDown(e) {
+        super.keyDown(e);
+
+        if (!this.selected && e.key == 't') {
+            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
+                if (item_id)
+                    this.manager.pawns.get(item_id).grab(0);
+            });
+        }
+    }
     
     spawnItem() {
-        /*//Create a new deck of length 1 and grab that instead
-        let idx = this.flipped() ? this.data.contents.length - 1 : 0;
-        let cardPawn = new Deck(this.manager, this.data.name, new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), this.rotation,
-            this.data.size, [this.data.contents[idx]], this.data.back);
-        cardPawn.moveable = true;
-        cardPawn.selectRotation = Object.assign({}, this.selectRotation);
-        
-        this.manager.addPawn(cardPawn);
-        
-        this.data.contents.splice(idx, 1);
-        this.dirty.add("data");
-        // Flush dirty and prevent race condition
-        // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
-        this.manager.tick();
-        
-        this.updateDeck();
-        
-        return cardPawn;*/
-        
+        if (this.data.capacity !== undefined) {
+            if (this.data.capacity == 0)
+                return;
+        }
+
         let item = this.manager.loadPawn(this.data.holds).clone();
+
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
         this.manager.addPawn(item);
+
+        if (this.data.capacity) {
+            this.data.capacity -= 1;
+            this.dirty.add("data");
+        }
         
         return item;
     }
     grab(button) {
         if (this.selected || this.networkSelected)
             return;
-        if (button == 0) {
+        if (button == 0)
             super.grab();
-        } else if (button == 2) {
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                this.manager.pawns.get(item_id).grab(0);
-            });
-        }
     }
     
     static className() { return "Container"; };
-    static deserialize(manager, pawnJSON) {
-        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let physicsBody = new CANNON.Body({
-            mass: pawnJSON.mass,
-            shape: new CANNON.Shape().deserialize(pawnJSON.shapes[0]) // FIXME Handle multiple shapes
-        });
-        let pawn = new Container({
-            manager: manager, name: pawnJSON.name,
-            holds: pawnJSON.data.holds,
-            position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, physicsBody: physicsBody,
-            moveable: pawnJSON.moveable, id: pawnJSON.id
-        });
-        pawn.meshOffset.copy(pawnJSON.meshOffset);
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.selectRotation = pawnJSON.selectRotation;
-        return pawn;
-    }
 }

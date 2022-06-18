@@ -1,66 +1,26 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-//import RAPIER from '@dimforge/rapier3d-compat';
 import { nanoid } from 'nanoid';
 
-import Stats from '../deps/libs/stats.module';
-import { EffectComposer } from '../deps/postprocessing/EffectComposer';
-import { RenderPass } from '../deps/postprocessing/RenderPass';
-import { ShaderPass } from '../deps/postprocessing/ShaderPass';
-import { SSAOPass } from '../deps/postprocessing/SSAOPass';
-import { GammaCorrectionShader } from '../deps/shaders/GammaCorrectionShader';
-import { OrbitControls } from '../deps/controls/OrbitControls';
-import { GLTFLoader } from '../deps/loaders/GLTFLoader.js';
+import Stats from 'three/examples/jsm/libs/stats.module';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass';
+import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-import { Pawn, Dice, Deck, Container  } from './pawns';
+import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
-
-CANNON.Shape.prototype.serialize = function() {
-    var shape = {};
-    shape.type = this.type;
-    switch (shape.type) {
-        case CANNON.Shape.types.BOX:
-            shape.halfExtents = {x: this.halfExtents.x, y: this.halfExtents.y, z: this.halfExtents.z};
-            break;
-        case CANNON.Shape.types.CYLINDER:
-            shape.radiusTop = this.radiusTop;
-            shape.radiusBottom = this.radiusBottom;
-            shape.height = this.height;
-            shape.numSegments = this.numSegments;
-            break;
-        default:
-            console.error("Attempting to serialize unhandled shape!");
-            break;
-    }
-    return shape;
-}
-CANNON.Shape.prototype.deserialize = function(shape) {
-    switch (shape.type) {
-        case CANNON.Shape.types.BOX:
-            return new CANNON.Box(new CANNON.Vec3().copy(shape.halfExtents));
-        case CANNON.Shape.types.CYLINDER:
-            return new CANNON.Cylinder(shape.radiusTop, shape.radiusBottom, shape.height, shape.numSegments);
-        default:
-            console.error("Attempting to deserialize unhandled shape!");
-            break;
-    }
-}
-CANNON.Body.prototype.updateCenterOfMass = function() {
-    const centerOfMass = new CANNON.Vec3();
-    this.shapeOffsets.forEach(offset => centerOfMass.vadd(offset, centerOfMass));
-    centerOfMass.scale(1/this.shapes.length, centerOfMass);
-    this.shapeOffsets.forEach(offset => offset.vsub(centerOfMass, offset));
-    const worldCenterOfMass = new CANNON.Vec3();
-    this.vectorToWorldFrame(centerOfMass, worldCenterOfMass);
-    this.position.vadd(worldCenterOfMass, this.position);
-}
+import { GameBox } from './pluginloader';
 
 class Hand {
     manager;
     cards = [];
+    element;
     
     constructor(manager) {
         this.manager = manager;
+        this.element = document.querySelector("#hand-panel");
     }
     
     pushCard(deck) {
@@ -69,14 +29,15 @@ class Hand {
         console.assert(cardProps.data.contents.length == 1);
         
         let imageElement = document.createElement("img");
-        imageElement.src = `games/${cardProps.data.contents[0]}`;
+        imageElement.src = `${window.location.pathname}/${cardProps.data.contents[0]}`;
         imageElement.style.borderRadius = `${cardProps.data.cornerRadius}in`;
-        imageElement.addEventListener("click",
+        imageElement.setAttribute('draggable', false);
+        imageElement.addEventListener("mousedown",
             () => this.takeCard(imageElement));
         imageElement.oncontextmenu = function() {
             return false;
         }
-        document.querySelector("#hand-panel").appendChild(imageElement);
+        this.element.appendChild(imageElement);
     }
     takeCard(elem) {
         if ([...this.manager.pawns.values()].filter(p => p.selected).length != 0)
@@ -101,6 +62,14 @@ class Hand {
             });
         }
     }
+    clear() {
+        console.log("Clearing hand...");
+        // Remove children
+        while (this.element.firstChild) {
+            this.element.firstChild.remove();
+        }
+        this.cards = [];
+    }
 }
 
 class Cursor {
@@ -122,13 +91,169 @@ class Cursor {
     }
 }
 
+class ContextMenu {
+    manager;
+    element;
+
+    visible = false;
+
+    constructor(manager) {
+        this.manager = manager;
+        this.element = document.querySelector("#context-menu");
+
+        this.element.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+        });
+        document.addEventListener("mousedown", (e) => {
+            if (!this.element.contains(e.target) && this.visible) {
+                this.hide();
+            }
+        });
+    }
+
+    show(event, menu) {
+        // Remove children
+        while (this.element.firstChild) {
+            this.element.firstChild.remove();
+        }
+        
+        // Create buttons
+        for (let [i, section] of menu.entries()) {
+            for (let entry of section) {
+                if (entry.length == 1) {
+                    let text = document.createElement("p");
+                    text.innerText = entry[0];
+
+                    this.element.appendChild(text);
+                } else if (entry.length == 2) {
+                    let [name, action] = entry;
+
+                    let button = document.createElement("button");
+                    button.innerText = name;
+                    button.addEventListener("click", () => {
+                        this.hide();
+                        action();
+                    });
+
+                    this.element.appendChild(button);
+                }
+            }
+
+            // Create divider
+            if (i != menu.length - 1) {
+                let divider = document.createElement("hr");
+                this.element.appendChild(divider);
+            }
+        }
+
+        this.element.style.left = event.clientX + "px";
+        this.element.style.top = event.clientY + "px";
+        this.element.style.display = "block";
+
+        this.visible = true;
+    }
+    hide() {
+        this.element.style.display = "none";
+
+        this.visible = false;
+    }
+}
+
+class Chat {
+    manager;
+
+    panel;
+    input;
+    entries;
+
+    focused = false;
+
+    constructor(manager) {
+        this.manager = manager;
+
+        this.panel = document.querySelector("#chat-panel");
+        this.input = document.querySelector("#chat-input");
+        this.entries = document.querySelector("#chat-entries");
+
+        let clickingPanel = false;
+        this.panel.addEventListener("mousedown", () => {
+            if (!this.focused)
+                clickingPanel = true;
+        });
+        document.addEventListener("mouseup", () => {
+            if (clickingPanel) {
+                this.focus();
+                clickingPanel = false;
+            }
+        });
+        this.input.addEventListener("keydown", (e) => {
+            if (e.key == "Enter") {
+                if (this.input.value != "") {
+                    this.manager.sendEvent("chat", false, {
+                        id:this.manager.id,
+                        content:this.input.value
+                    });
+                }
+                this.blur();
+            }
+        });
+        this.input.addEventListener("blur", (e) => {
+            this.blur();
+        });
+    }
+
+    focus() {
+        this.focused = true;
+
+        this.panel.style.cursor = "auto";
+        this.panel.style.opacity = "1";
+        this.input.style.pointerEvents = "auto";
+        this.input.focus();
+        this.input.select();
+    }
+    blur() {
+        this.focused = false;
+
+        this.panel.style.cursor = "pointer";
+        this.panel.style.opacity = "0.2";
+        this.input.style.pointerEvents = "none";
+        this.input.value = "";
+        this.input.blur();
+        display.focus();
+    }
+
+    chatFadeTimeout;
+    addChatEntry(chatJSON) {
+        let entry = document.createElement("p");
+        entry.classList.add("entry");
+        
+        let name = document.createElement("span");
+        name.innerText = "⬤: ";
+        name.style.color = this.manager.userColors.get(chatJSON.id);
+        let text = document.createElement("span");
+        text.innerText = chatJSON.content;
+        
+        entry.appendChild(name);
+        entry.appendChild(text);
+        this.entries.appendChild(entry);
+        this.entries.scrollTop = this.entries.scrollHeight;
+        
+        this.panel.style.opacity = "1";
+        if (this.chatFadeTimeout !== undefined)
+            clearTimeout(this.chatFadeTimeout);
+        this.chatFadeTimeout = setTimeout(() => {
+            if (this.input != document.activeElement)
+                this.panel.style.opacity = "0.2";
+        }, 4000);
+    }
+}
+
 export default class Manager {
     scene;
     camera;
     renderer;
     composer;
     controls;
-    world;
     socket;
     plane;
     
@@ -136,7 +261,10 @@ export default class Manager {
     pingPanel;
     
     pawns = new Map();
+
     hand = new Hand(this);
+    contextMenu = new ContextMenu(this);
+    chat = new Chat(this);
     
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -148,21 +276,15 @@ export default class Manager {
     id;
     userColors = new Map();
     
-    static physicsTimestep = 1/60;
-    static networkTimestep = 1000/20;
+    static networkTimestep = 1000/20; // Milliseconds
     lastCallTime;
     
     lastPingSent;
-    
-    constructor() {
-        this.loader = new GLTFLoader().setPath('../games/');
-    }
     
     async init(callback) {
         this.buildScene();
         this.buildRenderer();
         this.buildControls();
-        await this.buildPhysics();
         
         this.resize();
         
@@ -183,11 +305,14 @@ export default class Manager {
         display.addEventListener('mousemove', (e) => {
             // Fix intermittent chrome bug where mouse move is triggered incorrectly
             // https://bugs.chromium.org/p/chromium/issues/detail?id=721341
-            if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0)
+            if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0) {
                 dragged = true;
+            }
         });
-        display.addEventListener("mouseup", (e) => {
-            if (dragged)
+        display.addEventListener('mousedown', (e) => {
+            // if (dragged)
+            //     return;
+            if (e.button != 0)
                 return;
             let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
@@ -201,46 +326,47 @@ export default class Manager {
                     return;
                 }
             }
-            toSelect[0].grab(e.button);
+            if (e.button == 0) {
+                toSelect[0].grab(e.button);
+                this.controls.saveState();
+                this.controls.reset();
+            }
         });
+        display.addEventListener('mouseup', (e) => {
+            if (e.button == 0) {
+                let selected = Array.from(this.pawns.values()).filter(p => p.selected);
+                for (let pawn of selected) {
+                    pawn.release();
+                }
+            } else if (e.button == 2 && !dragged) {
+                if (Array.from(this.pawns.values()).filter(p => p.selected).length != 0)
+                    return;
+                let toSelect = Array.from(this.pawns.values()).filter(p => 
+                    p.moveable && (p.hovered || p.selected)
+                );
+                if (toSelect.length != 0)
+                    this.contextMenu.show(e, toSelect[0].menu());
+            }
+        });
+        display.addEventListener('wheel', (e) => this.contextMenu.hide());
         
         // Chat
         display.addEventListener("keydown", (e) => {
             if (e.key == "Enter") {
-                //document.querySelector("#chat-panel").style.display = "block";
-                document.querySelector("#chat-panel").style.opacity = "1";
-                document.querySelector("#chat-panel").style.pointerEvents = "auto";
-                document.querySelector("#chat-input").focus();
-                document.querySelector("#chat-input").select();
+                this.chat.focus();
             }
-        });
-        document.querySelector("#chat-input").addEventListener("keydown", (e) => {
-            if (e.key == "Enter") {
-                if (document.querySelector("#chat-input").value != "") {
-                    this.sendEvent("chat", false, {
-                        id:this.id,
-                        content:document.querySelector("#chat-input").value
-                    });
-                }
-                //document.querySelector("#chat-panel").style.display = "none";
-                document.querySelector("#chat-panel").style.opacity = "0.2";
-                document.querySelector("#chat-panel").style.pointerEvents = "none";
-                document.querySelector("#chat-input").value = "";
-                document.querySelector("#chat-input").blur();
-                display.focus();
-            }
-        });
-        document.querySelector("#chat-input").addEventListener("blur", (e) => {
-            document.querySelector("#chat-panel").style.opacity = "0.2";
-            document.querySelector("#chat-panel").style.pointerEvents = "none";
-            document.querySelector("#chat-input").value = "";
         });
         
         // Route events to active pawns
         document.addEventListener("keydown", (e) => {
+            if (this.chat.focused)
+                return;
+
+            let existsSelected = Array.from(this.pawns.values()).filter(p => p.selected).length != 0;
             this.pawns.forEach(p => {
-                if (p.selected)
+                if ((existsSelected && p.selected) || (!existsSelected && p.hovered)) {
                     p.keyDown(e);
+                }
             });
         });
         document.addEventListener('mouseshake', (e) => {
@@ -253,68 +379,43 @@ export default class Manager {
         // Finally make websocket connection
         this.buildWebSocket(callback);
     }
-    chatFadeTimeout;
-    addChatEntry(chatJSON) {
-        let entry = document.createElement("p");
-        entry.classList.add("entry");
-        
-        let name = document.createElement("span");
-        name.innerText = "⬤: ";
-        name.style.color = this.userColors.get(chatJSON.id);
-        let text = document.createElement("span");
-        text.innerText = chatJSON.content;
-        
-        entry.appendChild(name);
-        entry.appendChild(text);
-        document.querySelector("#chat-entries").appendChild(entry);
-        document.querySelector("#chat-entries").scrollTop =
-            document.querySelector("#chat-entries").scrollHeight;
-        
-        document.querySelector("#chat-panel").style.opacity = "1";
-        if (this.chatFadeTimeout !== undefined)
-            clearTimeout(this.chatFadeTimeout);
-        this.chatFadeTimeout = setTimeout(() => {
-            if (document.querySelector("#chat-input") != document.activeElement)
-                document.querySelector("#chat-panel").style.opacity = "0.2";
-        }, 2000);
-    }
     
-    clear() {
+    clearPawns() {
         this.sendSocket({
             type:"clear_pawns",
         });
     }
     addPawn(pawn) {
-        console.assert(this.host);
-        
         console.log("Adding pawn with ID: " + pawn.id);
-        pawn.init();
-        this.pawns.set(pawn.id, pawn);
-        let rotation = new THREE.Euler().setFromQuaternion(pawn.rotation);
         this.sendSocket({
             type:"add_pawn",
             pawn:pawn.serialize()
         });
     }
     removePawn(id) {
-        this.scene.remove(this.pawns.get(id).mesh);
-        this.world.removeBody(this.pawns.get(id).physicsBody);
-        this.pawns.delete(id);
+        console.log("Removing pawn with ID: " + id);
+        this.sendSocket({
+            type:"remove_pawns",
+            pawns:[id],
+        });
     }
     loadPawn(pawnJSON) {
         let pawn;
         switch (pawnJSON.class) {
             case "Pawn":
-                pawn = Pawn.deserialize(this, pawnJSON);
+                pawn = Pawn.deserialize(pawnJSON);
+                break;
+            case "SnapPoint":
+                pawn = SnapPoint.deserialize(pawnJSON);
                 break;
             case "Dice":
-                pawn = Dice.deserialize(this, pawnJSON);
+                pawn = Dice.deserialize(pawnJSON);
                 break;
             case "Deck":
-                pawn = Deck.deserialize(this, pawnJSON);
+                pawn = Deck.deserialize(pawnJSON);
                 break;
             case "Container":
-                pawn = Container.deserialize(this, pawnJSON);
+                pawn = Container.deserialize(pawnJSON);
                 break;
             default:
                 console.error("Encountered unknown pawn type!");
@@ -324,23 +425,29 @@ export default class Manager {
     }
     updatePawn(pawnJSON) {
         if (!this.pawns.has(pawnJSON.id)) {
-            console.warn("Attempting to update non existent pawn");
+            console.warn("Attempting to update non-existent pawn");
             return;
         }
         let pawn = this.pawns.get(pawnJSON.id);
         if (pawnJSON.hasOwnProperty('selected')) {
-            if (pawn.networkSelected && !pawnJSON.selected && !pawn.simulateLocally) {
-                //We have released, instead of updating network position, let's update position
-                pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
-                pawn.setRotation(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
-                pawn.physicsBody.sleepState = CANNON.Body.AWAKE; // Wake up pawn if not awake
+            if (pawn.networkSelected && !pawnJSON.selected) {
+                // This pawn has been grabbed/released, reset the network buffer and update position
+                if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
+                    pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
+                    pawn.setRotation(new THREE.Quaternion().setFromEuler(
+                        new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                    ));
+                }
             }
             pawn.networkSelected = pawnJSON.selected;
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
                 new THREE.Vector3().copy(pawnJSON.position),
-                new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation)));
+                new THREE.Quaternion().setFromEuler(
+                    new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                )
+            );
         }
         if (pawnJSON.hasOwnProperty('selectRotation')) {
             pawn.selectRotation = pawnJSON.selectRotation;
@@ -390,23 +497,23 @@ export default class Manager {
         // Send all dirty pawns (even the ones selected by a client)
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
-            this.sendEvent("request_update_pawns", true,
-                {pawns: to_update.map(p => {
-                    let rotation = new THREE.Euler().setFromQuaternion(p.rotation).toVector3();
-                    let update = {id: p.id};
-                    for (let dirtyParam of p.dirty) {
-                        switch (dirtyParam) {
-                            case "rotation":
-                                update[dirtyParam] = rotation;
-                                break;
-                            default:
-                                update[dirtyParam] = p[dirtyParam];
-                                break;
-                        }
+            let to_update_data = to_update.map(p => {
+                let rotation = new THREE.Euler().setFromQuaternion(p.rotation, 'ZYX').toVector3();
+                let update = {id: p.id};
+                for (let dirtyParam of p.dirty) {
+                    switch (dirtyParam) {
+                        case "rotation":
+                            update[dirtyParam] = rotation;
+                            break;
+                        default:
+                            update[dirtyParam] = p[dirtyParam];
+                            break;
                     }
-                    return update;
                 }
-            )});
+                return update;
+            });
+
+            this.sendSocket({type: "update_pawns", pawns: to_update_data});
             to_update.forEach(p => p.dirty.clear());
         }
         this.sendCursor();
@@ -414,21 +521,18 @@ export default class Manager {
     animate() {
         // Render loop
         if (!document.hidden) {
-            this.composer.render();
+            this.renderer.render(this.scene, this.camera); // this.composer.render();
             this.controls.update();
             this.stats.update();
         }
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        
-        // Physics simulation
+
+        // Calculate delta time
         const time = performance.now() / 1000; // seconds
         let dt = 0;
-        if (!this.lastCallTime) {
-            this.world.step(Manager.physicsTimestep);
-        } else {
+        if (this.lastCallTime) {
             dt = time - this.lastCallTime;
-            this.world.step(Manager.physicsTimestep, dt);
         }
         this.lastCallTime = time;
         
@@ -441,6 +545,7 @@ export default class Manager {
         if (!document.hidden) {
             // Raycast for selectable
             // (don't raycast ground plane to stop card's being below the ground issues)
+            // FIXME: Don't do this on mobile devices
             let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
             let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
             this.pawns.forEach((p, k) => p.hovered = false);
@@ -460,8 +565,10 @@ export default class Manager {
                     }
                 });
                 display.style.cursor = pawnHovered ? "pointer" : "auto";
-                if (pawnHovered && pawn != null && pawn.constructor.className() == "Container") {
+                if (pawnHovered && pawn != null && pawn instanceof Container) {
                     tooltip.innerText = pawn.name;
+                    if (pawn.data.capacity !== undefined && pawn.data.capacity != null)
+                        tooltip.innerText += ` [${pawn.data.capacity}]`;
                     tooltip.style.display = "block";
                 } else {
                     tooltip.style.display = "none";
@@ -472,10 +579,13 @@ export default class Manager {
             }
             
             // Raycast for cursor plane
-            raycastableObjects.push(this.plane);
-            hovered = this.raycaster.intersectObjects(raycastableObjects, true);
-            if (hovered.length > 0)
+            if (hovered.length > 0) {
                 this.cursorPosition.copy(hovered[0].point);
+            } else {
+                let planeIntersection = this.raycaster.intersectObjects([this.plane], true);
+                if (planeIntersection.length > 0)
+                    this.cursorPosition.copy(planeIntersection[0].point);
+            }
         }
         
         // Lerp all cursors
@@ -485,12 +595,16 @@ export default class Manager {
         // Update camera aspect ratio
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
+
         // Update domElement size
-        this.renderer.setSize(window.innerWidth/1, window.innerHeight/1);
+        this.renderer.setSize(window.innerWidth, window.innerHeight, false);
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
+
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+
         // Update composer size
-        this.composer.setSize(window.innerWidth, window.innerHeight);
+        // this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
     benchmark = false;
@@ -512,7 +626,8 @@ export default class Manager {
                 this.benchmarkTime = performance.now();
             }
         }
-        this.socket.send(json);
+        if (this.socket.readyState == 1)
+            this.socket.send(json);
     }
     pendingEvents = new Map();
     sendEvent(name, target, data, callback) {
@@ -557,6 +672,7 @@ export default class Manager {
                     type:"remove_pawns",
                     pawns:Array.from(this.pawns.values()).map(p => p.id)
                 });
+                this.hand.clear();
                 break;
             case "request_update_pawns":
                 eventJSON.data.pawns.forEach(p => this.updatePawn(p));
@@ -566,12 +682,12 @@ export default class Manager {
                 });
                 break;
             case "chat":
-                this.addChatEntry(eventJSON.data);
+                this.chat.addChatEntry(eventJSON.data);
                 break;
         }
         
         // Callback 
-        if (eventJSON.callback) {
+        if (eventJSON.callback && this.host) {
             this.sendSocket({
                 type:"event_callback",
                 receiver:eventJSON.sender,
@@ -613,8 +729,8 @@ export default class Manager {
         this.scene.add(ambientLight);
         
         // Setup ground plane
-        const geom = new THREE.PlaneGeometry( 200, 200 );
-        geom.rotateX(- Math.PI/2);
+        const geom = new THREE.PlaneGeometry(200, 200);
+        geom.rotateX(-Math.PI/2);
         const material = new THREE.ShadowMaterial();
         material.opacity = 0.3;
         this.plane = new THREE.Mesh(geom, material);
@@ -627,45 +743,21 @@ export default class Manager {
         this.camera.position.z = 15;
         this.camera.position.y = 8;
         
-        this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true, antialias: true});
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: display, alpha: true, antialias: true, stencil: false,
+        });
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        //THREE.BasicShadowMap;
-        //THREE.VSMShadowMap;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         
-        this.composer = new EffectComposer(this.renderer);
-
-        const renderPass = new RenderPass(this.scene, this.camera);
-        this.composer.addPass(renderPass);
-        /*const ssaoPass = new SSAOPass(this.scene, this.camera, 20, 20);
-        ssaoPass.minDistance /= 30;
-        ssaoPass.maxDistance /= 30;
-        ssaoPass.kernelRadius = 16/30;
-        ssaoPass.output = 0;
-        this.composer.addPass(ssaoPass);
-        const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader)
-        this.composer.addPass(gammaCorrectionPass);*/
+        // this.composer = new EffectComposer(this.renderer);
+        // const renderPass = new RenderPass(this.scene, this.camera);
+        // this.composer.addPass(renderPass);
 
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
         document.body.appendChild(this.stats.dom);
-        
-        // Allow plugins to be dropped
-        display.addEventListener("dragenter", (e) => e.preventDefault());
-        display.addEventListener("dragleave", (e) => e.preventDefault());
-        display.addEventListener("dragover", (e) => e.preventDefault());
-        display.addEventListener("drop", (e) => {
-            e.preventDefault();
-            
-            if (e.dataTransfer.items && e.dataTransfer.items.length == 1) {
-                let item = e.dataTransfer.items[0];
-                let file = item.getAsFile();
-                
-                console.log("FILE DROPPED", file.name);
-            }
-        });
     }
     buildControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -678,23 +770,14 @@ export default class Manager {
         
         this.controls.keyPanSpeed = 20;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
+        //this.controls.mouseButtons = { MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
         this.controls.listenToKeyEvents(display);
     }
-    async buildPhysics() {
-        let solver = new CANNON.GSSolver();
-        solver.iterations = 15;
-        this.world = new CANNON.World({
-            gravity: new CANNON.Vec3(0, -15.0, 0),
-            allowSleep: true,
-            solver: solver,
-        });
-        //await RAPIER.init();
-        //this.rWorld = new RAPIER.World(new RAPIER.Vector3(0, -15, 0));
-    }
     buildWebSocket(callback) {
-        let lobby = window.location.pathname.substring(1);
+        let lobby = window.location.pathname;
         this.socket =
-            new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/" + lobby);
+            new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
+                          + location.host + lobby + "/ws");
         
         this.socket.addEventListener('open', (e) => {
             this.sendSocket({
@@ -724,7 +807,7 @@ export default class Manager {
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => {
                         let pawn = this.loadPawn(p);
-                        pawn.init();
+                        pawn.init(this);
                         this.pawns.set(pawn.id, pawn);
                     });
                 }
@@ -739,7 +822,7 @@ export default class Manager {
                     pings++;
                 }, 500);
                 // Create webworker to manage animate() when page not focused
-                let animateWorker = new Worker('js/loop.js');
+                let animateWorker = new Worker('/js/loop.js');
                 animateWorker.onmessage = (e) => {
                     if (document.hidden) {
                         this.animate();
@@ -751,11 +834,10 @@ export default class Manager {
                 msg.users.sort((a, b) => b.id == this.id ? 1 : -1).forEach(u => {
                     this.addUser(u.id, u.color)
                 });
-            }/* else if (type == "assign_host") {
-                console.log("ASSIGNED HOST");
+            } else if (type == "assign_host") {
                 document.querySelector("#host-panel").style.display = "block";
                 this.host = true;
-            }*/
+            }
             
             if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
@@ -771,11 +853,22 @@ export default class Manager {
             if (type == "add_pawn") {
                 let pawn = this.loadPawn(msg.pawn);
                 this.pawns.set(pawn.id, pawn);
-                pawn.init();
+                pawn.init(this);
             } else if (type == "remove_pawns") {
-                msg.pawns.forEach(id => this.removePawn(id));
+                msg.pawns.forEach(id => {
+                    this.scene.remove(this.pawns.get(id).mesh);
+                    this.pawns.get(id).dispose();
+                    this.pawns.delete(id);
+                });
             } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
+            } else if (type == "clear_pawns") {
+                [...this.pawns.keys()].forEach(id => {
+                    this.scene.remove(this.pawns.get(id).mesh);
+                    this.pawns.get(id).dispose();
+                    this.pawns.delete(id);
+                });
+                this.hand.clear();
             }
             
             if (type == "connect") {
