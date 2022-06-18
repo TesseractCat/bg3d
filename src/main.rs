@@ -392,7 +392,7 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
 
                 let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
                 let time_difference = (Instant::now() - pawn.last_updated).as_secs_f32();
-                let velocity: Vector<f32> = (position - old_position)/time_difference;
+                let velocity: Vector<f32> = (position - old_position)/time_difference.max(1.0/20.0);
 
                 let wake = true;
                 rb.set_translation(position, wake);
