@@ -177,6 +177,7 @@ export class Deck extends Pawn {
         this.manager.addPawn(cardPawn);
         
         this.data.contents.splice(idx, 1);
+        this.dirty.add("selected");
         this.dirty.add("data");
         // Flush dirty and prevent race condition
         // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
@@ -216,6 +217,7 @@ export class Deck extends Pawn {
                 } else {
                     belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
                 }
+                belowPawn.dirty.add("selected");
                 belowPawn.dirty.add("data");
                 this.manager.tick();
                 this.manager.socket.send(JSON.stringify({
@@ -252,6 +254,7 @@ export class Deck extends Pawn {
         this.colliderShapes[0].halfExtents.setComponent(
             1, Math.max(thickness, Deck.cardThickness * 10)/2,
         );
+        this.dirty.add("selected");
         this.dirty.add("colliderShapes");
         
         // Load textures
@@ -290,6 +293,7 @@ export class Deck extends Pawn {
                     = [this.data.contents[i], this.data.contents[j]];
             }
             this.updateDeck();
+            this.dirty.add("selected");
             this.dirty.add("data");
         }
     }
@@ -392,6 +396,7 @@ export class Container extends Pawn {
 
         if (this.data.capacity) {
             this.data.capacity -= 1;
+            this.dirty.add("selected");
             this.dirty.add("data");
         }
         
