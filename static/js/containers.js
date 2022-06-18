@@ -8,6 +8,10 @@ import { Pawn } from './pawn';
 import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
+    static cardThickness = 0.01;
+    static textureCache = new Map();
+    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
+
     data = {
         contents: [],
         back: "",
@@ -15,10 +19,6 @@ export class Deck extends Pawn {
         cornerRadius: 0,
         size: new THREE.Vector2()
     }
-    
-    static cardThickness = 0.01;
-    static textureCache = new Map();
-    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
     
     box;
     faceMaterial;

@@ -1,11 +1,21 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
 import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
+Math.clamp = function(x, min, max) {
+    return Math.min(Math.max(x, min), max);
+};
+Math.clamp01 = function(x) {
+    return Math.clamp(x, 0, 1);
+};
+
 // Local instance of moveable object with mesh
 export class Pawn {
+    static gltfLoader = new GLTFLoader().setPath(window.location.href + '/');
+
     // Serialized
     position = new THREE.Vector3(0,0,0);
     rotation = new THREE.Quaternion();
@@ -74,7 +84,7 @@ export class Pawn {
 
         // Load mesh
         if (this.meshUrl != null) { // GLTF URL
-            this.manager.loader.load(this.meshUrl, (gltf) => {
+            Pawn.gltfLoader.load(this.meshUrl, (gltf) => {
                 gltf.scene.traverse((child) => {
                     child.castShadow = true;
                     child.receiveShadow = true;
@@ -118,7 +128,13 @@ export class Pawn {
         this.initialized = true;
     }
     dispose() {
-        // TODO: Implement dispose
+        this.mesh.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                for (let material of (Array.isArray(child.material) ? child.material : [child.material]))
+                    material.dispose();
+            }
+        });
     }
     
     animate(dt) {
@@ -162,12 +178,12 @@ export class Pawn {
                 let newPosition = this.position.clone();
                 newPosition.lerp(grabPoint.clone().add(
                     new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 1), 0)
-                ), dt * 10);
+                ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
                 newRotation.slerp(new THREE.Quaternion().setFromEuler(
                     new THREE.Euler().setFromVector3(this.selectRotation, 'ZYX')
-                ), dt * 10);
+                ), Math.clamp01(dt * 10));
 
                 this.setPosition(newPosition);
                 this.setRotation(newRotation);
@@ -177,11 +193,11 @@ export class Pawn {
         // Handle network interpolation
         this.networkTransform.animate();
         this.setPosition(
-            this.position.clone().lerp(this.networkTransform.position, dt * 40),
+            this.position.clone().lerp(this.networkTransform.position, Math.clamp01(dt * 40)),
             false
         );
         this.setRotation(
-            this.rotation.clone().slerp(this.networkTransform.rotation, dt * 40),
+            this.rotation.clone().slerp(this.networkTransform.rotation, Math.clamp01(dt * 40)),
             false
         );
         

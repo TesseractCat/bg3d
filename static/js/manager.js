@@ -8,7 +8,6 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
 import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass';
 import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
@@ -282,10 +281,6 @@ export default class Manager {
     
     lastPingSent;
     
-    constructor() {
-        this.loader = new GLTFLoader().setPath(window.location.href + '/');
-    }
-    
     async init(callback) {
         this.buildScene();
         this.buildRenderer();
@@ -526,7 +521,7 @@ export default class Manager {
     animate() {
         // Render loop
         if (!document.hidden) {
-            this.composer.render();
+            this.renderer.render(this.scene, this.camera); // this.composer.render();
             this.controls.update();
             this.stats.update();
         }
@@ -605,7 +600,7 @@ export default class Manager {
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
         // Update composer size
-        this.composer.setSize(window.innerWidth, window.innerHeight);
+        // this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
     benchmark = false;
@@ -744,16 +739,17 @@ export default class Manager {
         this.camera.position.z = 15;
         this.camera.position.y = 8;
         
-        this.renderer = new THREE.WebGLRenderer({canvas: display, alpha: true, antialias: true});
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: display, alpha: true, antialias: true, stencil: false,
+        });
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         
-        this.composer = new EffectComposer(this.renderer);
-
-        const renderPass = new RenderPass(this.scene, this.camera);
-        this.composer.addPass(renderPass);
+        // this.composer = new EffectComposer(this.renderer);
+        // const renderPass = new RenderPass(this.scene, this.camera);
+        // this.composer.addPass(renderPass);
 
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
