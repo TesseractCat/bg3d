@@ -6,39 +6,6 @@ import Manager from './manager';
 import { Pawn, SnapPoint, Deck, Container, Dice } from './pawns';
 import { Box, Cylinder } from './shapes';
 
-export class GameBox extends Pawn {
-    constructor({rollRotations, position, rotation, mesh, colliderShapes, moveable = true, id = null, name = null}) {
-        super({
-            name: name,
-            position: position, rotation: rotation,
-            mesh: mesh, colliderShapes: colliderShapes,
-            moveable: moveable, id: id
-        });
-    }
-
-    menu() {
-        if (!this.manager.host) {
-            return [[this.name + ' Box']];
-        } else {
-            return [
-                [this.name + ' Box'],
-                [],
-                ["Open", () => this.open()],
-                ["Delete", () => this.manager.removePawn(this.id)],
-            ];
-        }
-    }
-
-    open() {
-        this.manager.removePawn(this.id);
-    }
-    
-    static className() { return "GameBox"; };
-    static deserialize(pawnJSON) {
-        return super.deserialize(pawnJSON);
-    }
-}
-
 function findEntry(entries, path) {
     return entries.filter(e => e.filename == path)[0];
 }
@@ -50,8 +17,6 @@ export default class PluginLoader {
 
     constructor(manager) {
         this.manager = manager;
-
-        THREE.Cache.enabled = true;
     }
 
     async loadFromFile(file) {
@@ -93,7 +58,6 @@ export default class PluginLoader {
         this.clear();
 
         // Register all plugin assets
-        console.log(entries);
         for (let entry of entries) {
             if (!entry.directory)
                 await this.registerAsset(entry);
@@ -236,6 +200,5 @@ export default class PluginLoader {
             "type":"clear_assets"
         });
         this.manager.clearPawns();
-        THREE.Cache.clear();
     }
 }

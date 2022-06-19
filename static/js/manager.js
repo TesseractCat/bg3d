@@ -11,7 +11,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
-import { GameBox } from './pluginloader';
 
 class Hand {
     manager;
@@ -295,6 +294,9 @@ export default class Manager {
         this.buildControls();
         
         this.resize();
+
+        // Enable cache
+        THREE.Cache.enabled = true;
         
         // Track mouse position
         display.addEventListener("mousemove", (e) => {
@@ -877,6 +879,8 @@ export default class Manager {
                     this.pawns.delete(id);
                 });
                 this.hand.clear();
+                THREE.Cache.clear();
+                Deck.textureCache.clear();
             }
             
             if (type == "connect") {

@@ -71,6 +71,7 @@ async fn main() {
                 };
                 let response = Response::builder()
                     .header("Content-Type", asset.mime_type.clone())
+                    .header("Cache-Control", "no-cache, no-store, must-revalidate")
                     .body(asset.data.clone());
                 Ok(response)
             }
