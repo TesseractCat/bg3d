@@ -70,6 +70,14 @@ class Hand {
         }
         this.cards = [];
     }
+
+    minimize(state) {
+        if (state) {
+            this.element.classList.add("minimized");
+        } else {
+            this.element.classList.remove("minimized");
+        }
+    }
 }
 
 class Cursor {

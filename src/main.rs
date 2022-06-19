@@ -274,6 +274,7 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dy
     if user_id != lobby.host || lobby.pawns.len() >= 1024 { Err("Failed to add pawn")?; }
 
     let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone())?;
+    if lobby.pawns.get(&pawn.id).is_some() { Err("Pawn ID collision")?; }
     
     // Deserialize collider
     // FIXME: Only enable CCD on cards/thin geometry?
@@ -302,8 +303,8 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dy
     }
     Ok(())
 }
-fn remove_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host { Err("Failed to remove pawn")?; }
+fn remove_pawns(_user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+    // if user_id != lobby.host { Err("Failed to remove pawn")?; }
 
     let pawn_ids: Vec<u64> = serde_json::from_value(data["pawns"].clone())?;
     

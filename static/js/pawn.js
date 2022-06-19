@@ -262,7 +262,7 @@ export class Pawn {
         this.selected = true;
         this.dirty.add("selected");
         //this.updateMeshTransform(); // FIXME: Needed?
-        document.querySelector("#hand-panel").classList.add("minimized");
+        this.manager.hand.minimize(true);
     }
     release() {
         this.selected = false;
@@ -274,7 +274,26 @@ export class Pawn {
         this.dirty.add("rotation");
         this.dirty.add("selected");
         
-        document.querySelector("#hand-panel").classList.remove("minimized");
+        this.manager.hand.minimize(false);
+
+        // Fire merge event if applicable
+        let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
+        let raycastableObjects = raycastablePawns.map(x => x.mesh);
+        let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+        if (hits[0]) {
+            for (let rhs of raycastablePawns) {
+                let isParent = false;
+                rhs.mesh.traverse((child) => {
+                    if (child == hits[0].object)
+                        isParent = true;
+                });
+                // Don't merge with selected pawns
+                if (isParent && !rhs.networkSelected && !rhs.selected) {
+                    rhs.merge(this);
+                    break;
+                }
+            }
+        }
     }
     async selectAndRun(action, firstDelay = 100, secondDelay = 400) {
         if (this.networkSelected || !this.moveable)
@@ -315,6 +334,7 @@ export class Pawn {
         this.dirty.add("selectRotation");
     }
     shake() { }
+    merge(rhs) { }
     
     setPosition(position, resetNetwork = true) {
         this.position.copy(position);
@@ -382,11 +402,12 @@ export class Pawn {
             position: pawnJSON.position, rotation: rotation,
             mesh: pawnJSON.mesh, tint: pawnJSON.tint,
             colliderShapes: pawnJSON.colliderShapes,
-            moveable: pawnJSON.moveable, id: pawnJSON.id
+            moveable: pawnJSON.moveable, id: pawnJSON.id,
+
+            ...pawnJSON.data
         });
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;
-        pawn.data = pawnJSON.data;
         return pawn;
     }
     clone() {
@@ -394,7 +415,7 @@ export class Pawn {
         let serialized = this.serialize();
         let serializedJSON = JSON.stringify(serialized);
         let pawn = this.constructor.deserialize(JSON.parse(serializedJSON));
-        // Increment ID
+        // New ID
         pawn.id = Pawn.nextId();
         return pawn;
     }

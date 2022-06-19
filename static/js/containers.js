@@ -9,15 +9,16 @@ import { Pawn } from './pawn';
 import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
-    static cardThickness = 0.01;
     static textureCache = new Map();
     static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
 
     data = {
         contents: [],
-        back: "",
+        back: null,
         sideColor: 0,
+
         cornerRadius: 0,
+        cardThickness: 0,
         size: new THREE.Vector2()
     }
     
@@ -25,10 +26,11 @@ export class Deck extends Pawn {
     faceMaterial;
     backMaterial;
     
-    constructor({contents = [], back = "", sideColor = 0xcccccc, size = new THREE.Vector2(), cornerRadius = 0.02,
+    constructor({contents = [], back = null, sideColor = 0xcccccc,
+                 size = new THREE.Vector2(), cornerRadius = 0.02, cardThickness = 0.01,
                  ...rest}) {
         rest.colliderShapes = [
-            new Box(new THREE.Vector3(size.x/2, (Deck.cardThickness * contents.length * 1.15)/2, size.y/2))
+            new Box(new THREE.Vector3(size.x/2, (cardThickness * contents.length * 1.15)/2, size.y/2))
         ];
         super(rest);
         
@@ -36,6 +38,7 @@ export class Deck extends Pawn {
         this.data.back = back;
         this.data.sideColor = sideColor;
         this.data.cornerRadius = cornerRadius;
+        this.data.cardThickness = cardThickness;
         this.data.size.copy(size);
         
         const roundedSquare = this.#roundedSquare(cornerRadius);
@@ -45,7 +48,7 @@ export class Deck extends Pawn {
             bevelEnabled: false,
         };
         
-        let geometry = new ExtrudeGeometry(roundedSquare, extrudeSettings);//new THREE.BoxGeometry(1,1,1);
+        let geometry = new ExtrudeGeometry(roundedSquare, extrudeSettings);
         geometry.deleteAttribute('normal');
         geometry = BufferGeometryUtils.mergeVertices(geometry);
         geometry.computeVertexNormals();
@@ -58,11 +61,8 @@ export class Deck extends Pawn {
         box.quaternion.setFromEuler(new THREE.Euler(Math.PI/2, 0, 0));
         
         this.box = box;
-        this.mesh.scale.copy(new THREE.Vector3(size.x, Deck.cardThickness * contents.length, size.y));
+        this.mesh.scale.copy(new THREE.Vector3(size.x, this.data.cardThickness * contents.length, size.y));
         this.mesh.add(box);
-        
-        if (this.data.back != null)
-            this.loadTexture(this.data.back);
         
         this.updateDeck();
     }
@@ -112,10 +112,14 @@ export class Deck extends Pawn {
     }
     
     loadTexture(texture) {
+        if (Deck.textureCache.has(texture))
+            return Deck.textureCache.get(texture);
+
         let t = Deck.textureLoader.load(texture);
         t.encoding = THREE.sRGBEncoding;
         t.anisotropy = 4;
         Deck.textureCache.set(texture, t);
+        return Deck.textureCache.get(texture);
     }
     
     keyDown(e) {
@@ -124,7 +128,6 @@ export class Deck extends Pawn {
             super.release();
             this.manager.sendEvent("pawn", true, {id: this.id, name: "remove"}, () => {
                 this.manager.hand.pushCard(this);
-                //console.log(this.manager.hand);
             });
         }
         if (!this.selected && e.key == 't') {
@@ -139,14 +142,11 @@ export class Deck extends Pawn {
     handleEvent(data) {
         let out = super.handleEvent(data);
         switch (data.name) {
-            case "try_merge":
-                this.tryMerge();
+            case "insert":
+                this.insert(data.top, data.contents);
                 break;
             case "remove":
-                this.manager.socket.send(JSON.stringify({
-                    type:"remove_pawns",
-                    pawns:[this.id]
-                }));
+                this.manager.removePawn(this.id);
                 break;
             case "grab_card":
                 let card = this.spawnCard();
@@ -188,45 +188,25 @@ export class Deck extends Pawn {
         
         return cardPawn;
     }
-    tryMerge() {
-        let raycaster = new THREE.Raycaster();
-        raycaster.set(this.position, new THREE.Vector3(0, -1, 0));
-        let pawnMeshes = Array.from(this.manager.pawns.values()).filter(p => p.mesh).map(p => p.mesh);
-        let belowPawns = raycaster.intersectObjects(pawnMeshes, true);
-        if (belowPawns.length > 0) {
-            let belowPawn;
-            for (var i = 0; i < belowPawns.length; i++) {
-                let obj = belowPawns[i].object;
-                obj.traverseAncestors((a) => {
-                    for (const [key, value] of this.manager.pawns) {
-                        if (value.mesh == a) {
-                            belowPawn = value;
-                            return;
-                        }
-                    }
-                });
-                if (belowPawn != this)
-                    break;
-            }
-            if (belowPawn != this // Not us :)
-                && belowPawn.constructor.name == this.constructor.name // Both are Decks
-                && belowPawn.name == this.name // ...of the same type
-                && belowPawn.flipped() == this.flipped()) { // ...and are flipped the same direction
-                
-                if (this.flipped()) {
-                    belowPawn.data.contents = [...belowPawn.data.contents, ...this.data.contents];
-                } else {
-                    belowPawn.data.contents = [...this.data.contents, ...belowPawn.data.contents];
-                }
-                belowPawn.dirty.add("selected");
-                belowPawn.dirty.add("data");
-                this.manager.tick();
-                this.manager.socket.send(JSON.stringify({
-                    type:"remove_pawns",
-                    pawns:[this.id]
-                }));
-                belowPawn.updateDeck();
-            }
+    insert(top, contents) {
+        console.assert(this.manager.host);
+        if (!top) {
+            this.data.contents = [...contents, ...this.data.contents];
+        } else {
+            this.data.contents = [...this.data.contents, ...contents];
+        }
+        this.updateDeck();
+        this.dirty.add("selected");
+        this.dirty.add("data");
+        this.manager.tick();
+    }
+    merge(rhs) {
+        if (rhs instanceof Deck && rhs.name == this.name && rhs.flipped() == this.flipped()) {
+            this.manager.sendEvent("pawn", true, {
+                id: this.id, name: "insert",
+                top: this.flipped(), contents: rhs.data.contents
+            });
+            this.manager.removePawn(rhs.id);
         }
     }
     grab(button) {
@@ -241,33 +221,24 @@ export class Deck extends Pawn {
             });
         }
     }
-    release() {
-        this.manager.sendEvent("pawn", true, {id: this.id, name: "try_merge"});
-        super.release();
-    }
     
     updateDeck() {
         // Resize
-        let thickness = Deck.cardThickness * this.data.contents.length;
+        let thickness = this.data.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
         this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
-            1, Math.max(thickness, Deck.cardThickness * 10)/2,
+            1, Math.max(thickness, this.data.cardThickness * 10)/2,
         );
         this.dirty.add("selected");
         this.dirty.add("colliderShapes");
         
         // Load textures
-        let faceTexture;
-        if (!Deck.textureCache.has(this.data.contents[0]))
-            this.loadTexture(this.data.contents[0]);
-        if (!Deck.textureCache.has(this.data.contents[this.data.contents.length - 1]))
-            this.loadTexture(this.data.contents[this.data.contents.length - 1]);
-        faceTexture = Deck.textureCache.get(this.data.contents[0]);
+        let faceTexture = this.loadTexture(this.data.contents[0]);
         let backTexture = this.data.back != null ?
-            Deck.textureCache.get(this.data.back) :
-            Deck.textureCache.get(this.data.contents[this.data.contents.length - 1]);
+            this.loadTexture(this.data.back) :
+            this.loadTexture(this.data.contents[this.data.contents.length - 1]);
         
         // Apply new materials
         let fadeIn = false;
@@ -306,7 +277,6 @@ export class Deck extends Pawn {
     shuffle() {
         if (this.data.contents.length > 1) {
             //Shuffle
-            //this.data.contents = arrayShuffle(this.data.contents);
             //https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#The_modern_algorithm
             for (let i = this.data.contents.length - 1; i >= 0; i--) {
                 let j = Math.floor(Math.random() * (i + 1));
@@ -331,27 +301,6 @@ export class Deck extends Pawn {
     }
     
     static className() { return "Deck"; };
-    static deserialize(pawnJSON) {
-        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
-        let pawn = new Deck({
-            name: pawnJSON.name,
-            
-            contents: pawnJSON.data.contents, back: pawnJSON.data.back,
-            sideColor: pawnJSON.data.sideColor, cornerRadius: pawnJSON.data.cornerRadius,
-            
-            position: pawnJSON.position, rotation: rotation, size: pawnJSON.data.size,
-            moveable: pawnJSON.moveable, id: pawnJSON.id
-        });
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.selectRotation = pawnJSON.selectRotation;
-        pawn.data = pawnJSON.data;
-        pawn.processData();
-        return pawn;
-    }
-    
-    processData() {
-        this.updateDeck();
-    }
 }
 
 export class Container extends Pawn {
@@ -428,6 +377,17 @@ export class Container extends Pawn {
             return;
         if (button == 0)
             super.grab();
+    }
+    merge(rhs) {
+        if (rhs.name != this.data.holds.name)
+            return;
+
+        this.manager.removePawn(rhs.id);
+        if (this.data.capacity) {
+            this.data.capacity += 1;
+            this.dirty.add("selected");
+            this.dirty.add("data");
+        }
     }
     
     static className() { return "Container"; };
