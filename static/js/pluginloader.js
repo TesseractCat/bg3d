@@ -50,6 +50,8 @@ export default class PluginLoader {
 
     constructor(manager) {
         this.manager = manager;
+
+        THREE.Cache.enabled = true;
     }
 
     async loadFromFile(file) {
@@ -234,5 +236,6 @@ export default class PluginLoader {
             "type":"clear_assets"
         });
         this.manager.clearPawns();
+        THREE.Cache.clear();
     }
 }

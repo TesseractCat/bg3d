@@ -112,14 +112,15 @@ export class Deck extends Pawn {
     }
     
     loadTexture(texture) {
-        if (Deck.textureCache.has(texture))
-            return Deck.textureCache.get(texture);
+        // if (Deck.textureCache.has(texture))
+        //     return Deck.textureCache.get(texture);
 
         let t = Deck.textureLoader.load(texture);
         t.encoding = THREE.sRGBEncoding;
         t.anisotropy = 4;
-        Deck.textureCache.set(texture, t);
-        return Deck.textureCache.get(texture);
+        return t;
+        // Deck.textureCache.set(texture, t);
+        // return Deck.textureCache.get(texture);
     }
     
     keyDown(e) {

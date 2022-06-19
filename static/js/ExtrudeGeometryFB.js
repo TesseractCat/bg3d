@@ -536,7 +536,7 @@ class ExtrudeGeometry extends BufferGeometry {
 					for ( let i = 0; i < flen; i ++ ) {
 
 						const face = faces[ i ];
-						f3( face[ 0 ] + offset, face[ 1 ] + offset, face[ 2 ] + offset );
+						f3( face[ 0 ] + offset, face[ 1 ] + offset, face[ 2 ] + offset, true );
 
 					}
                     
@@ -561,7 +561,7 @@ class ExtrudeGeometry extends BufferGeometry {
 					for ( let i = 0; i < flen; i ++ ) {
 
 						const face = faces[ i ];
-						f3( face[ 0 ] + vlen * steps, face[ 1 ] + vlen * steps, face[ 2 ] + vlen * steps );
+						f3( face[ 0 ] + vlen * steps, face[ 1 ] + vlen * steps, face[ 2 ] + vlen * steps, true );
 
 					}
                     
@@ -637,14 +637,14 @@ class ExtrudeGeometry extends BufferGeometry {
 			}
 
 
-			function f3( a, b, c ) {
+			function f3( a, b, c, flipY = false ) {
 
 				addVertex( a );
 				addVertex( b );
 				addVertex( c );
 
 				const nextIndex = verticesArray.length / 3;
-				const uvs = uvgen.generateTopUV( scope, verticesArray, nextIndex - 3, nextIndex - 2, nextIndex - 1 );
+				const uvs = uvgen.generateTopUV( flipY, scope, verticesArray, nextIndex - 3, nextIndex - 2, nextIndex - 1 );
 
 				addUV( uvs[ 0 ] );
 				addUV( uvs[ 1 ] );
@@ -735,7 +735,7 @@ class ExtrudeGeometry extends BufferGeometry {
 
 const WorldUVGenerator = {
 
-	generateTopUV: function ( geometry, vertices, indexA, indexB, indexC ) {
+	generateTopUV: function ( flipY, geometry, vertices, indexA, indexB, indexC ) {
 
 		const a_x = vertices[ indexA * 3 ];
 		const a_y = vertices[ indexA * 3 + 1 ];
@@ -744,11 +744,19 @@ const WorldUVGenerator = {
 		const c_x = vertices[ indexC * 3 ];
 		const c_y = vertices[ indexC * 3 + 1 ];
 
-		return [
-			new Vector2( a_x, a_y ),
-			new Vector2( b_x, b_y ),
-			new Vector2( c_x, c_y )
-		];
+        if (flipY) {
+            return [
+                new Vector2( a_x, 1-a_y ),
+                new Vector2( b_x, 1-b_y ),
+                new Vector2( c_x, 1-c_y )
+            ];
+        } else {
+            return [
+                new Vector2( a_x, a_y ),
+                new Vector2( b_x, b_y ),
+                new Vector2( c_x, c_y )
+            ];
+        }
 
 	},
 
