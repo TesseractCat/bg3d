@@ -264,7 +264,7 @@ export class Pawn {
         //this.updateMeshTransform(); // FIXME: Needed?
         this.manager.hand.minimize(true);
     }
-    release() {
+    release(tryMerge = true) {
         this.selected = false;
         
         // Locally apply position as networked position
@@ -277,20 +277,22 @@ export class Pawn {
         this.manager.hand.minimize(false);
 
         // Fire merge event if applicable
-        let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-        let raycastableObjects = raycastablePawns.map(x => x.mesh);
-        let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
-        if (hits[0]) {
-            for (let rhs of raycastablePawns) {
-                let isParent = false;
-                rhs.mesh.traverse((child) => {
-                    if (child == hits[0].object)
-                        isParent = true;
-                });
-                // Don't merge with selected pawns
-                if (isParent && !rhs.networkSelected && !rhs.selected) {
-                    rhs.merge(this);
-                    break;
+        if (tryMerge) {
+            let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
+            let raycastableObjects = raycastablePawns.map(x => x.mesh);
+            let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+            if (hits[0]) {
+                for (let rhs of raycastablePawns) {
+                    let isParent = false;
+                    rhs.mesh.traverse((child) => {
+                        if (child == hits[0].object)
+                            isParent = true;
+                    });
+                    // Don't merge with selected pawns
+                    if (isParent && !rhs.networkSelected && !rhs.selected) {
+                        rhs.merge(this);
+                        break;
+                    }
                 }
             }
         }
