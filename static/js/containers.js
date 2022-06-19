@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
+import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import Manager from './manager';
 import { Pawn } from './pawn';
@@ -269,17 +270,37 @@ export class Deck extends Pawn {
             Deck.textureCache.get(this.data.contents[this.data.contents.length - 1]);
         
         // Apply new materials
-        // TODO: Dispose old materials
-        const sideMaterial = new THREE.MeshStandardMaterial({color: this.data.sideColor});
-        this.faceMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
+        let fadeIn = false;
+        if (Array.isArray(this.box.material)) {
+            for (let material of this.box.material) {
+                material.dispose();
+            }
+        } else {
+            fadeIn = true;
+        }
+        const sideMaterial = new MeshStandardDitheredMaterial({color: this.data.sideColor});
+        this.faceMaterial = new MeshStandardDitheredMaterial({color: 0xffffff,
             map: faceTexture
         });
-        this.backMaterial = new THREE.MeshStandardMaterial({color: 0xffffff,
+        this.backMaterial = new MeshStandardDitheredMaterial({color: 0xffffff,
             map: backTexture
         });
         this.box.material = [
             this.faceMaterial, sideMaterial, this.backMaterial
         ];
+        // this.box.customDepthMaterial = new DepthDitheredMaterial().clone();
+        // if (fadeIn) {
+        //     for (let material of this.box.material/*.concat([this.box.customDepthMaterial])*/) {
+        //         material.opacity = 0.0;
+        //         let fadeInInterval = setInterval(() => {
+        //             material.opacity += 6.0/60.0;
+        //             if (material.opacity >= 1) {
+        //                 material.opacity = 1;
+        //                 clearInterval(fadeInInterval);
+        //             }
+        //         }, 1000.0/60.0);
+        //     }
+        // }
     }
     
     shuffle() {

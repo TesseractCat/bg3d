@@ -40,4 +40,16 @@ export class DepthDitheredMaterial extends ShaderMaterial {
         ditherMixin(this);
         this.fragmentShader = `uniform float opacity;\n${this.fragmentShader}`;
     }
+
+    get opacity() {
+        if (this.uniforms && this.uniforms.opacity !== undefined) {
+            return this.uniforms.opacity.value;
+        } else {
+            return 1;
+        }
+    }
+    set opacity(x) {
+        if (this.uniforms && this.uniforms.opacity !== undefined)
+            this.uniforms.opacity.value = x;
+    }
 }

@@ -98,16 +98,16 @@ export class Pawn {
                         child.material = new MeshStandardDitheredMaterial().copy(child.material);
                         child.customDepthMaterial = new DepthDitheredMaterial().clone();
 
-                        child.material.opacity = 0.0;
-                        child.customDepthMaterial.uniforms.opacity.value = 0.0;
-                        let fadeInInterval = setInterval(() => {
-                            child.material.opacity += 6.0/60.0;
-                            if (child.material.opacity >= 1) {
-                                child.material.opacity = 1;
-                                clearInterval(fadeInInterval);
-                            }
-                            child.customDepthMaterial.uniforms.opacity.value = child.material.opacity;
-                        }, 1000.0/60.0);
+                        for (let material of [child.material, child.customDepthMaterial]) {
+                            material.opacity = 0.0;
+                            let fadeInInterval = setInterval(() => {
+                                material.opacity += 6.0/60.0;
+                                if (material.opacity >= 1) {
+                                    material.opacity = 1;
+                                    clearInterval(fadeInInterval);
+                                }
+                            }, 1000.0/60.0);
+                        }
                     }
                 });
 
