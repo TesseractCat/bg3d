@@ -507,6 +507,40 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     
     // Remove user from lobby
     lobby.users.remove(&user_id);
+
+    // Deselect all pawns selected by this user
+    let lobby_mut_ref: &mut Lobby = &mut *lobby;
+    let mut deselected_pawns: Vec<Value> = Vec::new();
+    for pawn in lobby_mut_ref.pawns.values_mut() {
+        if pawn.selected_user == Some(user_id) {
+            pawn.selected_user = None;
+
+            if pawn.moveable {
+                let rb_handle = pawn.rigid_body.unwrap();
+                let rb = lobby_mut_ref.world.rigid_body_set.get_mut(rb_handle).unwrap();
+                rb.set_body_type(RigidBodyType::Dynamic);
+                for collider_handle in rb.colliders().iter() {
+                    let collider = lobby_mut_ref.world.collider_set.get_mut(*collider_handle).unwrap();
+                    collider.set_sensor(false);
+                }
+            }
+
+            deselected_pawns.push(json!({
+                "id":pawn.id,
+                "selected":false
+            }));
+        }
+    }
+    // Relay to other users that these pawns were deselected
+    let response = json!({
+        "type":"update_pawns",
+        "pawns":deselected_pawns
+    });
+    for u in lobby.users.values() {
+        if u.id != user_id {
+            u.tx.send(Message::text(response.to_string()))?;
+        }
+    }
     
     if lobby.users.len() != 0 { // If the user id is the host, let's reassign the host to the next user
         if lobby.host == user_id {
