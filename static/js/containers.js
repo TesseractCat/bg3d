@@ -273,6 +273,7 @@ export class Deck extends Pawn {
         //     }
         // }
     }
+    processData() { this.updateDeck() }
     
     shuffle() {
         if (this.data.contents.length > 1) {
