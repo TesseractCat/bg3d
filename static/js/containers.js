@@ -104,20 +104,24 @@ export class Deck extends Pawn {
     
     animate(dt) {
         super.animate(dt);
-        if (this.flipped() && !this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
-            this.faceMaterial.color = new THREE.Color(0x000000);
-        } else if (!this.flipped() && this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
-            this.faceMaterial.color = new THREE.Color(0xffffff);
+
+        if (this.faceMaterial) {
+            if (this.flipped() && !this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
+                this.faceMaterial.color = new THREE.Color(0x000000);
+            } else if (!this.flipped() && this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
+                this.faceMaterial.color = new THREE.Color(0xffffff);
+            }
         }
     }
     
-    loadTexture(texture) {
+    async loadTexture(texture) {
         if (Deck.textureCache.has(texture))
             return Deck.textureCache.get(texture);
 
-        let t = Deck.textureLoader.load(texture);
+        let t = await Deck.textureLoader.loadAsync(texture);
         t.encoding = THREE.sRGBEncoding;
         t.anisotropy = 4;
+
         Deck.textureCache.set(texture, t);
         return Deck.textureCache.get(texture);
     }
@@ -222,7 +226,7 @@ export class Deck extends Pawn {
         }
     }
     
-    updateDeck() {
+    async updateDeck() {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
@@ -235,10 +239,12 @@ export class Deck extends Pawn {
         this.dirty.add("colliderShapes");
         
         // Load textures
-        let faceTexture = this.loadTexture(this.data.contents[0]);
-        let backTexture = this.data.back != null ?
-            this.loadTexture(this.data.back) :
-            this.loadTexture(this.data.contents[this.data.contents.length - 1]);
+        let [faceTexture, backTexture] = await Promise.all([
+            this.loadTexture(this.data.contents[0]),
+            this.data.back != null ?
+                this.loadTexture(this.data.back) :
+                this.loadTexture(this.data.contents[this.data.contents.length - 1])
+        ]);
         
         // Apply new materials
         let fadeIn = false;
