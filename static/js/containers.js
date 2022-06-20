@@ -128,6 +128,10 @@ export class Deck extends Pawn {
     
     keyDown(e) {
         super.keyDown(e);
+        
+        if (!this.moveable)
+            return;
+
         if (e.key == "g" && this.data.contents.length == 1) {
             super.release(false);
             this.manager.sendEvent("pawn", true, {id: this.id, name: "remove"}, () => {
