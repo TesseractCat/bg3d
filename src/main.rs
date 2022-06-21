@@ -339,9 +339,9 @@ fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
-    // Iterate through and update pawns
-    // Discard updates updating invalid pawns, non-owned pawns
-    // Discard position and rotation changes on updates to immovable pawns
+    // Iterate through and update pawns, sanitize updates when relaying:
+    //  - Discard updates updating invalid pawns, non-owned pawns
+    //  - Discard position and rotation changes on updates to immovable pawns
     updates.retain_mut(|update| {
         let pawn_id: u64 = update.id;
         let pawn: &mut Pawn = match lobby.pawns.get_mut(&pawn_id) {

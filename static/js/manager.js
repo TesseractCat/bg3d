@@ -276,7 +276,10 @@ export default class Manager {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
     
-    cursorPosition = new THREE.Vector3();
+    localCursor = {
+        position: new THREE.Vector3(),
+        dirty: false
+    };
     lobbyCursors = new Map();
     
     host = false;
@@ -500,7 +503,9 @@ export default class Manager {
     sendCursor() {
         this.sendSocket({
             type:"send_cursor",
-            position:{x:this.cursorPosition.x, y:this.cursorPosition.y, z:this.cursorPosition.z}
+            position:{x:this.localCursor.position.x,
+                      y:this.localCursor.position.y,
+                      z:this.localCursor.position.z}
         });
     }
     tick() {
@@ -526,7 +531,10 @@ export default class Manager {
             this.sendSocket({type: "update_pawns", pawns: to_update_data});
             to_update.forEach(p => p.dirty.clear());
         }
-        this.sendCursor();
+        if (this.localCursor.dirty) {
+            this.sendCursor();
+            this.localCursor.dirty = false;
+        }
     }
     animate() {
         // Render loop
@@ -589,12 +597,17 @@ export default class Manager {
             }
             
             // Raycast for cursor plane
+            let newCursorPosition = new THREE.Vector3();
             if (hovered.length > 0) {
-                this.cursorPosition.copy(hovered[0].point);
+                newCursorPosition.copy(hovered[0].point);
             } else {
                 let planeIntersection = this.raycaster.intersectObjects([this.plane], true);
                 if (planeIntersection.length > 0)
-                    this.cursorPosition.copy(planeIntersection[0].point);
+                    newCursorPosition.copy(planeIntersection[0].point);
+            }
+            if (!this.localCursor.position.equals(newCursorPosition)) {
+                this.localCursor.position.copy(newCursorPosition);
+                this.localCursor.dirty = true;
             }
         }
         
