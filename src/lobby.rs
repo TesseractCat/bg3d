@@ -3,12 +3,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use warp::ws::Message;
 use serde::{Serialize, Deserialize};
-use serde_json::{Value, json};
+use serde_with::skip_serializing_none;
 use tokio::time::Instant;
 use rapier3d::prelude::*;
 
 use crate::user::*;
 use crate::physics::*;
+use crate::events::*;
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec3 {
@@ -117,37 +118,46 @@ pub struct Pawn {
 	#[serde(skip, default = "Instant::now")]
     pub last_updated: Instant,
 }
-impl Pawn {
-    pub fn serialize_transform(&self) -> Value {
-        json!({
-            "id": self.id,
-            "position": self.position,
-            "rotation": self.rotation,
-        })
-    }
-    pub fn patch(&mut self, value: &Value) {
-        macro_rules! patch {
-            ($value:expr, $($prop:ident, $key:ident),*,) => {
-                $(
-                    if $value.get(stringify!($key)).is_some() {
-                        self.$prop = serde_json::from_value($value[stringify!($key)].clone()).unwrap();
-                    }
-                )*
-            }
-        }
-        patch!(value,
-               data, data,
+#[skip_serializing_none]
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PawnUpdate {
+    pub id: u64,
+    
+    pub class: Option<String>,
+    pub name: Option<String>,
+    pub mesh: Option<String>,
+    pub tint: Option<u64>,
 
-               collider_shapes, colliderShapes,
-               moveable, moveable,
-               mass, mass,
-        );
+    pub collider_shapes: Option<Vec<Shape>>,
+    pub moveable: Option<bool>,
+    pub mass: Option<f64>,
+    
+    pub position: Option<Vec3>,
+    pub rotation: Option<Vec3>,
+    pub selected: Option<bool>,
+    pub select_rotation: Option<Vec3>,
+    
+    pub data: Option<PawnData>,
+}
+impl Pawn {
+    pub fn serialize_transform(&self) -> PawnUpdate {
+        PawnUpdate {
+            id: self.id,
+            position: Some(self.position),
+            rotation: Some(self.rotation),
+            ..Default::default()
+        }
+    }
+    pub fn patch(&mut self, update: &PawnUpdate) {
+        update.data.as_ref().map(|v| self.data = v.clone());
+        update.collider_shapes.as_ref().map(|v| self.collider_shapes = v.clone());
+        update.moveable.map(|v| self.moveable = v);
+        update.mass.map(|v| self.mass = v);
         if self.moveable {
-            patch!(value,
-                   position, position,
-                   rotation, rotation,
-                   select_rotation, selectRotation,
-            );
+            update.position.map(|v| self.position = v);
+            update.rotation.map(|v| self.rotation = v);
+            update.select_rotation.map(|v| self.select_rotation = v);
         }
     }
 }
@@ -208,12 +218,11 @@ impl Lobby {
         }
         if !dirty_pawns.is_empty() && send_update_pawns {
             // Send update
-            let response = json!({
-                "type":"update_pawns",
-                "pawns":dirty_pawns.iter().map(|p| p.serialize_transform()).collect::<Vec<Value>>(),
-            });
+            let response = serde_json::to_string(&Event::UpdatePawns {
+                updates: dirty_pawns.iter().map(|p| p.serialize_transform()).collect()
+            }).unwrap();
             for u in self.users.values() {
-                u.tx.send(Message::text(response.to_string()));
+                u.send_string(&response);
             }
         }
     }

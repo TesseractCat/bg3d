@@ -1,5 +1,6 @@
 use std::env;
 use std::collections::HashMap;
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
@@ -13,7 +14,7 @@ use warp::{http::{Uri, Response}, Filter};
 use warp::ws::{Message, WebSocket};
 use data_url::DataUrl;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use names::Generator;
 use random_color::Color;
@@ -22,9 +23,11 @@ use rapier3d::prelude::*;
 mod lobby;
 mod user;
 mod physics;
+mod events;
 
 use lobby::*;
 use user::*;
+use events::*;
 
 //TODO: Replace this with Dashmap?
 type Lobbies = Arc<RwLock<HashMap<String, RwLock<Lobby>>>>;
@@ -207,36 +210,39 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             println!("Websocket connection closed, user <{user_id}> left");
             break;
         }
-        let text: &str = message.to_str().unwrap();
-        let data: Value = serde_json::from_str(text).unwrap();
 
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).unwrap();
 
-        let event_type: String = data["type"].as_str().unwrap_or_default().to_string();
-        let event_result = match event_type.as_str() {
-            "join" => user_joined(user_id, data, lobby.read().await.deref()),
-            "ping" => ping(user_id, data, lobby.read().await.deref()),
-            
-            "add_pawn"     => add_pawn(user_id, data, lobby.write().await.deref_mut()),
-            "remove_pawns" => remove_pawns(user_id, data, lobby.write().await.deref_mut()),
-            "clear_pawns"  => clear_pawns(user_id, data, lobby.write().await.deref_mut()),
-            "update_pawns" => update_pawns(user_id, data, lobby.write().await.deref_mut()),
+        if let Some(event_data) = serde_json::from_str(message.to_str().unwrap()).ok() {
+            // println!("Event: {:?}", event_data);
 
-            "register_asset" => register_asset(user_id, data, lobby.write().await.deref_mut()),
-            "clear_assets" => clear_assets(user_id, data, lobby.write().await.deref_mut()),
-            
-            "send_cursor" => update_cursor(user_id, data, lobby.write().await.deref_mut()),
-            
-            "event"          => event(user_id, data, lobby.write().await.deref_mut()),
-            "event_callback" => event_callback(user_id, data, lobby.write().await.deref_mut()),
+            let event_result = match event_data {
+                Event::Join { } => user_joined(user_id, lobby.read().await.deref()), 
+                Event::Ping { idx } => ping(user_id, lobby.read().await.deref(), idx),
 
-            _ => Err("Invalid event".into()),
-        };
+                Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
+                Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
+                Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
+                Event::UpdatePawns { updates } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
-        if event_result.is_err() {
-            println!("Error encountered while handling event [{}]: {:?}",
-                     event_type, event_result);
+                Event::RegisterAsset { name, data } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
+                Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
+
+                Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
+
+                Event::Event { target, data } => event(user_id, lobby.write().await.deref_mut(), target, data),
+                Event::EventCallback { receiver, data } => event_callback(user_id, lobby.write().await.deref_mut(), receiver, data),
+
+                _ => Err("Received broadcast-only event".into()),
+            };
+
+            if event_result.is_err() {
+                // FIXME: Print event name
+                println!("Error encountered while handling event: {:?}", event_result);
+            }
+        } else {
+            println!("User <{user_id}> sent malformed message");
         }
     }
     match user_disconnected(user_id, &lobby_name, &lobbies).await {
@@ -247,34 +253,31 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
 
 // --- GENERIC EVENTS ---
 
-fn event(_user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
-    let target_host: bool = serde_json::from_value(data["target"].clone())?;
-    
+fn event(_user_id: usize, lobby: &mut Lobby, target_host: bool, mut data: Value) -> Result<(), Box<dyn Error>> {
+    data["type"] = Value::String("event".to_string());
     // Relay event
     if target_host {
-        lobby.users.get(&lobby.host).ok_or("Missing host")?.tx.send(Message::text(data.to_string()))?;
+        lobby.users.get(&lobby.host).ok_or("Missing host")?.send_string(&data.to_string())?;
     } else {
         for u in lobby.users.values() {
-            u.tx.send(Message::text(data.to_string()))?;
+            u.send_string(&data.to_string())?;
         }
     }
 
     Ok(())
 }
-fn event_callback(_user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
-    let target: usize = serde_json::from_value(data["receiver"].clone())?;
-    
+fn event_callback(_user_id: usize, lobby: &mut Lobby, target: usize, mut data: Value) -> Result<(), Box<dyn Error>> {
+    data["type"] = Value::String("event_callback".to_string());
     // Relay callback
-    lobby.users.get(&target).ok_or("Missing callback target")?.tx.send(Message::text(data.to_string()))?;
+    lobby.users.get(&target).ok_or("Missing callback target")?.send_string(&data.to_string())?;
     Ok(())
 }
 
 // --- PAWN EVENTS ---
 
-fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn add_pawn<'a>(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'a, Pawn>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.pawns.len() >= 1024 { Err("Failed to add pawn")?; }
 
-    let mut pawn: Pawn = serde_json::from_value(data["pawn"].clone())?;
     if lobby.pawns.get(&pawn.id).is_some() { Err("Pawn ID collision")?; }
     
     // Deserialize collider
@@ -284,45 +287,42 @@ fn add_pawn(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dy
         .rotation(Rotation::from(&pawn.rotation).scaled_axis())
         .linear_damping(0.5).angular_damping(0.5)
         .build();
-	pawn.rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
+	pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     for shape in &pawn.collider_shapes {
         let collider: ColliderBuilder = ColliderBuilder::from(shape).density(1.0).friction(0.7);
         lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
     }
+
+    // Tell other users that this was added
+    let response = serde_json::to_string(&Event::AddPawn { pawn: Cow::Borrowed(&pawn) })?;
     
     // Add pawn to lobby
-    lobby.pawns.insert(pawn.id, pawn.clone());
+    lobby.pawns.insert(pawn.id, pawn.into_owned());
     
-    // Tell other users that this was added
-    let response = json!({
-        "type":"add_pawn",
-        "pawn":pawn.clone()
-    });
     for u in lobby.users.values() {
-        u.tx.send(Message::text(response.to_string()))?;
+        u.send_string(&response)?;
     }
     Ok(())
 }
-fn remove_pawns(_user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Result<(), Box<dyn Error>> {
     // if user_id != lobby.host { Err("Failed to remove pawn")?; }
-
-    let pawn_ids: Vec<u64> = serde_json::from_value(data["pawns"].clone())?;
     
     // Remove pawn from lobby
-    for id in pawn_ids {
+    for id in &pawn_ids {
         // Remove rigidbody first
         let rb_handle = lobby.pawns.get(&id).ok_or("Trying to remove missing pawn")?.rigid_body.unwrap();
         lobby.world.remove_rigidbody(rb_handle);
         lobby.pawns.remove(&id);
     }
     
+    let response = serde_json::to_string(&Event::RemovePawns { ids: pawn_ids })?;
     for u in lobby.users.values() {
-        u.tx.send(Message::text(data.to_string()))?;
+        u.send_string(&response)?;
     }
     Ok(())
 }
-fn clear_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { Err("Failed to clear pawns")?; }
 
     // Remove pawn rigidbodies from lobby
@@ -332,36 +332,50 @@ fn clear_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box
     }
     lobby.pawns = HashMap::new();
     
+    let response = serde_json::to_string(&Event::ClearPawns {})?;
     for u in lobby.users.values() {
-        u.tx.send(Message::text(data.to_string()))?;
+        u.send_string(&response)?;
     }
     Ok(())
 }
-fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
     // Iterate through and update pawns
-    let pawns = data["pawns"].as_array().ok_or("Malformed update_pawns")?;
-    for i in 0..pawns.len() {
-        let pawn_id: u64 = pawns[i]["id"].as_u64().ok_or("Malformed update_pawns")?;
-        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawn_id).ok_or("Trying to update missing pawn")?;
+    // Discard updates updating invalid pawns, non-owned pawns
+    // Discard position and rotation changes on updates to immovable pawns
+    updates.retain_mut(|update| {
+        let pawn_id: u64 = update.id;
+        let pawn: &mut Pawn = match lobby.pawns.get_mut(&pawn_id) {
+            Some(p) => p,
+            None => {
+                println!("User <{user_id}> trying to update invalid pawn");
+                return false;
+            },
+        };
 
         match pawn.selected_user {
             Some(selected_user_id) if selected_user_id != user_id => {
                 println!("User <{user_id}> trying to update non-owned pawn");
-                continue;
+                return false;
             },
             _ => {},
         };
+
+        if !pawn.moveable {
+            update.position = None;
+            update.rotation = None;
+            update.select_rotation = None;
+        }
         
         // Update struct values
-        pawn.patch(&pawns[i]);
-        pawn.selected_user = if pawns[i]["selected"].as_bool().unwrap_or(true) {
+        pawn.patch(&update);
+        pawn.selected_user = if update.selected.unwrap_or(true) {
             Some(user_id)
         } else {
             None
         };
         
         // Update physics
-        if pawns[i].get("colliderShapes").is_some() {
+        if update.collider_shapes.is_some() {
             let collider_handles: Vec<ColliderHandle> = {
                 let rb_handle = pawn.rigid_body.unwrap();
                 let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
@@ -389,7 +403,7 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
                 collider.set_sensor(pawn.selected_user.is_some());
             }
             // Update position and velocity
-            if pawns[i].get("position").is_some() || pawns[i].get("rotation").is_some() {
+            if update.position.is_some() || update.rotation.is_some() {
                 let old_position: &Vector<f32> = rb.translation();
                 let position: Vector<f32> = Vector::from(&pawn.position);
 
@@ -407,16 +421,15 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
 
         // Refresh last updated
         pawn.last_updated = Instant::now();
-    }
+
+        true
+    });
     
     // Relay to other users that these pawns were changed
-    let response = json!({
-        "type":"update_pawns",
-        "pawns":data["pawns"]
-    });
+    let response = serde_json::to_string(&Event::UpdatePawns { updates })?;
     for u in lobby.users.values() {
         if u.id != user_id {
-            u.tx.send(Message::text(response.to_string()))?;
+            u.send_string(&response)?;
         }
     }
     Ok(())
@@ -424,15 +437,12 @@ fn update_pawns(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Bo
 
 // --- ASSET EVENTS ---
 
-fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.assets.len() >= 256 { Err("Failed to register asset")?; }
 
-    let name = data["name"].as_str().ok_or("Malformed register_asset")?;
-    let data = data["data"].as_str().ok_or("Malformed register_asset")?;
+    if lobby.assets.get(&name).is_some() { Err("Attempting to overwrite asset")?; }
 
-    if lobby.assets.get(name).is_some() { Err("Attempting to overwrite asset")?; }
-
-    let url = DataUrl::process(data).ok().ok_or("Failed to process base64")?;
+    let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
     let asset = Asset {
         mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
         data: url.decode_to_vec().ok().ok_or("Failed to decode base64")?.0, // Vec<u8>
@@ -446,7 +456,7 @@ fn register_asset(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), 
     println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
     Ok(())
 }
-fn clear_assets(user_id: usize, _data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn clear_assets(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { Err("Failed to clear assets")?; }
 
     lobby.assets = HashMap::new();
@@ -457,37 +467,30 @@ fn clear_assets(user_id: usize, _data: Value, lobby: &mut Lobby) -> Result<(), B
 
 // --- USER EVENTS ---
 
-fn user_joined(user_id: usize, _data: Value, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
+fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
     // Get user
     let user = lobby.users.get(&user_id).unwrap();
     
     println!("User <{}> joined lobby [{}] with {} users and {} pawns",
         user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
     
-    let response = json!({
-        "type":"start",
-        "id":user_id,
-        "host":(lobby.users.len() == 1),
-        "color":user.color,
-        "users":lobby.users.values().map(|u| {
-            json!({
-                "id":u.id,
-                "color":u.color
-            })
-        }).collect::<Vec<Value>>(),
-        "pawns":lobby.pawns.values().collect::<Vec<&Pawn>>()
-    });
-    user.tx.send(Message::text(response.to_string()))?;
+    let response = serde_json::to_string(&Event::Start {
+        id: user_id,
+        host: (lobby.users.len() == 1),
+        color: &user.color,
+        users: lobby.users.values().collect(),
+        pawns: lobby.pawns.values().collect(),
+    })?;
+    user.send_string(&response)?;
     
     // Tell all other users that this user has joined
-    let response = json!({
-        "type":"connect",
-        "color":user.color,
-        "id":user_id
-    });
+    let response = serde_json::to_string(&Event::Connect {
+        id: user_id,
+        color: &user.color,
+    })?;
     for u in lobby.users.values() {
         if u.id != user_id {
-            u.tx.send(Message::text(response.to_string()))?;
+            u.send_string(&response)?;
         }
     }
     Ok(())
@@ -498,13 +501,10 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.write().await;
     
     // Tell all other users that this user has disconnected
-    let response = json!({
-        "type":"disconnect",
-        "id":user_id
-    });
+    let response = serde_json::to_string(&Event::Disconnect { id: user_id })?;
     for u in lobby.users.values() {
         if u.id != user_id {
-            u.tx.send(Message::text(response.to_string()))?;
+            u.send_string(&response)?;
         }
     }
     
@@ -513,7 +513,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
 
     // Deselect all pawns selected by this user
     let lobby_mut_ref: &mut Lobby = &mut *lobby;
-    let mut deselected_pawns: Vec<Value> = Vec::new();
+    let mut deselected_pawns: Vec<PawnUpdate> = Vec::new();
     for pawn in lobby_mut_ref.pawns.values_mut() {
         if pawn.selected_user == Some(user_id) {
             pawn.selected_user = None;
@@ -528,20 +528,18 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
                 }
             }
 
-            deselected_pawns.push(json!({
-                "id":pawn.id,
-                "selected":false
-            }));
+            deselected_pawns.push(PawnUpdate {
+                id: pawn.id,
+                selected: Some(false),
+                ..Default::default()
+            });
         }
     }
     // Relay to other users that these pawns were deselected
-    let response = json!({
-        "type":"update_pawns",
-        "pawns":deselected_pawns
-    });
+    let response = serde_json::to_string(&Event::UpdatePawns { updates: deselected_pawns })?;
     for u in lobby.users.values() {
         if u.id != user_id {
-            u.tx.send(Message::text(response.to_string()))?;
+            u.send_string(&response)?;
         }
     }
     
@@ -551,10 +549,8 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             lobby.host = *lobby.users.keys().next().unwrap();
 
             // Tell the new host
-            let response = json!({
-                "type":"assign_host"
-            });
-            lobby.users.get(&lobby.host).unwrap().tx.send(Message::text(response.to_string()))?;
+            let response = serde_json::to_string(&Event::AssignHost {})?;
+            lobby.users.get(&lobby.host).unwrap().send_string(&response)?;
 
             println!("Host of lobby [{lobby_name}] left, reassigning <{user_id}> -> <{}>", lobby.host);
         }
@@ -570,36 +566,29 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     Ok(())
 }
 
-fn ping(user_id: usize, data: Value, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
-    let response = json!({
-        "type":"pong",
-        "idx":data["idx"]
-    });
-    
+fn ping(user_id: usize, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
     // Pong
-    lobby.users.get(&user_id).unwrap().tx.send(Message::text(response.to_string()))?;
+    let response = serde_json::to_string(&Event::Pong { idx })?;
+    lobby.users.get(&user_id).unwrap().send_string(&response)?;
     Ok(())
 }
 
 // -- CURSOR EVENTS --
 
-fn update_cursor(user_id: usize, data: Value, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<(), Box<dyn Error>> {
     let mut user = lobby.users.get_mut(&user_id).unwrap();
 
-    user.cursor_position = serde_json::from_value(data["position"].clone())?;
+    user.cursor_position = position;
     Ok(())
 }
 fn relay_cursors(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
-    let response = json!({
-        "type":"relay_cursors",
-        "cursors":lobby.users.iter().map(|(k, v)| {
-            json!({
-                "id":k,
-                "position":v.cursor_position
-            })
-        }).collect::<Vec<Value>>()
-    });
+    let response = serde_json::to_string(&Event::RelayCursors {
+        cursors: lobby.users.iter().map(|(k, v)| CursorUpdate {
+            id: *k,
+            position: v.cursor_position,
+        }).collect()
+    })?;
 
-    lobby.users.get(&user_id).unwrap().tx.send(Message::text(response.to_string()))?;
+    lobby.users.get(&user_id).unwrap().send_string(&response)?;
     Ok(())
 }
