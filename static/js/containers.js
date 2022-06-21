@@ -350,6 +350,13 @@ export class Container extends Pawn {
                 if (item)
                     out = item.id;
                 break;
+            case "insert_item":
+                if (this.data.capacity) {
+                    this.data.capacity += 1;
+                    this.dirty.add("selected");
+                    this.dirty.add("data");
+                }
+                break;
         }
         return out;
     }
@@ -394,11 +401,7 @@ export class Container extends Pawn {
             return;
 
         this.manager.removePawn(rhs.id);
-        if (this.data.capacity) {
-            this.data.capacity += 1;
-            this.dirty.add("selected");
-            this.dirty.add("data");
-        }
+        this.manager.sendEvent("pawn", true, {id: this.id, name: "insert_item"});
     }
     
     static className() { return "Container"; };
