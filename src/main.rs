@@ -6,7 +6,7 @@ use std::ops::{Deref, DerefMut};
 use std::error::Error;
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{sleep, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -155,9 +155,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     let (mut tx, mut rx) = ws.split();
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
-    let mut buffer_rx = UnboundedReceiverStream::new(buffer_rx);
     
     // Automatically send buffered messages
+    let mut buffer_rx = UnboundedReceiverStream::new(buffer_rx);
     tokio::task::spawn(async move {
         while let Some(message) = buffer_rx.next().await {
             tx.send(message).unwrap_or_else(|_| {}).await
@@ -198,7 +198,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     };
     
     // Continually process received messages
-    while let Some(result) = rx.next().await {
+    // - Timeout at 10 seconds
+    while let Ok(Some(result)) = timeout(Duration::from_secs(10), rx.next()).await {
         let message = match result {
             Ok(r) => r,
             Err(e) => {

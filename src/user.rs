@@ -14,10 +14,7 @@ pub trait Sender {
 impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     fn send_event(&mut self, content: &Event)  -> Result<(), Box<dyn Error>> {
         let content = serde_json::to_string(content)?;
-        for user in self {
-            user.send_string(&content)?;
-        }
-        Ok(())
+        self.send_string(&content)
     }
     fn send_string(&mut self, content: &str)  -> Result<(), Box<dyn Error>> {
         for user in self {
