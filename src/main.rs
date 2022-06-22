@@ -199,13 +199,20 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     
     // Continually process received messages
     // - Timeout at 10 seconds
-    while let Ok(Some(result)) = timeout(Duration::from_secs(10), rx.next()).await {
-        let message = match result {
-            Ok(r) => r,
+    while let result = timeout(Duration::from_secs(10), rx.next()).await {
+        let message: Message = match result {
+            Ok(Some(r)) => match r {
+                Ok(m) => m,
+                Err(e) => {
+                    println!("Websocket error: {}", e);
+                    break;
+                }
+            },
             Err(e) => {
-                println!("Websocket error: {}", e);
+                println!("Websocket timeout: {}", e);
                 break;
             }
+            _ => {continue;}
         };
         if message.is_close() {
             println!("Websocket connection closed, user <{user_id}> left");
