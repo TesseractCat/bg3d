@@ -40,11 +40,14 @@ export class Deck extends Pawn {
         this.data.cornerRadius = cornerRadius;
         this.data.cardThickness = cardThickness;
         this.data.size.copy(size);
+    }
+    init(manager) {
+        super.init(manager);
         
-        const roundedSquare = this.#roundedSquare(cornerRadius);
+        const roundedSquare = this.#roundedSquare(this.data.cornerRadius);
         const extrudeSettings = {
-            steps:1,
-            depth:1,
+            steps: 1,
+            depth: 1,
             bevelEnabled: false,
         };
         
@@ -52,8 +55,10 @@ export class Deck extends Pawn {
         geometry.deleteAttribute('normal');
         geometry = BufferGeometryUtils.mergeVertices(geometry);
         geometry.computeVertexNormals();
+        let material = new THREE.MeshBasicMaterial({alphaTest:0.5, opacity:0});
         
-        const box = new THREE.Mesh(geometry);
+        const box = new THREE.Mesh(geometry, material);
+        box.customDepthMaterial = material;
         box.castShadow = true;
         box.receiveShadow = true;
         box.scale.set(1, -1, 1);
@@ -61,10 +66,14 @@ export class Deck extends Pawn {
         box.quaternion.setFromEuler(new THREE.Euler(Math.PI/2, 0, 0));
         
         this.box = box;
-        this.mesh.scale.copy(new THREE.Vector3(size.x, this.data.cardThickness * contents.length, size.y));
+        this.mesh.scale.copy(new THREE.Vector3(
+            this.data.size.x,
+            this.data.cardThickness * this.data.contents.length,
+            this.data.size.y
+        ));
         this.mesh.add(box);
         
-        this.updateDeck();
+        this.updateDeck(true);
     }
     #roundedSquare(radius) {
         let shape = new THREE.Shape();
@@ -230,7 +239,7 @@ export class Deck extends Pawn {
         }
     }
     
-    async updateDeck() {
+    async updateDeck(fadeIn = false) {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.mesh.scale.setComponent(1, thickness);
@@ -251,14 +260,7 @@ export class Deck extends Pawn {
         ]);
         
         // Apply new materials
-        let fadeIn = false;
-        if (Array.isArray(this.box.material)) {
-            for (let material of this.box.material) {
-                material.dispose();
-            }
-        } else {
-            fadeIn = true;
-        }
+        // FIXME: Dispose old materials
         const sideMaterial = new MeshStandardDitheredMaterial({color: this.data.sideColor});
         this.faceMaterial = new MeshStandardDitheredMaterial({color: 0xffffff,
             map: faceTexture
@@ -269,19 +271,19 @@ export class Deck extends Pawn {
         this.box.material = [
             this.faceMaterial, sideMaterial, this.backMaterial
         ];
-        // this.box.customDepthMaterial = new DepthDitheredMaterial().clone();
-        // if (fadeIn) {
-        //     for (let material of this.box.material/*.concat([this.box.customDepthMaterial])*/) {
-        //         material.opacity = 0.0;
-        //         let fadeInInterval = setInterval(() => {
-        //             material.opacity += 6.0/60.0;
-        //             if (material.opacity >= 1) {
-        //                 material.opacity = 1;
-        //                 clearInterval(fadeInInterval);
-        //             }
-        //         }, 1000.0/60.0);
-        //     }
-        // }
+        if (fadeIn) {
+            this.box.customDepthMaterial = new DepthDitheredMaterial().clone();
+            for (let material of this.box.material.concat([this.box.customDepthMaterial])) {
+                material.opacity = 0.0;
+                let fadeInInterval = setInterval(() => {
+                    material.opacity += 6.0/60.0;
+                    if (material.opacity >= 1) {
+                        material.opacity = 1;
+                        clearInterval(fadeInInterval);
+                    }
+                }, 1000.0/60.0);
+            }
+        }
     }
     processData() { this.updateDeck() }
     
