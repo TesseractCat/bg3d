@@ -19,6 +19,12 @@ export default class PluginLoader {
         this.manager = manager;
     }
 
+    createScriptBlob(blob) {
+        return new Blob([
+            `importScripts("${window.location.protocol}//${window.location.host}/prelude.js?v=${window.version}");\n\n`,
+            blob
+        ], {type: "text/javascript"});
+    }
     async loadFromFile(file) {
         if (!this.manager.host)
             return;
@@ -40,11 +46,7 @@ export default class PluginLoader {
         if (manifest.script != undefined) {
             let script = findEntry(entries, manifest.script);
             if (script) {
-                let scriptBlob = await script.getData(new zip.BlobWriter());
-                scriptBlob = new Blob([
-                    `importScripts("${window.location.protocol}//${window.location.host}/prelude.js");\n\n`,
-                    scriptBlob
-                ], {type: "text/javascript"});
+                let scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
 
                 if (this.pluginWorker)
                     this.pluginWorker.terminate();
@@ -74,11 +76,7 @@ export default class PluginLoader {
         document.querySelector("#games").value = "Custom";
     }
     async loadScript(url) {
-        let scriptBlob = await (await fetch(url)).blob();
-        scriptBlob = new Blob([
-            `importScripts("${window.location.protocol}//${window.location.host}/prelude.js");\n\n`,
-            scriptBlob
-        ], {type: "text/javascript"});
+        let scriptBlob = this.createScriptBlob(await (await fetch(url)).blob());
 
         if (this.pluginWorker)
             this.pluginWorker.terminate();

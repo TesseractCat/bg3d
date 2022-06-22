@@ -247,6 +247,15 @@ canvas {
     height:60px;
     cursor:pointer;
     user-select:none;
+
+    background-color: #f7f5ef;
+    border-radius: 10px;
+    border: 1px solid #777;
+
+    transition: background-color 0.2s;
+}
+#icon:hover {
+    background-color: #dddbd5;
 }
 
 a, a:visited {

@@ -53,12 +53,15 @@ window.onload = function() {
         gameOption.setAttribute("hidden", "");
         document.querySelector("#games").appendChild(gameOption);
 
-        document.querySelector("#games").addEventListener("change", (e) => {
-            let game = games[e.target.selectedIndex];
+        function loadGame(index) {
+            let game = games[index];
             if (game) {
                 let url = game[1];
-                pluginLoader.loadScript(url);
+                pluginLoader.loadScript(`${url}?v=${window.version}`);
             }
+        }
+        document.querySelector("#games").addEventListener("change", (e) => {
+            loadGame(e.target.selectedIndex);
         });
         document.querySelector("#add-piece").addEventListener("click", (e) => {
             let info = document.querySelector("#pieces").value.split("/");
@@ -73,7 +76,7 @@ window.onload = function() {
         
         if (host) {
             document.querySelector("#host-panel").style.display = "block";
-            pluginLoader.loadScript(games[0][1]);
+            loadGame(0);
         }
         
         animate();
