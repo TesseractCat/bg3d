@@ -42,6 +42,8 @@ pub enum Event<'a> {
     SendCursor { position: Vec3 },
     RelayCursors { cursors: Vec<CursorUpdate> },
 
+    Chat { id: Option<usize>, content: Cow<'a, String> },
+
     Event { target: bool, #[serde(flatten)] data: Value },
     EventCallback { receiver: usize, #[serde(flatten)] data: Value },
 }

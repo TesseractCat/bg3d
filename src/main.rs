@@ -231,6 +231,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
 
                 Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
 
+                Event::Chat { content, .. } => chat(user_id, lobby.read().await.deref(), content),
+
                 Event::Event { target, data } => event(user_id, lobby.write().await.deref_mut(), target, data),
                 Event::EventCallback { receiver, data } => event_callback(user_id, lobby.write().await.deref_mut(), receiver, data),
 
@@ -259,9 +261,7 @@ fn event(_user_id: usize, lobby: &mut Lobby, target_host: bool, mut data: Value)
     if target_host {
         lobby.users.get(&lobby.host).ok_or("Missing host")?.send_string(&data.to_string())?;
     } else {
-        for u in lobby.users.values() {
-            u.send_string(&data.to_string())?;
-        }
+        lobby.users.values().send_string(&data.to_string())?;
     }
 
     Ok(())
@@ -295,14 +295,10 @@ fn add_pawn<'a>(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'a, Pawn>) -> R
     }
 
     // Tell other users that this was added
-    let response = serde_json::to_string(&Event::AddPawn { pawn: Cow::Borrowed(&pawn) })?;
+    lobby.users.values().send_event(&Event::AddPawn { pawn: Cow::Borrowed(&pawn) })?;
     
     // Add pawn to lobby
     lobby.pawns.insert(pawn.id, pawn.into_owned());
-    
-    for u in lobby.users.values() {
-        u.send_string(&response)?;
-    }
     Ok(())
 }
 fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Result<(), Box<dyn Error>> {
@@ -316,11 +312,7 @@ fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Resul
         lobby.pawns.remove(&id);
     }
     
-    let response = serde_json::to_string(&Event::RemovePawns { ids: pawn_ids })?;
-    for u in lobby.users.values() {
-        u.send_string(&response)?;
-    }
-    Ok(())
+    lobby.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })
 }
 fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { Err("Failed to clear pawns")?; }
@@ -332,11 +324,7 @@ fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> 
     }
     lobby.pawns = HashMap::new();
     
-    let response = serde_json::to_string(&Event::ClearPawns {})?;
-    for u in lobby.users.values() {
-        u.send_string(&response)?;
-    }
-    Ok(())
+    lobby.users.values().send_event(&Event::ClearPawns {})
 }
 fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
     // Iterate through and update pawns, sanitize updates when relaying:
@@ -426,13 +414,9 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
     });
     
     // Relay to other users that these pawns were changed
-    let response = serde_json::to_string(&Event::UpdatePawns { updates })?;
-    for u in lobby.users.values() {
-        if u.id != user_id {
-            u.send_string(&response)?;
-        }
-    }
-    Ok(())
+    lobby.users.values()
+        .filter(|u| u.id != user_id)
+        .send_event(&Event::UpdatePawns { updates })
 }
 
 // --- ASSET EVENTS ---
@@ -474,26 +458,21 @@ fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
     println!("User <{}> joined lobby [{}] with {} users and {} pawns",
         user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
     
-    let response = serde_json::to_string(&Event::Start {
+    user.send_event(&Event::Start {
         id: user_id,
         host: (lobby.users.len() == 1),
         color: &user.color,
         users: lobby.users.values().collect(),
         pawns: lobby.pawns.values().collect(),
     })?;
-    user.send_string(&response)?;
     
     // Tell all other users that this user has joined
-    let response = serde_json::to_string(&Event::Connect {
-        id: user_id,
-        color: &user.color,
-    })?;
-    for u in lobby.users.values() {
-        if u.id != user_id {
-            u.send_string(&response)?;
-        }
-    }
-    Ok(())
+    lobby.users.values()
+        .filter(|u| u.id != user_id)
+        .send_event(&Event::Connect {
+            id: user_id,
+            color: &user.color,
+        })
 }
 
 async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) -> Result<(), Box<dyn Error>> {
@@ -501,12 +480,11 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.write().await;
     
     // Tell all other users that this user has disconnected
-    let response = serde_json::to_string(&Event::Disconnect { id: user_id })?;
-    for u in lobby.users.values() {
-        if u.id != user_id {
-            u.send_string(&response)?;
-        }
-    }
+    lobby.users.values()
+        .filter(|u| u.id != user_id)
+        .send_event(&Event::Disconnect {
+            id: user_id,
+        })?;
     
     // Remove user from lobby
     lobby.users.remove(&user_id);
@@ -536,12 +514,9 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
         }
     }
     // Relay to other users that these pawns were deselected
-    let response = serde_json::to_string(&Event::UpdatePawns { updates: deselected_pawns })?;
-    for u in lobby.users.values() {
-        if u.id != user_id {
-            u.send_string(&response)?;
-        }
-    }
+    lobby.users.values().filter(|u| u.id != user_id).send_event(
+        &Event::UpdatePawns { updates: deselected_pawns }
+    )?;
     
     if lobby.users.len() != 0 { // If the user id is the host, let's reassign the host to the next user
         if lobby.host == user_id {
@@ -549,8 +524,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             lobby.host = *lobby.users.keys().next().unwrap();
 
             // Tell the new host
-            let response = serde_json::to_string(&Event::AssignHost {})?;
-            lobby.users.get(&lobby.host).unwrap().send_string(&response)?;
+            lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost {})?;
 
             println!("Host of lobby [{lobby_name}] left, reassigning <{user_id}> -> <{}>", lobby.host);
         }
@@ -568,8 +542,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
 
 fn ping(user_id: usize, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
     // Pong
-    let response = serde_json::to_string(&Event::Pong { idx })?;
-    lobby.users.get(&user_id).unwrap().send_string(&response)?;
+    lobby.users.get(&user_id).unwrap().send_event(&Event::Pong { idx })?;
     Ok(())
 }
 
@@ -582,13 +555,20 @@ fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<()
     Ok(())
 }
 fn relay_cursors(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
-    let response = serde_json::to_string(&Event::RelayCursors {
+    lobby.users.get(&user_id).unwrap().send_event(&Event::RelayCursors {
         cursors: lobby.users.iter().map(|(k, v)| CursorUpdate {
             id: *k,
             position: v.cursor_position,
         }).collect()
     })?;
-
-    lobby.users.get(&user_id).unwrap().send_string(&response)?;
     Ok(())
+}
+
+// -- CHAT EVENTS --
+
+fn chat<'a>(user_id: usize, lobby: &Lobby, content: Cow<'a, String>) -> Result<(), Box<dyn Error>> {
+    lobby.users.values().send_event(&Event::Chat {
+        id: Some(user_id),
+        content: Cow::Borrowed(&content)
+    })
 }
