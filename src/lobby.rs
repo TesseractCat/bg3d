@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::error::Error;
 
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
@@ -198,7 +199,7 @@ impl Lobby {
         self.next_user_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn step(&mut self, send_update_pawns: bool) {
+    pub fn step(&mut self, send_update_pawns: bool) -> Result<(), Box<dyn Error>> {
         // Simulate physics
         self.world.step();
 
@@ -217,12 +218,18 @@ impl Lobby {
         }
         if !dirty_pawns.is_empty() && send_update_pawns {
             // Send update
-            let response = serde_json::to_string(&Event::UpdatePawns {
+            return self.users.values().send_event(&Event::UpdatePawns {
                 updates: dirty_pawns.iter().map(|p| p.serialize_transform()).collect()
-            }).unwrap();
-            for u in self.users.values() {
-                u.send_string(&response);
-            }
+            });
         }
+        Ok(())
+    }
+    pub fn relay_cursors(&self) -> Result<(), Box<dyn Error>> {
+        self.users.values().send_event(&Event::RelayCursors {
+            cursors: self.users.iter().map(|(k, v)| CursorUpdate {
+                id: *k,
+                position: v.cursor_position,
+            }).collect()
+        })
     }
 }

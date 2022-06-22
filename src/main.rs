@@ -114,7 +114,7 @@ async fn main() {
             {
                 let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
-                    lobby.write().await.step(tick % 3 == 0);
+                    lobby.write().await.step(tick % 3 == 0).ok();
                 }
             }
             //println!("Physics elapsed time: {}", Instant::now().duration_since(physics_time).as_millis());
@@ -130,9 +130,7 @@ async fn main() {
                 let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
                     let lobby = lobby.read().await;
-                    for user_id in lobby.users.keys() {
-                        relay_cursors(*user_id, &lobby);
-                    }
+                    lobby.relay_cursors().ok();
                 }
             }
             sleep(Duration::from_secs_f64(1.0/10.0)).await;
@@ -199,7 +197,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     
     // Continually process received messages
     // - Timeout at 10 seconds
-    while let result = timeout(Duration::from_secs(10), rx.next()).await {
+    loop {
+        let result = timeout(Duration::from_secs(10), rx.next()).await;
         let message: Message = match result {
             Ok(Some(r)) => match r {
                 Ok(m) => m,
@@ -208,11 +207,11 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                     break;
                 }
             },
-            Err(e) => {
-                println!("Websocket timeout: {}", e);
+            Ok(None) => {continue;},
+            Err(_) => {
+                println!("Websocket connection closed, user <{user_id}> timed-out");
                 break;
-            }
-            _ => {continue;}
+            },
         };
         if message.is_close() {
             println!("Websocket connection closed, user <{user_id}> left");
@@ -256,7 +255,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         }
     }
     match user_disconnected(user_id, &lobby_name, &lobbies).await {
-        Err(e) => println!("Error encountered while user disconnected: {:?}", e),
+        Err(e) => println!("Error encountered while disconnecting user: {:?}", e),
         _ => (),
     };
 }
@@ -560,15 +559,6 @@ fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<()
     let mut user = lobby.users.get_mut(&user_id).unwrap();
 
     user.cursor_position = position;
-    Ok(())
-}
-fn relay_cursors(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
-    lobby.users.get(&user_id).unwrap().send_event(&Event::RelayCursors {
-        cursors: lobby.users.iter().map(|(k, v)| CursorUpdate {
-            id: *k,
-            position: v.cursor_position,
-        }).collect()
-    })?;
     Ok(())
 }
 
