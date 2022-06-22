@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
@@ -11,12 +12,14 @@ import { Box } from './shapes.js';
 export class Deck extends Pawn {
     static textureCache = new Map();
     static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
+    static svgLoader = new SVGLoader().setPath(window.location.href + '/');
 
     data = {
         contents: [],
         back: null,
         sideColor: 0,
 
+        border: null,
         cornerRadius: 0,
         cardThickness: 0,
         size: new THREE.Vector2()
@@ -27,7 +30,7 @@ export class Deck extends Pawn {
     backMaterial;
     
     constructor({contents = [], back = null, sideColor = 0xcccccc,
-                 size = new THREE.Vector2(), cornerRadius = 0.02, cardThickness = 0.01,
+                 size = new THREE.Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
                  ...rest}) {
         rest.colliderShapes = [
             new Box(new THREE.Vector3(size.x/2, (cardThickness * contents.length * 1.15)/2, size.y/2))
@@ -37,21 +40,28 @@ export class Deck extends Pawn {
         this.data.contents = contents;
         this.data.back = back;
         this.data.sideColor = sideColor;
+
+        this.data.border = border;
         this.data.cornerRadius = cornerRadius;
         this.data.cardThickness = cardThickness;
         this.data.size.copy(size);
     }
-    init(manager) {
+    async init(manager) {
         super.init(manager);
         
-        const roundedSquare = this.#roundedSquare(this.data.cornerRadius);
+        let shape = this.#roundedSquare(this.data.cornerRadius);
+        if (this.data.border) {
+            let data = await Deck.svgLoader.loadAsync(this.data.border);
+            if (data.paths.length > 0)
+                shape = SVGLoader.createShapes(data.paths[0])[0];
+        }
         const extrudeSettings = {
             steps: 1,
             depth: 1,
             bevelEnabled: false,
         };
         
-        let geometry = new ExtrudeGeometry(roundedSquare, extrudeSettings);
+        let geometry = new ExtrudeGeometry(shape, extrudeSettings);
         geometry.deleteAttribute('normal');
         geometry = BufferGeometryUtils.mergeVertices(geometry);
         geometry.computeVertexNormals();
@@ -186,6 +196,7 @@ export class Deck extends Pawn {
         let cardPawn = new Deck({
             manager: this.manager, name: this.name,
             contents: [this.data.contents[idx]], back: this.data.back,
+            border: this.data.border,
             sideColor: this.data.sideColor, cornerRadius: this.data.cornerRadius,
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
             size: this.data.size

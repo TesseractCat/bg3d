@@ -81,7 +81,7 @@ pub enum PawnData {
     #[serde(rename_all = "camelCase")]
     Deck {
         contents: Vec<String>, back: Option<String>, side_color: u64,
-        corner_radius: f64, card_thickness: f64, size: Vec2
+        border: Option<String>, corner_radius: f64, card_thickness: f64, size: Vec2
     },
     SnapPoint { radius: f64, size: Vec2, scale: f64, snaps: Vec<String> },
     Container { holds: Box<Pawn>, capacity: Option<u64> },

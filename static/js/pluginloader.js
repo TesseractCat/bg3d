@@ -183,6 +183,9 @@ export default class PluginLoader {
             case "jpeg":
                 mimeType = "image/jpeg";
                 break;
+            case "svg":
+                mimeType = "image/svg+xml";
+                break;
 
             default:
                 return;

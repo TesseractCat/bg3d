@@ -128,16 +128,23 @@ class Deck extends Pawn {
     contents;
     back;
     sideColor;
+
+    border;
     cornerRadius;
+    cardThickness;
     size;
     
-    constructor({contents, back, sideColor, cornerRadius, size, ...rest}) {
+    constructor({contents, back, sideColor,
+                 border, cornerRadius, cardThickness, size, ...rest}) {
         super(rest);
 
         this.contents = [...contents];
         this.back = back;
         this.sideColor = sideColor;
+
+        this.border = border;
         this.cornerRadius = cornerRadius;
+        this.cardThickness = cardThickness;
         this.size = size;
     }
 
