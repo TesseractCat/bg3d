@@ -75,6 +75,12 @@ canvas {
     max-height:200px;
     overflow-y:auto;
 }
+#player-entries .player:before {
+    content:"⬤";
+}
+#player-entries .player:first-child:before {
+    content:"♛";
+}
 #piece-combo {
     font-size:0px;
 }

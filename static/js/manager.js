@@ -196,10 +196,7 @@ class Chat {
         this.input.addEventListener("keydown", (e) => {
             if (e.key == "Enter") {
                 if (this.input.value != "") {
-                    this.manager.sendEvent("chat", false, {
-                        id:this.manager.id,
-                        content:this.input.value
-                    });
+                    this.send(this.input.value);
                 }
                 this.blur();
             }
@@ -229,16 +226,23 @@ class Chat {
         display.focus();
     }
 
+    send(content) {
+        this.manager.sendSocket({
+            type:"chat",
+            content:content,
+        });
+    }
+
     chatFadeTimeout;
-    addChatEntry(chatJSON) {
+    addChatEntry(id, content) {
         let entry = document.createElement("p");
         entry.classList.add("entry");
         
         let name = document.createElement("span");
         name.innerText = "⬤: ";
-        name.style.color = this.manager.userColors.get(chatJSON.id);
+        name.style.color = this.manager.userColors.get(id);
         let text = document.createElement("span");
-        text.innerText = chatJSON.content;
+        text.innerText = content;
         
         entry.appendChild(name);
         entry.appendChild(text);
@@ -476,15 +480,23 @@ export default class Manager {
         
         // Create element
         let playerElement = document.createElement("h2");
-        playerElement.innerText = "⬤";//id;
+        playerElement.innerText = "";//id;
         playerElement.style.color = color;
         playerElement.classList.add("player");
-        playerElement.classList.add("p" + id);
+        playerElement.dataset.id = id;
         
         if (id == this.id)
             playerElement.innerText += " (You)";
         
-        document.querySelector("#player-entries").appendChild(playerElement);
+        let playerList = document.querySelector("#player-entries");
+        for (let entryNode of playerList.children) {
+            if (id < parseInt(entryNode.dataset.id)) {
+                playerList.insertBefore(playerElement, entryNode);
+                break;
+            } 
+        }
+        if (playerElement.parentNode != playerList)
+            playerList.appendChild(playerElement);
         
         // Create cursor entry/object
         if (id != this.id) {
@@ -494,7 +506,7 @@ export default class Manager {
         }
     }
     removeUser(id) {
-        document.querySelector(".player.p" + id).remove();
+        document.querySelector(`.player[data-id="${id}"]`).remove();
         this.scene.remove(this.lobbyCursors.get(id).mesh);
         this.lobbyCursors.delete(id);
         this.userColors.delete(id);
@@ -690,22 +702,12 @@ export default class Manager {
                 this.addPawn(pawn);
                 response = pawn.id;
                 break;
-            case "clear_pawns":
-                this.sendSocket({
-                    type:"remove_pawns",
-                    pawns:Array.from(this.pawns.values()).map(p => p.id)
-                });
-                this.hand.clear();
-                break;
             case "request_update_pawns":
                 eventJSON.data.pawns.forEach(p => this.updatePawn(p));
                 this.sendSocket({
                     type:"update_pawns",
                     pawns:eventJSON.data.pawns
                 });
-                break;
-            case "chat":
-                this.chat.addChatEntry(eventJSON.data);
                 break;
         }
         
@@ -817,7 +819,7 @@ export default class Manager {
             
             if (type == "start") {
                 // We have initiated a connection
-                this.host = msg["host"];
+                this.host = msg.host;
                 this.id = msg.id;
                 
                 callback(this.host);
@@ -854,7 +856,7 @@ export default class Manager {
                 };
                 
                 // Add users
-                msg.users.sort((a, b) => b.id == this.id ? 1 : -1).forEach(u => {
+                msg.users.forEach(u => {
                     this.addUser(u.id, u.color)
                 });
             } else if (type == "assign_host") {
@@ -902,6 +904,10 @@ export default class Manager {
             } else if (type == "disconnect") {
                 // Add the connected player to the player list
                 this.removeUser(msg.id);
+            }
+
+            if (type == "chat") {
+                this.chat.addChatEntry(msg.id, msg.content);
             }
             
             if (type == "relay_cursors") {
