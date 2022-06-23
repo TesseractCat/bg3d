@@ -25,6 +25,7 @@ window.onload = function() {
     manager.init((host) => {
         let games = [
             ['Welcome', 'games/welcome.js'],
+            ['Cards', 'games/cards.js'],
             ['Chess', 'games/chess.js'],
             ['Go', 'games/go.js'],
         ];

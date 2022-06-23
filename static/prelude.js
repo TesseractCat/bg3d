@@ -20,6 +20,9 @@ class Vector3 {
     clone() {
         return new Vector3().copy(this);
     }
+    add(rhs) {
+        return new Vector3(this.x + rhs.x, this.y + rhs.y, this.z + rhs.z);
+    }
 }
 class Vector2 {
     x;
@@ -36,6 +39,24 @@ class Vector2 {
     }
     clone() {
         return new Vector2().copy(this);
+    }
+    toVector3({x, y, z}) {
+        if (x)
+            return new Vector3(x, this.x, this.y);
+        if (y)
+            return new Vector3(this.x, y, this.y);
+        if (z)
+            return new Vector3(this.x, this.y, z);
+
+        return new Vector3(this.x, 0, this.y);
+    }
+    rotate(angle) {
+        let rx = Math.cos(angle) * this.x - Math.sin(angle) * this.y;
+        let ry = Math.sin(angle) * this.x + Math.cos(angle) * this.y;
+        return new Vector2(rx, ry);
+    }
+    add(rhs) {
+        return new Vector2(this.x + rhs.x, this.y + rhs.y);
     }
 }
 
@@ -101,8 +122,8 @@ class Pawn {
         return this;
     }
 
-    clone() {
-        return new this.constructor(this);
+    clone(parameters) {
+        return new this.constructor({...this, ...parameters});
     }
 }
 class SnapPoint extends Pawn {
@@ -165,7 +186,8 @@ class Container extends Pawn {
     constructor({holds, capacity, ...rest}) {
         super(rest);
 
-        this.holds = holds.clone();
+        if (holds)
+            this.holds = holds.clone();
         this.capacity = capacity;
     }
 }

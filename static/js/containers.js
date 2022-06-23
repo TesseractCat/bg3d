@@ -196,8 +196,9 @@ export class Deck extends Pawn {
         let cardPawn = new Deck({
             manager: this.manager, name: this.name,
             contents: [this.data.contents[idx]], back: this.data.back,
-            border: this.data.border,
-            sideColor: this.data.sideColor, cornerRadius: this.data.cornerRadius,
+            border: this.data.border, sideColor: this.data.sideColor,
+
+            cornerRadius: this.data.cornerRadius, cardThickness: this.data.cardThickness,
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
             size: this.data.size
         });
@@ -257,7 +258,7 @@ export class Deck extends Pawn {
         this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
-            1, Math.max(thickness, this.data.cardThickness * 10)/2,
+            1, Math.max(thickness/2, 0.03),
         );
         this.dirty.add("selected");
         this.dirty.add("colliderShapes");
