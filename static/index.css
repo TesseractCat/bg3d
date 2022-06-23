@@ -1,10 +1,12 @@
-@font-face {
-    font-family: 'Bayon';
-    src: url('fonts/Bayon/Bayon-Regular.ttf') format('truetype');
-}
+/* @font-face { */
+/*     font-family: 'Bayon'; */
+/*     src: url('fonts/Bayon/Bayon-Regular.ttf') format('truetype'); */
+/*     font-display: fallback; */
+/* } */
 @font-face {
     font-family: 'Lora';
     src: url('fonts/Lora/Lora-Regular.ttf') format('truetype');
+    font-display: fallback;
 }
 
 body, html {
@@ -18,7 +20,6 @@ body {
     overflow:hidden;
     
     font-family: Lora;
-    font-display: fallback;
 }
 
 canvas {
