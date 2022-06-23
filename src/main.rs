@@ -217,6 +217,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             println!("Websocket connection closed, user <{user_id}> left");
             break;
         }
+        if !message.is_text() {
+            println!("Received non-text message");
+            continue;
+        }
 
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).unwrap();
