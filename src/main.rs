@@ -301,7 +301,8 @@ fn add_pawn<'a>(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'a, Pawn>) -> R
 	pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     for shape in &pawn.collider_shapes {
-        let collider: ColliderBuilder = ColliderBuilder::from(shape).density(1.0).friction(0.7);
+        let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
+            .mass_properties(MassProperties::new(Point::<f32>::origin(), 1.0, vector![1.0,1.0,1.0]));
         lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
     }
 
@@ -384,7 +385,8 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 lobby.world.remove_collider(handle);
             }
             for shape in &pawn.collider_shapes {
-                let collider: ColliderBuilder = ColliderBuilder::from(shape).density(1.0).friction(0.7);
+                let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
+                    .mass_properties(MassProperties::new(Point::<f32>::origin(), 1.0, vector![1.0,1.0,1.0]));
                 lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
             }
         }
