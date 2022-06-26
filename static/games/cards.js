@@ -16,8 +16,8 @@ self.start = async function() {
 
     let chipColors = [
         ['Red', 0xff0000, 10],
-        ['Blue', 0x1111ff, 10],
-        ['Green', 0x11bb11, 5],
+        ['Blue', 0x071466, 10],
+        ['Green', 0x5D8B0E, 5],
         ['Black', 0x111111, 2]
     ];
     for (let [i, [colorName, colorHex, amount]] of chipColors.entries()) {

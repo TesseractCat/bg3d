@@ -41,6 +41,7 @@ export class Pawn {
     networkTransform;
 
     mesh = new THREE.Object3D();
+    audioSource;
     size = new THREE.Vector3();
     hovered = false;
     selectStaticPosition;
@@ -81,6 +82,7 @@ export class Pawn {
     initialized = false;
     init(manager) {
         this.manager = manager;
+        this.audioSource = new THREE.PositionalAudio(this.manager.audioListener);
 
         // Load mesh
         if (this.meshUrl != null) { // GLTF URL
@@ -124,6 +126,7 @@ export class Pawn {
         }
 
         // Add to scene
+        this.mesh.add(this.audioSource);
         this.manager.scene.add(this.mesh);
         this.initialized = true;
     }

@@ -262,6 +262,7 @@ class Chat {
 export default class Manager {
     scene;
     camera;
+    audioListener;
     renderer;
     composer;
     controls;
@@ -767,6 +768,9 @@ export default class Manager {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.z = 15;
         this.camera.position.y = 8;
+
+        this.audioListener = new THREE.AudioListener();
+        this.camera.add(this.audioListener);
         
         this.renderer = new THREE.WebGLRenderer({
             canvas: display, alpha: true, antialias: true, stencil: false,
