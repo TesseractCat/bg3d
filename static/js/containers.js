@@ -205,7 +205,7 @@ export class Deck extends Pawn {
                 this.manager.removePawn(this.id);
                 break;
             case "deal":
-                this.grabCard(true);
+                this.grabCards(true);
                 break;
             case "grab_cards":
                 let cards = this.spawnCards(data.count);
