@@ -85,6 +85,7 @@ async fn main() {
         .and(warp::path::end())
         .and(warp::fs::file("./static/index.html"))
         .map(|_, file| file)
+        .with(warp::reply::with::header("Cache-Control", "no-cache, no-store, must-revalidate"))
         .with(warp::compression::gzip());
 
     let lobbies_clone = lobbies.clone();
