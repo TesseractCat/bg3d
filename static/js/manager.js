@@ -346,7 +346,7 @@ export default class Manager {
                 }
             }
             if (e.button == 0) {
-                toSelect[0].grab(e.button);
+                toSelect[0].grab(e.button, e.shiftKey);
                 this.controls.saveState();
                 this.controls.reset();
             }
