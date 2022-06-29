@@ -642,7 +642,12 @@ export default class Manager {
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
 
-        this.renderer.setPixelRatio(window.devicePixelRatio / 4.0);
+        // Set pixel ratio to 0.5 on mobile devices
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
+            this.renderer.setPixelRatio(1.0);
+        } else {
+            this.renderer.setPixelRatio(window.devicePixelRatio);
+        }
 
         // Update composer size
         // this.composer.setSize(window.innerWidth, window.innerHeight);
