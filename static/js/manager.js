@@ -290,6 +290,7 @@ export default class Manager {
     host = false;
     id;
     userColors = new Map();
+    info;
     
     static networkTimestep = 1000/20; // Milliseconds
     lastCallTime;
@@ -825,6 +826,7 @@ export default class Manager {
                 // We have initiated a connection
                 this.host = msg.host;
                 this.id = msg.id;
+                this.info = msg.info;
                 
                 callback(this.host);
                 
@@ -866,6 +868,11 @@ export default class Manager {
             } else if (type == "assign_host") {
                 document.querySelector("#host-panel").style.display = "block";
                 this.host = true;
+            }
+
+            if (type == "register_game") {
+                this.info = msg;
+                delete this.info.type;
             }
             
             if (type == "pong") {

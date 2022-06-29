@@ -167,9 +167,16 @@ pub struct Asset {
     pub data: Vec<u8>,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct GameInfo {
+    pub name: String,
+    pub author: String,
+}
 pub struct Lobby {
     pub name: String,
     pub host: usize,
+    pub info: Option<GameInfo>,
 
     pub users: HashMap<usize, User>, // FIXME: Make these both u16
     pub pawns: HashMap<u64, Pawn>,
@@ -184,6 +191,7 @@ impl Lobby {
         Lobby {
             name: "".to_string(),
             host: 0,
+            info: None,
 
             users: HashMap::new(),
             pawns: HashMap::new(),

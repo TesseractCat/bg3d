@@ -1,0 +1,6 @@
+{
+    "name": "Cards",
+    "description": "Cards, chips, and dice.",
+    "author": "Built-in",
+    "script":"games/scripts/cards.js"
+}

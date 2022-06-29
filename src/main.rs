@@ -238,7 +238,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                 Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
                 Event::UpdatePawns { updates } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
-                Event::RegisterAsset { name, data } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
+                Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
+                Event::RegisterAsset { name, data, last } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
                 Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
 
                 Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
@@ -287,7 +288,7 @@ fn event_callback(_user_id: usize, lobby: &mut Lobby, target: usize, mut data: V
 
 // --- PAWN EVENTS ---
 
-fn add_pawn<'a>(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'a, Pawn>) -> Result<(), Box<dyn Error>> {
+fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.pawns.len() >= 1024 { Err("Failed to add pawn")?; }
 
     if lobby.pawns.get(&pawn.id).is_some() { Err("Pawn ID collision")?; }
@@ -433,8 +434,21 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         .send_event(&Event::UpdatePawns { updates })
 }
 
-// --- ASSET EVENTS ---
+// --- GAME REGISTRATION EVENTS ---
 
+fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> Result<(), Box<dyn Error>> {
+    if user_id != lobby.host { Err("Failed to register game")?; }
+
+    println!("User <{user_id}> registering game \"{}\" for lobby [{}]",
+             info.name, lobby.name);
+
+    lobby.info = Some(info.into_owned());
+
+    lobby.users.values()
+        .send_event(&Event::RegisterGame(
+            Cow::Borrowed(lobby.info.as_ref().unwrap())
+        ))
+}
 fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.assets.len() >= 256 { Err("Failed to register asset")?; }
 
@@ -476,6 +490,7 @@ fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
         id: user_id,
         host: (lobby.users.len() == 1),
         color: &user.color,
+        info: &lobby.info,
         users: lobby.users.values().collect(),
         pawns: lobby.pawns.values().collect(),
     })?;
@@ -571,7 +586,7 @@ fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<()
 
 // -- CHAT EVENTS --
 
-fn chat<'a>(user_id: usize, lobby: &Lobby, content: Cow<'a, String>) -> Result<(), Box<dyn Error>> {
+fn chat(user_id: usize, lobby: &Lobby, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
     lobby.users.values().send_event(&Event::Chat {
         id: Some(user_id),
         content: Cow::Borrowed(&content)

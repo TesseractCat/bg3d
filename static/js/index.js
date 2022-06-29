@@ -24,10 +24,10 @@ window.onload = function() {
 
     manager.init((host) => {
         let games = [
-            ['Welcome', 'games/welcome.js'],
-            ['Cards', 'games/cards.js'],
-            ['Chess', 'games/chess.js'],
-            ['Go', 'games/go.js'],
+            ['Welcome', 'games/welcome.json'],
+            ['Cards', 'games/cards.json'],
+            ['Chess', 'games/chess.json'],
+            ['Go', 'games/go.json'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
@@ -54,11 +54,12 @@ window.onload = function() {
         gameOption.setAttribute("hidden", "");
         document.querySelector("#games").appendChild(gameOption);
 
-        function loadGame(index) {
+        async function loadGame(index) {
             let game = games[index];
             if (game) {
                 let url = game[1];
-                pluginLoader.loadScript(`${url}?v=${window.version}`);
+                let manifest = await (await fetch(`${url}?v=${window.version}`)).json();
+                pluginLoader.loadManifest(manifest, {updateSelect: false});
             }
         }
         document.querySelector("#games").addEventListener("change", (e) => {

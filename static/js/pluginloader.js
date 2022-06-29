@@ -43,52 +43,58 @@ export default class PluginLoader {
             return;
         }
 
+        await this.loadManifest(manifest, {entries: entries});
+        await reader.close();
+    }
+    async loadManifest(manifest, {entries = [], updateSelect = true}) {
+        // Load script
+        let scriptBlob;
         if (manifest.script != undefined) {
-            let script = findEntry(entries, manifest.script);
-            if (script) {
-                let scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
-
-                if (this.pluginWorker)
-                    this.pluginWorker.terminate();
-
-                this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
-                this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
+            if (entries.length > 0) {
+                // Load script from zip entries
+                let script = findEntry(entries, manifest.script);
+                if (script)
+                    scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
+            } else {
+                // Load script from URL
+                scriptBlob = this.createScriptBlob(await (await fetch(manifest.script)).blob());
             }
+        }
+
+        // Load worker
+        if (scriptBlob) {
+            if (this.pluginWorker)
+                this.pluginWorker.terminate();
+
+            this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
+            this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
         }
 
         // First clear all existing assets and pawns
         this.clear();
 
-        // Register all plugin assets
-        for (let entry of entries) {
-            if (!entry.directory)
-                await this.registerAsset(entry);
+        // Register everything
+        this.registerGame(manifest);
+        if (entries.length > 0) {
+            // Register all plugin assets
+            for (let [i, entry] of entries.entries()) {
+                if (!entry.directory)
+                    await this.registerAsset(entry, i == entries.length - 1);
+            }
+            // Wait until assets are complete (send empty event)
+            console.log("Waiting until assets complete...");
+            await new Promise(r => this.manager.sendEvent("assets_complete", false, {}, r));
+            console.log("Done!");
         }
-        // Wait until assets are complete (send empty event)
-        console.log("Waiting until assets complete...");
-        await new Promise(r => this.manager.sendEvent("assets_complete", false, {}, r));
-        console.log("Done!");
 
+        // Start worker
         this.callWorker("start");
 
-        await reader.close();
         console.log("Plugin loaded!");
-        document.querySelector("#games").value = "Custom";
+        if (updateSelect)
+            document.querySelector("#games").value = "Custom";
     }
-    async loadScript(url) {
-        let scriptBlob = this.createScriptBlob(await (await fetch(url)).blob());
 
-        if (this.pluginWorker)
-            this.pluginWorker.terminate();
-
-        this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
-        this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
-
-        // Clear all existing assets
-        this.clear();
-
-        this.callWorker("start");
-    }
     callWorker(action) {
         let resultPromise = new Promise((resolve, reject) => {
             let wait = (e) => {
@@ -159,7 +165,14 @@ export default class PluginLoader {
         return result;
     }
 
-    async registerAsset(entry) {
+    registerGame(manifest) {
+        this.manager.sendSocket({
+            "type":"register_game",
+            "name": manifest.name,
+            "author": manifest.author,
+        });
+    }
+    async registerAsset(entry, last = false) {
         let extension = entry.filename.split('.')[1].toLowerCase();
 
         let mimeType = "";
@@ -194,6 +207,7 @@ export default class PluginLoader {
             "type":"register_asset",
             "name": entry.filename,
             "data": data,
+            "last": last
         });
     }
     clear() {

@@ -277,12 +277,12 @@ export class Deck extends Pawn {
             return;
         if (button == 0 || this.data.contents.length == 1) {
             super.grab();
-        } else if (button == 2 && this.data.contents.length > 1) {
+        }/* else if (button == 2 && this.data.contents.length > 1) {
             this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_cards"}, (card_id) => {
                 this.updateDeck();
                 this.manager.pawns.get(card_id).grab(0);
             });
-        }
+        }*/
     }
     
     async updateDeck(fadeIn = false) {
