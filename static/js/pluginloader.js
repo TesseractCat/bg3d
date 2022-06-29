@@ -168,8 +168,7 @@ export default class PluginLoader {
     registerGame(manifest) {
         this.manager.sendSocket({
             "type":"register_game",
-            "name": manifest.name,
-            "author": manifest.author,
+            ...manifest
         });
     }
     async registerAsset(entry, last = false) {

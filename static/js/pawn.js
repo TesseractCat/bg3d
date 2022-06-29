@@ -335,7 +335,8 @@ export class Pawn {
             return;
         }
 
-        this.selectRotation.y += m * Math.PI/8;
+        let increment = this.manager.info?.rotationIncrement || Math.PI/8;
+        this.selectRotation.y += m * increment;
         this.dirty.add("selectRotation");
     }
     shake() { }

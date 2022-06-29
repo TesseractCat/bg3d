@@ -146,6 +146,9 @@ canvas {
 
     pointer-events:none;
 }
+#chat-panel .entry {
+    overflow-x: hidden;
+}
 
 /* HAND PANEL */
 

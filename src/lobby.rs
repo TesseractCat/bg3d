@@ -171,7 +171,10 @@ pub struct Asset {
 #[serde(rename_all = "camelCase")]
 pub struct GameInfo {
     pub name: String,
+    pub description: String,
     pub author: String,
+
+    pub rotation_increment: Option<f64>,
 }
 pub struct Lobby {
     pub name: String,
