@@ -308,7 +308,7 @@ export default class Manager {
         THREE.Cache.enabled = true;
         
         // Track mouse position
-        display.addEventListener("mousemove", (e) => {
+        display.addEventListener('pointermove', (e) => {
             this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
             tooltip.style.top = e.clientY + "px";
@@ -317,22 +317,25 @@ export default class Manager {
         
         let dragged = false;
         let downPos = {x: 0, y:0};
-        display.addEventListener('mousedown', (e) => {
+        display.addEventListener('pointerdown', (e) => {
             dragged = false;
             downPos = {x: e.clientX, y: e.clientY};
         });
-        display.addEventListener('mousemove', (e) => {
+        display.addEventListener('pointermove', (e) => {
             // Fix intermittent chrome bug where mouse move is triggered incorrectly
             // https://bugs.chromium.org/p/chromium/issues/detail?id=721341
             if (downPos.x - e.clientX != 0 && downPos.y - e.clientY != 0) {
                 dragged = true;
             }
         });
-        display.addEventListener('mousedown', (e) => {
-            // if (dragged)
-            //     return;
+        display.addEventListener('pointerdown', (e) => {
+            this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
+            this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
+            this.raycastHover();
+
             if (e.button != 0)
                 return;
+
             let toSelect = Array.from(this.pawns.values()).filter(p => 
                 p.moveable && (p.hovered || p.selected)
             );
@@ -351,7 +354,7 @@ export default class Manager {
                 this.controls.reset();
             }
         });
-        display.addEventListener('mouseup', (e) => {
+        display.addEventListener('pointerup', (e) => {
             if (e.button == 0) {
                 let selected = Array.from(this.pawns.values()).filter(p => p.selected);
                 for (let pawn of selected) {
@@ -370,14 +373,14 @@ export default class Manager {
         display.addEventListener('wheel', (e) => this.contextMenu.hide());
         
         // Chat
-        display.addEventListener("keydown", (e) => {
+        display.addEventListener('keydown', (e) => {
             if (e.key == "Enter") {
                 this.chat.focus();
             }
         });
         
         // Route events to active pawns
-        document.addEventListener("keydown", (e) => {
+        document.addEventListener('keydown', (e) => {
             if (this.chat.focused)
                 return;
 
@@ -550,6 +553,32 @@ export default class Manager {
             this.localCursor.dirty = false;
         }
     }
+    raycastHover() {
+        // Raycast for selectable
+        // (don't raycast ground plane to stop card's being below the ground issues)
+        // FIXME: Don't do this on mobile devices
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
+        let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
+        this.pawns.forEach((p, k) => p.hovered = false);
+
+        let pawn = null;
+        if (hovered.length > 0) {
+            hovered[0].object.traverseAncestors((a) => {
+                for (const [key, value] of this.pawns) {
+                    if (value.mesh == a) {
+                        if (value.moveable && !value.selected) {
+                            pawn = value;
+                        }
+                        value.hovered = true;
+                        return;
+                    }
+                }
+            });
+        }
+        return [pawn, hovered[0]?.point];
+    }
     animate() {
         // Render loop
         if (!document.hidden) {
@@ -558,8 +587,6 @@ export default class Manager {
             this.stats.update();
         }
         
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-
         // Calculate delta time
         const time = performance.now() / 1000; // seconds
         let dt = 0;
@@ -575,45 +602,22 @@ export default class Manager {
         
         // Raycast all objects for selectable/cursor
         if (!document.hidden) {
-            // Raycast for selectable
-            // (don't raycast ground plane to stop card's being below the ground issues)
-            // FIXME: Don't do this on mobile devices
-            let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
-            let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
-            this.pawns.forEach((p, k) => p.hovered = false);
-            if (hovered.length > 0) {
-                let pawnHovered = false;
-                let pawn = null;
-                hovered[0].object.traverseAncestors((a) => {
-                    for (const [key, value] of this.pawns) {
-                        if (value.mesh == a) {
-                            if (value.moveable && !value.selected) {
-                                pawnHovered = true;
-                                pawn = value;
-                            }
-                            value.hovered = true;
-                            return;
-                        }
-                    }
-                });
-                display.style.cursor = pawnHovered ? "pointer" : "auto";
-                if (pawnHovered && pawn != null && pawn instanceof Container) {
-                    tooltip.innerText = pawn.name;
-                    if (pawn.data.capacity !== undefined && pawn.data.capacity != null)
-                        tooltip.innerText += ` [${pawn.data.capacity}]`;
-                    tooltip.style.display = "block";
-                } else {
-                    tooltip.style.display = "none";
-                }
+            let [hovered, point] = this.raycastHover();
+
+            display.style.cursor = hovered ? "pointer" : "auto";
+            if (hovered != null && hovered instanceof Container) {
+                tooltip.innerText = hovered.name;
+                if (hovered.data.capacity !== undefined && hovered.data.capacity != null)
+                    tooltip.innerText += ` [${hovered.data.capacity}]`;
+                tooltip.style.display = "block";
             } else {
-                display.style.cursor = "auto";
                 tooltip.style.display = "none";
             }
             
             // Raycast for cursor plane
             let newCursorPosition = new THREE.Vector3();
-            if (hovered.length > 0) {
-                newCursorPosition.copy(hovered[0].point);
+            if (point) {
+                newCursorPosition.copy(point);
             } else {
                 let planeIntersection = this.raycaster.intersectObjects([this.plane], true);
                 if (planeIntersection.length > 0)
@@ -638,7 +642,7 @@ export default class Manager {
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
 
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(window.devicePixelRatio / 4.0);
 
         // Update composer size
         // this.composer.setSize(window.innerWidth, window.innerHeight);

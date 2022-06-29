@@ -178,6 +178,7 @@ export class Deck extends Pawn {
     grabCards(intoHand = false, count = 1) {
         if (count < 1)
             return;
+        // FIXME: Instead of callback, predict
         this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_cards", count: count}, (card_id) => {
             if (card_id) {
                 this.updateDeck();
