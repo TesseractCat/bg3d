@@ -46,9 +46,14 @@ class Hand {
             if (cardJSON.hasOwnProperty('data')) {
                 card.data = cardJSON.data;
 
-                let imageElement = this.element.querySelector(`img[data-id="${card.id}"]`);
+                // Defer replacing node
+                let originalImageElement = this.element.querySelector(`img[data-id="${card.id}"]`);
+                let imageElement = originalImageElement.cloneNode();
                 imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
                 imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+                imageElement.addEventListener('load', () => {
+                    originalImageElement.replaceWith(imageElement);
+                });
             }
         }
     }
