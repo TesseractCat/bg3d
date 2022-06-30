@@ -427,7 +427,7 @@ export class Container extends Pawn {
         }
     }
     
-    spawnItem() {
+    spawnItem(prediction = false) {
         if (this.data.capacity !== undefined) {
             if (this.data.capacity == 0)
                 return;
@@ -438,7 +438,7 @@ export class Container extends Pawn {
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
         this.manager.addPawn(item);
 
-        if (this.data.capacity) {
+        if (this.data.capacity && !prediction) {
             this.data.capacity -= 1;
             this.dirty.add("selected");
             this.dirty.add("data");

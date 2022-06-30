@@ -300,44 +300,49 @@ export class Pawn {
             }
         }
     }
+    selectAndRunTimeout;
     async selectAndRun(action, firstDelay = 100, secondDelay = 400) {
+        if (this.selected && !this.selectAndRunTimeout) {
+            action();
+            return;
+        }
         if (this.networkSelected || !this.moveable)
             return;
 
-        this.selected = true;
-        this.selectStaticPosition = this.position.clone();
-        this.dirty.add("selected");
+        if (this.selectAndRunTimeout) {
+            clearTimeout(this.selectAndRunTimeout);
+            this.selectAndRunTimeout = undefined;
+        } else {
+            this.selected = true;
+            this.selectStaticPosition = this.position.clone();
+            this.dirty.add("selected");
 
-        await new Promise(r => setTimeout(r, firstDelay));
+            await new Promise(r => setTimeout(r, firstDelay));
+        }
 
         action();
 
-        await new Promise(r => setTimeout(r, secondDelay));
-
-        this.selected = false;
-        this.selectStaticPosition = undefined;
-        this.dirty.add("selected");
+        this.selectAndRunTimeout = setTimeout(() => {
+            this.selected = false;
+            this.selectStaticPosition = undefined;
+            this.dirty.add("selected");
+            this.selectAndRunTimeout = undefined;
+        }, secondDelay);
     }
     flip() {
-        if (!this.selected) {
-            this.selectAndRun(() => this.flip());
-            return;
-        }
-
-        let tau = Math.PI * 2;
-        let modRot = ((this.selectRotation.x % tau) + tau) % tau;
-        this.selectRotation.x = modRot < Math.PI/2 ? Math.PI : 0;
-        this.dirty.add("selectRotation");
+        this.selectAndRun(() => {
+            let tau = Math.PI * 2;
+            let modRot = ((this.selectRotation.x % tau) + tau) % tau;
+            this.selectRotation.x = modRot < Math.PI/2 ? Math.PI : 0;
+            this.dirty.add("selectRotation");
+        });
     }
     rotate(m) {
-        if (!this.selected) {
-            this.selectAndRun(() => this.rotate(m));
-            return;
-        }
-
-        let increment = this.manager.info?.rotationIncrement || Math.PI/8;
-        this.selectRotation.y += m * increment;
-        this.dirty.add("selectRotation");
+        this.selectAndRun(() => {
+            let increment = this.manager.info?.rotationIncrement || Math.PI/8;
+            this.selectRotation.y += m * increment;
+            this.dirty.add("selectRotation");
+        });
     }
     shake() { }
     merge(rhs) { }
@@ -416,13 +421,15 @@ export class Pawn {
         pawn.selectRotation = pawnJSON.selectRotation;
         return pawn;
     }
-    clone() {
+    clone(parameters) {
         // Serialize and Deserialize to clone
         let serialized = this.serialize();
-        let serializedJSON = JSON.stringify(serialized);
-        let pawn = this.constructor.deserialize(JSON.parse(serializedJSON));
-        // New ID
-        pawn.id = Pawn.nextId();
+        let deserialized = JSON.parse(JSON.stringify(serialized));
+        deserialized.id = null;
+        let pawn = this.constructor.deserialize({
+            ...deserialized,
+            ...parameters,
+        });
         return pawn;
     }
     processData() { }
@@ -494,14 +501,11 @@ export class Dice extends Pawn {
     flip() { }
     rotate(m) { }
     shake() {
-        if (!this.selected) {
-            this.selectAndRun(() => this.shake());
-            return;
-        }
-
-        let value = Math.floor(Math.random() * this.data.rollRotations.length);
-        this.selectRotation = this.data.rollRotations[value];
-        this.dirty.add("selectRotation");
+        this.selectAndRun(() => {
+            let value = Math.floor(Math.random() * this.data.rollRotations.length);
+            this.selectRotation = this.data.rollRotations[value];
+            this.dirty.add("selectRotation");
+        });
     }
     
     static className() { return "Dice"; };

@@ -896,6 +896,8 @@ export default class Manager {
             }
             
             if (type == "add_pawn") {
+                if (this.pawns.has(msg.pawn.id))
+                    return;
                 let pawn = this.loadPawn(msg.pawn);
                 this.pawns.set(pawn.id, pawn);
                 pawn.init(this);
