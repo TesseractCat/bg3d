@@ -124,13 +124,13 @@ export default class PluginLoader {
         if (data.type == "addPawn") {
             let pawn = this.loadPawn(data.pawn);
             if (pawn) {
-                this.manager.addPawn(pawn);
+                this.manager.sendAddPawn(pawn);
                 respond(pawn.id);
             } else {
                 respond(-1);
             }
         } else if (data.type == "removePawn") {
-            this.manager.removePawn(pawn.id);
+            this.manager.sendRemovePawn(pawn.id);
         }
     }
 
@@ -213,6 +213,6 @@ export default class PluginLoader {
         this.manager.sendSocket({
             "type":"clear_assets"
         });
-        this.manager.clearPawns();
+        this.manager.sendClearPawns();
     }
 }

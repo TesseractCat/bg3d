@@ -209,6 +209,12 @@ impl Lobby {
         }
     }
 
+    pub fn remove_pawn(&mut self, id: u64) -> Option<Pawn> {
+        // Remove rigidbody first
+        let rb_handle = self.pawns.get(&id)?.rigid_body.unwrap();
+        self.world.remove_rigidbody(rb_handle);
+        self.pawns.remove(&id)
+    }
     pub fn next_user_id(&self) -> usize {
         self.next_user_id.fetch_add(1, Ordering::Relaxed)
     }

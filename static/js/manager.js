@@ -14,7 +14,7 @@ import { NetworkedTransform } from './transform';
 
 class Hand {
     manager;
-    cards = [];
+    cards = new Map();
     element;
     
     constructor(manager) {
@@ -23,27 +23,42 @@ class Hand {
     }
     
     pushCard(deck) {
-        let cardProps = deck.serialize();
-        this.cards.push(cardProps);
-        console.assert(cardProps.data.contents.length == 1);
+        let serialized = deck.serialize();
+        this.cards.set(serialized.id, serialized);
+        let card = this.cards.get(serialized.id);
+        console.assert(card.data.contents.length == 1);
         
         let imageElement = document.createElement("img");
-        imageElement.src = `${window.location.pathname}/${cardProps.data.contents[0]}`;
-        imageElement.style.borderRadius = `${cardProps.data.cornerRadius}in`;
+        imageElement.dataset.id = card.id;
+        imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
+        imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
         imageElement.setAttribute('draggable', false);
         imageElement.addEventListener("mousedown",
-            () => this.takeCard(imageElement));
+            () => this.takeCard(card.id));
         imageElement.oncontextmenu = function() {
             return false;
         }
         this.element.appendChild(imageElement);
     }
-    takeCard(elem) {
+    updateCard(cardJSON) {
+        if (this.cards.has(cardJSON.id)) {
+            let card = this.cards.get(cardJSON.id);
+            if (cardJSON.hasOwnProperty('data')) {
+                card.data = cardJSON.data;
+
+                let imageElement = this.element.querySelector(`img[data-id="${card.id}"]`);
+                imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
+                imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+            }
+        }
+    }
+    takeCard(id) {
         if ([...this.manager.pawns.values()].filter(p => p.selected).length != 0)
             return;
         
-        const idx = [...elem.parentElement.children].indexOf(elem);
-        let card = this.cards[idx];
+        let card = this.cards.get(id);
+        this.cards.delete(id);
+        this.element.querySelector(`img[data-id="${id}"]`).remove();
         
         let raycastableObjects = [...this.manager.pawns.values()].map(x => x.mesh);
         raycastableObjects.push(this.manager.plane);
@@ -55,9 +70,6 @@ class Hand {
             
             this.manager.sendEvent("request_add_pawn", true, {pawn:card}, (id) => {
                 this.manager.pawns.get(id).grab(0);
-                
-                this.cards.splice(idx, 1);
-                elem.remove();
             });
         }
     }
@@ -67,7 +79,7 @@ class Hand {
         while (this.element.firstChild) {
             this.element.firstChild.remove();
         }
-        this.cards = [];
+        this.cards.clear();
     }
 
     minimize(state) {
@@ -403,11 +415,35 @@ export default class Manager {
     }
     
     clearPawns() {
+        [...this.pawns.keys()].forEach(id => {
+            this.scene.remove(this.pawns.get(id).mesh);
+            this.pawns.get(id).dispose();
+            this.pawns.delete(id);
+        });
+        this.hand.clear();
+        THREE.Cache.clear();
+        Deck.textureCache.clear();
+    }
+    sendClearPawns() {
         this.sendSocket({
             type:"clear_pawns",
         });
     }
     addPawn(toAdd) {
+        if (this.pawns.has(toAdd.id) || this.hand.cards.has(toAdd.id)) {
+            this.updatePawn(toAdd);
+        } else {
+            if (toAdd instanceof Pawn) {
+                this.pawns.set(toAdd.id, toAdd);
+                toAdd.init(this);
+            } else {
+                let pawn = this.loadPawn(toAdd);
+                this.pawns.set(pawn.id, pawn);
+                pawn.init(this);
+            }
+        }
+    }
+    sendAddPawn(toAdd) {
         let serialized = toAdd.serialize();
 
         this.sendSocket({
@@ -416,6 +452,13 @@ export default class Manager {
         });
     }
     removePawn(id) {
+        if (this.pawns.has(id)) {
+            this.scene.remove(this.pawns.get(id).mesh);
+            this.pawns.get(id).dispose();
+            this.pawns.delete(id);
+        }
+    }
+    sendRemovePawn(id) {
         console.log("Removing pawn with ID: " + id);
         this.sendSocket({
             type:"remove_pawns",
@@ -448,10 +491,15 @@ export default class Manager {
     }
     updatePawn(pawnJSON) {
         if (!this.pawns.has(pawnJSON.id)) {
-            console.warn("Attempting to update non-existent pawn");
+            if (this.hand.cards.has(pawnJSON.id)) {
+                this.hand.updateCard(pawnJSON);
+            } else {
+                console.warn("Attempting to update non-existent pawn");
+            }
             return;
         }
         let pawn = this.pawns.get(pawnJSON.id);
+
         if (pawnJSON.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !pawnJSON.selected) {
                 // This pawn has been grabbed/released, reset the network buffer and update position
@@ -711,7 +759,7 @@ export default class Manager {
                 break;
             case "request_add_pawn":
                 let pawn = this.loadPawn(eventJSON.data.pawn);
-                this.addPawn(pawn);
+                this.sendAddPawn(pawn);
                 response = pawn.id;
                 break;
             case "request_update_pawns":
@@ -897,28 +945,13 @@ export default class Manager {
             }
             
             if (type == "add_pawn") {
-                if (this.pawns.has(msg.pawn.id))
-                    return;
-                let pawn = this.loadPawn(msg.pawn);
-                this.pawns.set(pawn.id, pawn);
-                pawn.init(this);
+                this.addPawn(msg.pawn);
             } else if (type == "remove_pawns") {
-                msg.pawns.forEach(id => {
-                    this.scene.remove(this.pawns.get(id).mesh);
-                    this.pawns.get(id).dispose();
-                    this.pawns.delete(id);
-                });
+                msg.pawns.forEach(id => this.removePawn(id));
             } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
             } else if (type == "clear_pawns") {
-                [...this.pawns.keys()].forEach(id => {
-                    this.scene.remove(this.pawns.get(id).mesh);
-                    this.pawns.get(id).dispose();
-                    this.pawns.delete(id);
-                });
-                this.hand.clear();
-                THREE.Cache.clear();
-                Deck.textureCache.clear();
+                this.clearPawns();
             }
             
             if (type == "connect") {

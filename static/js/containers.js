@@ -111,7 +111,8 @@ export class Deck extends Pawn {
     }
     dispose() {
         super.dispose();
-        this.sideTexture.dispose();
+        if (this.sideTexture)
+            this.sideTexture.dispose();
         // FIXME: Dispose of textures, if possible
     }
 
@@ -163,9 +164,10 @@ export class Deck extends Pawn {
 
         if (e.key == "g" && this.data.contents.length == 1) {
             super.release(false);
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "remove"}, () => {
-                this.manager.hand.pushCard(this);
-            });
+
+            this.manager.removePawn(this.id);
+            this.manager.hand.pushCard(this);
+            this.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
         }
         if (!this.selected && e.key == 't') {
             this.grabCards();
@@ -180,11 +182,12 @@ export class Deck extends Pawn {
             return;
         let cards = this.spawnCards(count);
         if (intoHand && count == 1) {
-            this.manager.sendEvent("pawn", true, {id: cards.id, name: "remove"}, () => {
-                this.manager.hand.pushCard(cards);
-            });
+            this.manager.removePawn(cards.id);
+            this.manager.hand.pushCard(cards);
+            this.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
         } else {
-            cards.grab(0);
+            if (cards)
+                cards.grab(0);
         }
     }
     split() {
@@ -193,12 +196,6 @@ export class Deck extends Pawn {
     handleEvent(data) {
         let out = super.handleEvent(data);
         switch (data.name) {
-            case "insert":
-                this.insert(data.top, data.contents);
-                break;
-            case "remove":
-                this.manager.removePawn(this.id);
-                break;
             case "deal":
                 this.grabCards(true);
                 break;
@@ -222,8 +219,7 @@ export class Deck extends Pawn {
             position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0))
         });
         
-        this.manager.pawns.set(cardPawn.id, cardPawn);
-        cardPawn.init(this.manager);
+        this.manager.addPawn(cardPawn);
         
         this.data.contents.splice(range[0], count);
 
@@ -239,24 +235,24 @@ export class Deck extends Pawn {
         return cardPawn;
     }
     insert(top, contents) {
-        console.assert(this.manager.host);
         if (!top) {
             this.data.contents = [...contents, ...this.data.contents];
         } else {
             this.data.contents = [...this.data.contents, ...contents];
         }
         this.updateDeck();
-        this.dirty.add("selected");
-        this.dirty.add("data");
-        this.manager.tick();
     }
     merge(rhs) {
         if (rhs instanceof Deck && rhs.name == this.name && rhs.flipped() == this.flipped()) {
-            this.manager.sendEvent("pawn", true, {
-                id: this.id, name: "insert",
-                top: this.flipped(), contents: rhs.data.contents
-            });
+            this.insert(this.flipped(), rhs.data.contents);
+
             this.manager.removePawn(rhs.id);
+
+            this.manager.sendSocket({
+                type: "merge_pawns",
+                into_id: this.id,
+                from_id: rhs.id,
+            });
         }
     }
     grab(button, shift) {
@@ -379,19 +375,6 @@ export class Container extends Pawn {
 
     flip() { }
     
-    handleEvent(data) {
-        let out = super.handleEvent(data);
-        switch (data.name) {
-            case "insert_item":
-                if (this.data.capacity) {
-                    this.data.capacity += 1;
-                    this.dirty.add("selected");
-                    this.dirty.add("data");
-                }
-                break;
-        }
-        return out;
-    }
     keyDown(e) {
         super.keyDown(e);
 
@@ -409,8 +392,7 @@ export class Container extends Pawn {
         let item = this.manager.loadPawn(this.data.holds).clone();
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
 
-        this.manager.pawns.set(item.id, item);
-        item.init(this.manager);
+        this.manager.addPawn(item);
         this.manager.pawns.get(item.id).grab(0);
 
         if (this.data.capacity) {
@@ -433,8 +415,16 @@ export class Container extends Pawn {
         if (rhs.name != this.data.holds.name)
             return;
 
+        if (this.data.capacity) {
+            this.data.capacity += 1;
+        }
         this.manager.removePawn(rhs.id);
-        this.manager.sendEvent("pawn", true, {id: this.id, name: "insert_item"});
+
+        this.manager.sendSocket({
+            type: "merge_pawns",
+            into_id: this.id,
+            from_id: rhs.id,
+        });
     }
     
     static className() { return "Container"; };

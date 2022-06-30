@@ -236,8 +236,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                 Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
                 Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
                 Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
-                Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
                 Event::UpdatePawns { updates } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
+
+                Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
+                Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
 
                 Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
                 Event::RegisterAsset { name, data, last } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
@@ -321,10 +323,7 @@ fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Resul
     
     // Remove pawn from lobby
     for id in &pawn_ids {
-        // Remove rigidbody first
-        let rb_handle = lobby.pawns.get(&id).ok_or("Trying to remove missing pawn")?.rigid_body.unwrap();
-        lobby.world.remove_rigidbody(rb_handle);
-        lobby.pawns.remove(&id);
+        lobby.remove_pawn(*id);
     }
     
     lobby.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })
@@ -340,58 +339,6 @@ fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> 
     lobby.pawns = HashMap::new();
     
     lobby.users.values().send_event(&Event::ClearPawns {})
-}
-fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
-    let from = lobby.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
-
-    let flipped = from.flipped();
-    let to = match &mut from.data {
-        PawnData::Container { holds, capacity } => {
-            if *capacity == Some(0) {
-                Err::<Pawn, Box<dyn Error>>("Trying to extract from empty container".into())
-            } else {
-                if capacity.is_some() {
-                    capacity.replace(capacity.unwrap() - 1);
-                }
-                let mut to = *holds.clone();
-                to.id = to_id;
-                to.position = from.position.clone();
-                to.position.y += 2.0;
-                Ok(to)
-            }
-        },
-        PawnData::Deck { contents: from_contents, .. } => {
-            let count = count.map(|x| x.max(1)).unwrap_or(1) as usize;
-            if from_contents.len() <= count {
-                Err("Trying to extract too many cards from deck".into())
-            } else {
-                let new_contents: Vec<String> = from_contents.drain(if flipped {
-                    (from_contents.len() - count)..from_contents.len()
-                } else {
-                    0..count
-                }).collect();
-
-                let mut to = from.clone();
-                to.id = to_id;
-                to.position = from.position.clone();
-                to.position.y += 1.0;
-                if let PawnData::Deck { contents: to_contents, .. } = &mut to.data {
-                    *to_contents = new_contents;
-                }
-                Ok(to)
-            }
-        },
-        _ => Err("Trying to extract from non-container pawn".into()),
-    }?;
-
-    lobby.users.values().send_event(&Event::UpdatePawns {
-        updates: vec![PawnUpdate {
-            id: from.id,
-            data: Some(from.data.clone()),
-            ..Default::default()
-        }]
-    })?;
-    add_pawn(user_id, lobby, Cow::Owned(to))
 }
 fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
     // Iterate through and update pawns, sanitize updates when relaying:
@@ -485,6 +432,94 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
     lobby.users.values()
         .filter(|u| u.id != user_id)
         .send_event(&Event::UpdatePawns { updates })
+}
+
+fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+    let from = lobby.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
+
+    let flipped = from.flipped();
+    let to = match &mut from.data {
+        PawnData::Container { holds, capacity } => {
+            if *capacity == Some(0) {
+                Err::<Pawn, Box<dyn Error>>("Trying to extract from empty container".into())
+            } else {
+                if capacity.is_some() {
+                    capacity.replace(capacity.unwrap() - 1);
+                }
+                let mut to = *holds.clone();
+                to.id = to_id;
+                to.position = from.position.clone();
+                to.position.y += 2.0;
+                Ok(to)
+            }
+        },
+        PawnData::Deck { contents: from_contents, .. } => {
+            let count = count.map(|x| x.max(1)).unwrap_or(1) as usize;
+            if from_contents.len() <= count {
+                Err("Trying to extract too many cards from deck".into())
+            } else {
+                let new_contents: Vec<String> = from_contents.drain(if flipped {
+                    (from_contents.len() - count)..from_contents.len()
+                } else {
+                    0..count
+                }).collect();
+
+                let mut to = from.clone();
+                to.id = to_id;
+                to.position = from.position.clone();
+                to.position.y += 1.0;
+                if let PawnData::Deck { contents: to_contents, .. } = &mut to.data {
+                    *to_contents = new_contents;
+                }
+                Ok(to)
+            }
+        },
+        _ => Err("Trying to extract from non-container pawn".into()),
+    }?;
+
+    lobby.users.values().send_event(&Event::UpdatePawns {
+        updates: vec![PawnUpdate {
+            id: from.id,
+            data: Some(from.data.clone()),
+            ..Default::default()
+        }]
+    })?;
+    add_pawn(user_id, lobby, Cow::Owned(to))
+}
+fn merge_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
+    let from = lobby.remove_pawn(from_id).ok_or("Trying to merge from missing pawn")?;
+    let into = lobby.pawns.get_mut(&into_id).ok_or("Trying to merge into missing pawn")?;
+
+    let flipped = into.flipped();
+    match &mut into.data {
+        PawnData::Container { capacity, .. } => {
+            if capacity.is_some() {
+                capacity.replace(capacity.unwrap() + 1);
+            }
+            Ok::<(), Box<dyn Error>>(())
+        },
+        PawnData::Deck { contents: into_contents, .. } => {
+            if let PawnData::Deck { contents: mut from_contents, ..} = from.data {
+                if flipped {
+                    into_contents.append(&mut from_contents);
+                } else {
+                    from_contents.append(into_contents);
+                    *into_contents = from_contents;
+                }
+            }
+            Ok(())
+        },
+        _ => Err("Trying to merge into non-container pawn".into()),
+    }?;
+
+    lobby.users.values().send_event(&Event::UpdatePawns {
+        updates: vec![PawnUpdate {
+            id: into.id,
+            data: Some(into.data.clone()),
+            ..Default::default()
+        }]
+    })?;
+    lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from.id] })
 }
 
 // --- GAME REGISTRATION EVENTS ---

@@ -50,11 +50,13 @@ pub enum Event<'a> {
         ids: Vec<u64>
     },
     ClearPawns {},
-    ExtractPawns { from_id: u64, to_id: u64, count: Option<u64> },
     UpdatePawns {
         #[serde(rename = "pawns")]
         updates: Vec<PawnUpdate>
     },
+
+    ExtractPawns { from_id: u64, to_id: u64, count: Option<u64> },
+    MergePawns { from_id: u64, into_id: u64 },
 
     RegisterGame(Cow<'a, GameInfo>),
     RegisterAsset { name: String, data: String, last: bool },
