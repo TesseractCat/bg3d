@@ -407,11 +407,12 @@ export default class Manager {
             type:"clear_pawns",
         });
     }
-    addPawn(pawn) {
-        console.log("Adding pawn with ID: " + pawn.id);
+    addPawn(toAdd) {
+        let serialized = toAdd.serialize();
+
         this.sendSocket({
             type:"add_pawn",
-            pawn:pawn.serialize()
+            pawn:serialized
         });
     }
     removePawn(id) {

@@ -178,20 +178,14 @@ export class Deck extends Pawn {
     grabCards(intoHand = false, count = 1) {
         if (count < 1)
             return;
-        // FIXME: Instead of callback, predict
-        this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_cards", count: count}, (card_id) => {
-            if (card_id) {
-                this.updateDeck();
-                let card = this.manager.pawns.get(card_id);
-                if (intoHand) {
-                    this.manager.sendEvent("pawn", true, {id: card.id, name: "remove"}, () => {
-                        this.manager.hand.pushCard(card);
-                    });
-                } else {
-                    card.grab(0);
-                }
-            }
-        });
+        let cards = this.spawnCards(count);
+        if (intoHand && count == 1) {
+            this.manager.sendEvent("pawn", true, {id: cards.id, name: "remove"}, () => {
+                this.manager.hand.pushCard(cards);
+            });
+        } else {
+            cards.grab(0);
+        }
     }
     split() {
         this.grabCards(false, Math.floor(this.data.contents.length/2));
@@ -208,11 +202,6 @@ export class Deck extends Pawn {
             case "deal":
                 this.grabCards(true);
                 break;
-            case "grab_cards":
-                let cards = this.spawnCards(data.count);
-                if (cards)
-                    out = cards.id;
-                break;
             case "shuffle":
                 this.shuffle();
                 break;
@@ -224,29 +213,26 @@ export class Deck extends Pawn {
         if (this.data.contents.length - count < 1)
             return;
 
-        // Create a new deck of length 1 and grab that instead
+        // Create a new deck of length `count` and grab that instead
         let range = this.flipped() ?
             [this.data.contents.length - count, this.data.contents.length] :
             [0, count];
-        let cardPawn = new Deck({
-            manager: this.manager, name: this.name,
-            contents: this.data.contents.slice(range[0], range[1]), back: this.data.back,
-            border: this.data.border, sideColor: this.data.sideColor,
-
-            cornerRadius: this.data.cornerRadius, cardThickness: this.data.cardThickness,
-            position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0)), rotation: this.rotation,
-            size: this.data.size
+        let cardPawn = this.clone({
+            contents: this.data.contents.slice(range[0], range[1]),
+            position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0))
         });
-        cardPawn.selectRotation = Object.assign({}, this.selectRotation);
         
-        this.manager.addPawn(cardPawn);
+        this.manager.pawns.set(cardPawn.id, cardPawn);
+        cardPawn.init(this.manager);
         
         this.data.contents.splice(range[0], count);
-        this.dirty.add("selected");
-        this.dirty.add("data");
-        // Flush dirty and prevent race condition
-        // (where you could grab and put down in the same tick, causing the contents to be synced out of order)
-        this.manager.tick();
+
+        this.manager.sendSocket({
+            type: "extract_pawns",
+            from_id: this.id,
+            to_id: cardPawn.id,
+            count: count,
+        });
         
         this.updateDeck();
         
@@ -386,12 +372,7 @@ export class Container extends Pawn {
         let entries = super.menu();
         entries[1].splice(0, 1);
         entries.splice(1, 0, [
-            ["Take", () => {
-                this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                    if (item_id)
-                        this.manager.pawns.get(item_id).grab(0);
-                });
-            }]  
+            ["Take", () => this.spawnItem()]  
         ]);
         return entries;
     }
@@ -401,11 +382,6 @@ export class Container extends Pawn {
     handleEvent(data) {
         let out = super.handleEvent(data);
         switch (data.name) {
-            case "grab_item":
-                let item = this.spawnItem();
-                if (item)
-                    out = item.id;
-                break;
             case "insert_item":
                 if (this.data.capacity) {
                     this.data.capacity += 1;
@@ -420,31 +396,32 @@ export class Container extends Pawn {
         super.keyDown(e);
 
         if (!this.selected && e.key == 't') {
-            this.manager.sendEvent("pawn", true, {id: this.id, name: "grab_item"}, (item_id) => {
-                if (item_id)
-                    this.manager.pawns.get(item_id).grab(0);
-            });
+            this.spawnItem();
         }
     }
     
-    spawnItem(prediction = false) {
+    spawnItem() {
         if (this.data.capacity !== undefined) {
             if (this.data.capacity == 0)
                 return;
         }
 
         let item = this.manager.loadPawn(this.data.holds).clone();
-
         item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
-        this.manager.addPawn(item);
 
-        if (this.data.capacity && !prediction) {
+        this.manager.pawns.set(item.id, item);
+        item.init(this.manager);
+        this.manager.pawns.get(item.id).grab(0);
+
+        if (this.data.capacity) {
             this.data.capacity -= 1;
-            this.dirty.add("selected");
-            this.dirty.add("data");
         }
-        
-        return item;
+
+        this.manager.sendSocket({
+            type: "extract_pawns",
+            from_id: this.id,
+            to_id: item.id,
+        });
     }
     grab(button) {
         if (this.selected || this.networkSelected)

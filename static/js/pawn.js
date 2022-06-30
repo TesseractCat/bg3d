@@ -409,13 +409,9 @@ export class Pawn {
     static deserialize(pawnJSON) {
         let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new this({
-            name: pawnJSON.name,
-            position: pawnJSON.position, rotation: rotation,
-            mesh: pawnJSON.mesh, tint: pawnJSON.tint,
-            colliderShapes: pawnJSON.colliderShapes,
-            moveable: pawnJSON.moveable, id: pawnJSON.id,
-
-            ...pawnJSON.data
+            ...pawnJSON.data,
+            ...pawnJSON,
+            rotation: rotation,
         });
         pawn.networkSelected = pawnJSON.selected;
         pawn.selectRotation = pawnJSON.selectRotation;

@@ -50,7 +50,7 @@ pub enum Event<'a> {
         ids: Vec<u64>
     },
     ClearPawns {},
-    
+    ExtractPawns { from_id: u64, to_id: u64, count: Option<u64> },
     UpdatePawns {
         #[serde(rename = "pawns")]
         updates: Vec<PawnUpdate>

@@ -160,6 +160,9 @@ impl Pawn {
             update.select_rotation.map(|v| self.select_rotation = v);
         }
     }
+    pub fn flipped(&self) -> bool {
+        (self.select_rotation.x - std::f64::consts::PI).abs() < 0.01
+    }
 }
 
 pub struct Asset {
