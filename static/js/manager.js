@@ -33,8 +33,7 @@ class Hand {
         imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
         imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
         imageElement.setAttribute('draggable', false);
-        imageElement.addEventListener("mousedown",
-            () => this.takeCard(card.id));
+        imageElement.addEventListener('pointerdown', () => this.takeCard(card.id));
         imageElement.oncontextmenu = function() {
             return false;
         }
@@ -51,6 +50,8 @@ class Hand {
                 let imageElement = originalImageElement.cloneNode();
                 imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
                 imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+
+                imageElement.addEventListener('pointerdown', () => this.takeCard(card.id));
                 imageElement.addEventListener('load', () => {
                     originalImageElement.replaceWith(imageElement);
                 });
@@ -123,12 +124,12 @@ class ContextMenu {
 
     constructor(manager) {
         this.manager = manager;
-        this.element = document.querySelector("#context-menu");
+        this.element = document.querySelector('#context-menu');
 
-        this.element.addEventListener("contextmenu", (e) => {
+        this.element.addEventListener('contextmenu', (e) => {
             e.preventDefault();
         });
-        document.addEventListener("mousedown", (e) => {
+        document.addEventListener('pointerdown', (e) => {
             if (!this.element.contains(e.target) && this.visible) {
                 this.hide();
             }
@@ -200,7 +201,7 @@ class Chat {
         this.entries = document.querySelector("#chat-entries");
 
         let clickingPanel = false;
-        this.panel.addEventListener("mousedown", () => {
+        this.panel.addEventListener('pointerdown', () => {
             if (!this.focused)
                 clickingPanel = true;
         });
