@@ -149,6 +149,16 @@ canvas {
 #chat-panel .entry {
     overflow-x: hidden;
 }
+@media only screen and (max-width: 768px) {
+    #chat-panel {
+        right:5%;
+        left:5%;
+        width:auto;
+    }
+    #chat-panel #chat-entries {
+        max-height:75px;
+    }
+}
 
 /* HAND PANEL */
 
@@ -260,6 +270,11 @@ canvas {
 }
 #icon:hover {
     background-color: #dddbd5;
+}
+@media only screen and (max-width: 768px) {
+    #icon {
+        display:none;
+    }
 }
 
 a, a:visited {
