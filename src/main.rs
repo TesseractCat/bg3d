@@ -50,7 +50,9 @@ async fn main() {
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
 
-    let default = warp::fs::dir("./static").with(warp::compression::gzip());
+    let default = warp::fs::dir("./static")
+        .with(warp::reply::with::header("Cache-Control", "max-age=31536000"))
+        .with(warp::compression::gzip());
     let default_assets = warp::path::param::<String>()
         .and(warp::fs::dir("./static/games"))
         .map(|_, file| file)
