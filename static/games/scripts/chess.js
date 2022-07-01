@@ -5,14 +5,15 @@ function chessToWorldPos(chessPos, height = 3) {
 function getPiece(name, radius, height) {
     let white = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '_white.gltf',
+        mesh: 'chess/' + name + '.gltf',
         colliderShapes: [
             new Cylinder(radius, height)
         ]
     });
     let black = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '_black.gltf',
+        mesh: 'chess/' + name + '.gltf',
+        tint: 0x0A0A0A,
         colliderShapes: [
             new Cylinder(radius, height)
         ]
