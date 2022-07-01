@@ -258,7 +258,7 @@ export class Deck extends Pawn {
     grab(button, shift) {
         if (this.selected || this.networkSelected)
             return;
-        if (!shift) {
+        if (!shift || this.data.contents.length == 1) {
             super.grab();
         } else {
             this.grabCards();

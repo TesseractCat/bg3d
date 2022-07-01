@@ -189,7 +189,7 @@ canvas {
     margin-left:0px;
 }
 #hand-panel img:hover {
-    margin-bottom:0px;
+    margin-bottom:-40px;
 }
 #hand-panel.minimized img {
     margin-bottom:-120px;
