@@ -162,6 +162,15 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             tx.send(message).unwrap_or_else(|_| {}).await
         }
     });
+
+    // Send keep-alive pings every 5 seconds
+    let cloned_tx = buffer_tx.clone();
+    tokio::task::spawn(async move {
+        loop {
+            cloned_tx.send(Message::ping(vec![])).ok();
+            sleep(Duration::from_secs(5)).await;
+        }
+    });
     
     // Track user
     let user_id: usize = {
@@ -219,8 +228,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
             break;
         }
         if !message.is_text() {
-            println!("Received non-text message");
-            continue;
+            if message.is_pong() { continue; } else {
+                println!("Received non-text/non-pong message");
+                continue;
+            }
         }
 
         let lobbies_rl = lobbies.read().await;
@@ -292,9 +303,9 @@ fn event_callback(_user_id: usize, lobby: &mut Lobby, target: usize, mut data: V
 // --- PAWN EVENTS ---
 
 fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
-    if lobby.pawns.len() >= 1024 { Err("Failed to add pawn")?; }
+    if user_id != lobby.host || lobby.pawns.len() >= 1024 { return Err("Failed to add pawn".into()); }
 
-    if lobby.pawns.get(&pawn.id).is_some() { Err("Pawn ID collision")?; }
+    if lobby.pawns.get(&pawn.id).is_some() { return Err("Pawn ID collision".into()); }
     
     // Deserialize collider
     // FIXME: Only enable CCD on cards/thin geometry?
@@ -319,7 +330,7 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     Ok(())
 }
 fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Result<(), Box<dyn Error>> {
-    // if user_id != lobby.host { Err("Failed to remove pawn")?; }
+    // if user_id != lobby.host { return Err("Failed to remove pawn".into()); }
     
     // Remove pawn from lobby
     for id in &pawn_ids {
@@ -329,7 +340,7 @@ fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Resul
     lobby.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })
 }
 fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host { Err("Failed to clear pawns")?; }
+    if user_id != lobby.host { return Err("Failed to clear pawns".into()); }
 
     // Remove pawn rigidbodies from lobby
     for (id, _) in lobby.pawns.iter() {
@@ -484,7 +495,7 @@ fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, co
             ..Default::default()
         }]
     })?;
-    add_pawn(user_id, lobby, Cow::Owned(to))
+    add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
 fn merge_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
     let from = lobby.remove_pawn(from_id).ok_or("Trying to merge from missing pawn")?;
@@ -525,7 +536,7 @@ fn merge_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) ->
 // --- GAME REGISTRATION EVENTS ---
 
 fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host { Err("Failed to register game")?; }
+    if user_id != lobby.host { return Err("Failed to register game".into()); }
 
     println!("User <{user_id}> registering game \"{}\" for lobby [{}]",
              info.name, lobby.name);
@@ -538,9 +549,9 @@ fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> 
         ))
 }
 fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host || lobby.assets.len() >= 256 { Err("Failed to register asset")?; }
+    if user_id != lobby.host || lobby.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
-    if lobby.assets.get(&name).is_some() { Err("Attempting to overwrite asset")?; }
+    if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
 
     let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
     let asset = Asset {
@@ -549,7 +560,7 @@ fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String)
     };
 
     // No assets above 2 MiB
-    if asset.data.len() > 1024 * 1024 * 2 { Err("Asset too large")?; }
+    if asset.data.len() > 1024 * 1024 * 2 { return Err("Asset too large".into()); }
 
     lobby.assets.insert(name.to_string(), asset);
 
@@ -557,7 +568,7 @@ fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String)
     Ok(())
 }
 fn clear_assets(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host { Err("Failed to clear assets")?; }
+    if user_id != lobby.host { return Err("Failed to clear assets".into()); }
 
     lobby.assets = HashMap::new();
 
