@@ -4,13 +4,14 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
+use std::str::FromStr;
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{sleep, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use warp::{http::{Uri, Response}, Filter};
+use warp::{http::{Uri, Response}, Filter, Reply};
 use warp::ws::{Message, WebSocket};
 use data_url::DataUrl;
 
@@ -83,8 +84,19 @@ async fn main() {
     
     let index = warp::path::param::<String>()
         .and(warp::path::end())
+        .and(warp::path::full())
         .and(warp::fs::file("./static/index.html"))
-        .map(|_, file| file)
+        .map(|_, full_path: warp::filters::path::FullPath, file| -> Box<dyn Reply> {
+            let full_path = full_path.as_str();
+            let path_uri = Uri::from_str(&full_path[..(full_path.len()-1)])
+                .unwrap_or(Uri::from_static("/"));
+
+            if full_path.ends_with('/') {
+                Box::new(warp::redirect::see_other(path_uri))
+            } else {
+                Box::new(file)
+            }
+        })
         .with(warp::reply::with::header("Cache-Control", "no-cache, no-store, must-revalidate"))
         .with(warp::compression::gzip());
 
