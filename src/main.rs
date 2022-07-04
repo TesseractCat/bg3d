@@ -323,12 +323,12 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     
     // Deserialize collider
     // FIXME: Only enable CCD on cards/thin geometry?
-	let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic().ccd_enabled(true) } else { RigidBodyBuilder::fixed() }
-		.translation(Vector::from(&pawn.position))
+    let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic().ccd_enabled(true) } else { RigidBodyBuilder::fixed() }
+        .translation(Vector::from(&pawn.position))
         .rotation(Rotation::from(&pawn.rotation).scaled_axis())
         .linear_damping(1.5).angular_damping(0.5)
         .build();
-	pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
+    pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     for shape in &pawn.collider_shapes {
         let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
