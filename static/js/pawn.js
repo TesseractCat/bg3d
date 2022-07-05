@@ -6,6 +6,8 @@ import Manager from './manager';
 import { NetworkedTransform } from './transform';
 import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
+import { Spring, Vector3Spring } from './spring';
+
 Math.clamp = function(x, min, max) {
     return Math.min(Math.max(x, min), max);
 };
@@ -144,6 +146,7 @@ export class Pawn {
         });
     }
     
+    grabSpring = new Vector3Spring(new THREE.Vector3(0,0,0), 500, 40, 2);
     animate(dt) {
         if (this.selected) {
             let grabPoint = this.selectStaticPosition;
@@ -183,9 +186,16 @@ export class Pawn {
             if (grabPoint) {
                 // Lerp
                 let newPosition = this.position.clone();
-                newPosition.lerp(grabPoint.clone().add(
-                    new THREE.Vector3(0, this.size.y/2 + (snapped ? 0.5 : 1), 0)
-                ), Math.clamp01(dt * 10));
+                let height = this.size.y/2 + (snapped ? 0.5 : 1);
+                newPosition.copy(this.grabSpring.animateTo(
+                    grabPoint.clone().add(
+                        new THREE.Vector3(0, height, 0)
+                    ),
+                    dt
+                ));
+                // newPosition.lerp(grabPoint.clone().add(
+                //     new THREE.Vector3(0, height, 0)
+                // ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
                 newRotation.slerp(new THREE.Quaternion().setFromEuler(
@@ -268,8 +278,9 @@ export class Pawn {
         
         this.selected = true;
         this.dirty.add("selected");
-        //this.updateMeshTransform(); // FIXME: Needed?
         this.manager.hand.minimize(true);
+
+        this.grabSpring.copy(this.position);
     }
     release(tryMerge = true) {
         this.selected = false;
