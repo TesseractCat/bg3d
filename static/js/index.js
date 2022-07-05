@@ -64,6 +64,7 @@ window.onload = function() {
         }
         document.querySelector("#games").addEventListener("change", (e) => {
             loadGame(e.target.selectedIndex);
+            document.querySelector("#games").blur();
         });
         document.querySelector("#add-piece").addEventListener("click", (e) => {
             let info = document.querySelector("#pieces").value.split("/");

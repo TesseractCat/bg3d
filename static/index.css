@@ -163,35 +163,40 @@ canvas {
 /* HAND PANEL */
 
 #hand-panel {
+    display:flex;
+    justify-content:center;
+    align-items:flex-end;
+
     position:absolute;
     bottom:0px;
     width:100%;
     text-align:center;
     pointer-events:none;
+
+    margin-bottom:-80px;
 }
 #hand-panel h1 {
     display:inline;
     pointer-events:auto;
 }
-#hand-panel img {
-    display:inline;
-    pointer-events:auto;
+.card {
     cursor:pointer;
     height:200px;
-    margin-left:-80px;
-    margin-bottom:-80px;
-    transition:margin-bottom 0.2s;
-    user-select:none;
-
-    box-shadow: -10px 10px 20px rgb(0 0 0 / 30%);
 }
-#hand-panel img:first-child {
+#hand-panel .card {
+    display:inline-block;
+
+    margin-left:-40px;
+    pointer-events:auto;
+    user-select:none;
+}
+#hand-panel .card:first-child {
     margin-left:0px;
 }
-#hand-panel img:hover {
-    margin-bottom:-40px;
+#hand-panel .card:hover {
+    margin-bottom:40px;
 }
-#hand-panel.minimized img {
+#hand-panel.minimized {
     margin-bottom:-120px;
     pointer-events:none;
 }
