@@ -146,7 +146,8 @@ export class Pawn {
         });
     }
     
-    grabSpring = new Vector3Spring(new THREE.Vector3(0,0,0), 500, 40, 2);
+    // grabSpring = new Vector3Spring(new THREE.Vector3(0,0,0), 500, 40, 2);
+    grabSpring = new Spring(0, 250);
     animate(dt) {
         if (this.selected) {
             let grabPoint = this.selectStaticPosition;
@@ -187,15 +188,15 @@ export class Pawn {
                 // Lerp
                 let newPosition = this.position.clone();
                 let height = this.size.y/2 + (snapped ? 0.5 : 1);
-                newPosition.copy(this.grabSpring.animateTo(
-                    grabPoint.clone().add(
-                        new THREE.Vector3(0, height, 0)
-                    ),
-                    dt
-                ));
-                // newPosition.lerp(grabPoint.clone().add(
-                //     new THREE.Vector3(0, height, 0)
-                // ), Math.clamp01(dt * 10));
+                // newPosition.copy(this.grabSpring.animateTo(
+                //     grabPoint.clone().add(
+                //         new THREE.Vector3(0, height, 0)
+                //     ),
+                //     dt
+                // ));
+                newPosition.lerp(grabPoint.clone().add(
+                    new THREE.Vector3(0, this.grabSpring.animateTo(height, dt), 0)
+                ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
                 newRotation.slerp(new THREE.Quaternion().setFromEuler(
@@ -280,7 +281,7 @@ export class Pawn {
         this.dirty.add("selected");
         this.manager.hand.minimize(true);
 
-        this.grabSpring.copy(this.position);
+        this.grabSpring.set(this.position.y);
     }
     release(tryMerge = true) {
         this.selected = false;
