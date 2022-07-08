@@ -60,6 +60,9 @@ img:not(#hidden) {
             this.hiddenImage.replaceWith(newHiddenImage);
             this.hiddenImage = newHiddenImage;
             this.hiddenImage.id = 'hidden';
+
+            // Hack to update grabbed
+            this.grabbed = this.grabbed;
         });
     }
 
@@ -141,7 +144,7 @@ export class Hand {
         this.element = document.querySelector("#hand-panel");
     }
     
-    pushCard(deck) {
+    pushCard(deck, grab=false) {
         let serialized = deck.serialize();
         this.cards.set(serialized.id, serialized);
         let card = this.cards.get(serialized.id);
@@ -171,7 +174,6 @@ export class Hand {
                 if (e.clientY < window.innerHeight * 0.75) {
                     cardDrop();
                     this.takeCard(card.id);
-                    imageElement.remove();
                     return;
                 }
                 imageElement.position = [e.clientX + offset[0], e.clientY + offset[1]];
@@ -202,6 +204,14 @@ export class Hand {
 
         this.element.appendChild(imageElement);
         imageElement.reset();
+        if (grab) {
+            let {x, y, height} = imageElement.getBoundingClientRect();
+            let width = (deck.data.size.x/deck.data.size.y) * height;
+            imageElement.dispatchEvent(new PointerEvent('pointerdown', {
+                clientX: x + width/2,
+                clientY: y + height/2,
+            }));
+        }
     }
     updateCard(cardJSON) {
         if (this.cards.has(cardJSON.id)) {

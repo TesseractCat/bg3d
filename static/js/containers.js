@@ -3,7 +3,7 @@ import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
-import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
+import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import Manager from './manager';
 import { Pawn } from './pawn';
@@ -91,6 +91,8 @@ export class Deck extends Pawn {
         [this.sideTexture.wrapS, this.sideTexture.wrapT] = [THREE.RepeatWrapping, THREE.RepeatWrapping];
         
         this.updateDeck(true);
+
+        display.addEventListener('pointermove', this.mouseMove);
     }
     #roundedSquare(radius) {
         let shape = new THREE.Shape();
@@ -111,6 +113,7 @@ export class Deck extends Pawn {
     }
     dispose() {
         super.dispose();
+        display.removeEventListener('pointermove', this.mouseMove);
         if (this.sideTexture)
             this.sideTexture.dispose();
         // FIXME: Dispose of textures, if possible
@@ -141,6 +144,25 @@ export class Deck extends Pawn {
             } else if (!this.flipped() && this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
                 this.faceMaterial.color = new THREE.Color(0xffffff);
             }
+        }
+    }
+    mouseMove = (e) => {
+        if (this.data.contents.length == 1 &&
+            this.selected && e.clientY > window.innerHeight * 0.75) {
+
+            super.release(false);
+
+            this.manager.removePawn(this.id);
+            this.manager.hand.pushCard(this, true);
+            this.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
+
+            // 'Release' pointer on OrbitControls
+            // Note, call this after super.release(false) to prevent merging
+            this.manager.controls.domElement.dispatchEvent(
+                new PointerEvent('pointerup', {
+                    pointerId: e.pointerId
+                })
+            );
         }
     }
     
@@ -261,6 +283,7 @@ export class Deck extends Pawn {
         if (!shift || this.data.contents.length == 1) {
             super.grab();
         } else {
+            this.selected = false;
             this.grabCards();
         }
     }
@@ -292,17 +315,20 @@ export class Deck extends Pawn {
         }
         // Apply new materials
         this.sideTexture.repeat.y = this.data.contents.length - 1;
-        this.sideMaterial = new MeshStandardDitheredMaterial({
+        this.sideMaterial = new MeshPhongDitheredMaterial({
             color: this.data.sideColor,
-            map: this.sideTexture
+            map: this.sideTexture,
+            shininess:5,
         });
-        this.faceMaterial = new MeshStandardDitheredMaterial({
+        this.faceMaterial = new MeshPhongDitheredMaterial({
             color: 0xffffff,
-            map: faceTexture
+            map: faceTexture,
+            shininess:5,
         });
-        this.backMaterial = new MeshStandardDitheredMaterial({
+        this.backMaterial = new MeshPhongDitheredMaterial({
             color: 0xffffff,
-            map: backTexture
+            map: backTexture,
+            shininess:5,
         });
         this.box.material = [
             this.faceMaterial, this.sideMaterial, this.backMaterial
