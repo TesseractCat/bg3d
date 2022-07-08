@@ -285,7 +285,7 @@ export default class Manager {
             if (e.button == 0) {
                 toSelect[0].grab(e.button, e.shiftKey);
                 this.controls.saveState();
-                this.controls.reset();
+                this.controls.reset(); // Reset sets controls state to NONE
             }
         });
         display.addEventListener('pointerup', (e) => {
@@ -613,8 +613,8 @@ export default class Manager {
         this.renderer.domElement.style.width = "100%";
         this.renderer.domElement.style.height = "100%";
 
-        // Set pixel ratio to 0.5 on mobile devices
-        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent)) {
+        // Set lower pixel ratio on mobile devices
+        if (window.isMobile) {
             this.renderer.setPixelRatio(1.0);
         } else {
             this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -781,7 +781,7 @@ export default class Manager {
         this.controls.keyPanSpeed = 20;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
         //this.controls.mouseButtons = { MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
-        this.controls.listenToKeyEvents(display);
+        this.controls.listenToKeyEvents(this.renderer.domElement);
     }
     buildWebSocket(callback) {
         let lobby = window.location.pathname;

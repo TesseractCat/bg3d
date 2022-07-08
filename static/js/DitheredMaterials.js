@@ -1,4 +1,4 @@
-import { MeshStandardMaterial, ShaderMaterial, ShaderLib, RGBADepthPacking } from 'three';
+import { MeshStandardMaterial, MeshPhongMaterial, ShaderMaterial, ShaderLib, RGBADepthPacking } from 'three';
 
 // https://gkjohnson.github.io/threejs-sandbox/screendoor-transparency/src/ScreenDoorShader.js
 function ditherMixin(shader) {
@@ -31,6 +31,25 @@ export class MeshStandardDitheredMaterial extends MeshStandardMaterial {
         this.onBeforeCompile = (shader) => {
             ditherMixin(shader);
         };
+    }
+}
+export class MeshPhongDitheredMaterial extends MeshPhongMaterial {
+    constructor(params) {
+        super(params);
+        this.onBeforeCompile = (shader) => {
+            ditherMixin(shader);
+        };
+    }
+    static fromStandard(m) {
+        return new this({
+            color: m.color,
+            map: m.map,
+            normalMap: m.normalMap,
+            aoMap: m.aoMap, aoMapIntensity: m.aoMapIntensity,
+            bumpMap: m.bumpMap, bumpScale: m.bumpScale,
+            displacementMap: m.displacementMap, displacementScale: m.displacementScale,
+            shininess: (1-m.roughness) * 60,
+        });
     }
 }
 export class DepthDitheredMaterial extends ShaderMaterial {

@@ -4,7 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
-import { MeshStandardDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
+import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import { Spring, Vector3Spring } from './spring';
 
@@ -103,8 +103,14 @@ export class Pawn {
                         if (child.material.map !== null)
                             child.material.map.anisotropy = 4;
 
-                        child.material = new MeshStandardDitheredMaterial().copy(child.material);
+                        let oldMaterial = child.material;
+                        if (window.isMobile) {
+                            child.material = MeshPhongDitheredMaterial.fromStandard(child.material);
+                        } else {
+                            child.material = new MeshStandardDitheredMaterial().copy(child.material);
+                        }
                         child.customDepthMaterial = new DepthDitheredMaterial().clone();
+                        oldMaterial.dispose();
 
                         for (let material of [child.material, child.customDepthMaterial]) {
                             material.opacity = 0.0;
@@ -147,7 +153,7 @@ export class Pawn {
     }
     
     // grabSpring = new Vector3Spring(new THREE.Vector3(0,0,0), 500, 40, 2);
-    grabSpring = new Spring(0, 250);
+    grabSpring = new Spring(0, 500, 15);
     animate(dt) {
         if (this.selected) {
             let grabPoint = this.selectStaticPosition;

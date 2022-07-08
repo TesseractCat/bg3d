@@ -17,6 +17,8 @@ function animate() {
 
 // SETUP
 window.onload = function() {
+    window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
+
     manager = new Manager();
     window.manager = manager;
 
