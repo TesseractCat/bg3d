@@ -218,6 +218,8 @@ canvas {
 }
 #context-menu button, #context-menu p {
     display:block;
+    box-sizing:border-box;
+
     width: 100%;
     padding-left: 15%;
 }
