@@ -872,6 +872,8 @@ export default class Manager {
                 msg.pawns.forEach(id => this.removePawn(id));
             } else if (type == "update_pawns") {
                 msg.pawns.forEach(p => this.updatePawn(p));
+                if (msg.collisions)
+                    console.log(msg.collisions);
             } else if (type == "clear_pawns") {
                 this.clearPawns();
             }

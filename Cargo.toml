@@ -19,6 +19,6 @@ serde_with = "1.14.0"
 serde_json = "1.0"
 
 warp = { version = "0.3.2", features = ["compression", "tls"] }
-rapier3d = { version = "0.12.0", features = [ "simd-stable" ] }
+rapier3d = { version = "0.14.0", features = [ "simd-stable" ] }
 data-url = "0.1.1"
 

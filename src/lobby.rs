@@ -239,7 +239,8 @@ impl Lobby {
         if !dirty_pawns.is_empty() && send_update_pawns {
             // Send update
             return self.users.values().send_event(&Event::UpdatePawns {
-                updates: dirty_pawns.iter().map(|p| p.serialize_transform()).collect()
+                updates: dirty_pawns.iter().map(|p| p.serialize_transform()).collect(),
+                collisions: self.world.get_collisions(),
             });
         }
         Ok(())

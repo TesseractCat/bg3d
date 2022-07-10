@@ -261,7 +261,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                 Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
                 Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
                 Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
-                Event::UpdatePawns { updates } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
+                Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
                 Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
                 Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
@@ -332,7 +332,8 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
 
     for shape in &pawn.collider_shapes {
         let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
-            .mass_properties(MassProperties::new(Point::<f32>::origin(), 1.0, vector![1.0,1.0,1.0]));
+            .active_events(ActiveEvents::COLLISION_EVENTS)
+            .mass(1.0);
         lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
     }
 
@@ -413,7 +414,8 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
             }
             for shape in &pawn.collider_shapes {
                 let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
-                    .mass_properties(MassProperties::new(Point::<f32>::origin(), 1.0, vector![1.0,1.0,1.0]));
+                    .active_events(ActiveEvents::COLLISION_EVENTS)
+                    .mass(1.0);
                 lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
             }
         }
@@ -456,7 +458,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
     // Relay to other users that these pawns were changed
     lobby.users.values()
         .filter(|u| u.id != user_id)
-        .send_event(&Event::UpdatePawns { updates })
+        .send_event(&Event::UpdatePawns { updates, collisions: None })
 }
 
 fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
@@ -507,7 +509,8 @@ fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, co
             id: from.id,
             data: Some(from.data.clone()),
             ..Default::default()
-        }]
+        }],
+        collisions: None
     })?;
     add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
@@ -542,7 +545,8 @@ fn merge_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) ->
             id: into.id,
             data: Some(into.data.clone()),
             ..Default::default()
-        }]
+        }],
+        collisions: None
     })?;
     lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from.id] })
 }
@@ -657,7 +661,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     }
     // Relay to other users that these pawns were deselected
     lobby.users.values().filter(|u| u.id != user_id).send_event(
-        &Event::UpdatePawns { updates: deselected_pawns }
+        &Event::UpdatePawns { updates: deselected_pawns, collisions: None }
     )?;
     
     if lobby.users.len() != 0 { // If the user id is the host, let's reassign the host to the next user

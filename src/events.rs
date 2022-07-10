@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use crate::user::User;
 use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo};
+use crate::physics::CollisionAudioInfo;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CursorUpdate {
@@ -52,7 +53,9 @@ pub enum Event<'a> {
     ClearPawns {},
     UpdatePawns {
         #[serde(rename = "pawns")]
-        updates: Vec<PawnUpdate>
+        updates: Vec<PawnUpdate>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        collisions: Option<Vec<CollisionAudioInfo>>,
     },
 
     ExtractPawns { from_id: u64, to_id: u64, count: Option<u64> },
