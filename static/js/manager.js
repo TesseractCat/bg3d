@@ -173,7 +173,6 @@ class Chat {
         entry.classList.add("entry");
         
         let name = document.createElement("span");
-        name.innerText = "⬤: ";
         name.style.color = this.manager.userColors.get(id);
         let text = document.createElement("span");
         text.innerText = content;
