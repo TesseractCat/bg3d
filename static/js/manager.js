@@ -133,6 +133,8 @@ class Chat {
                     this.send(this.input.value);
                 }
                 this.blur();
+            } else if (e.key == "Escape") {
+                this.blur();
             }
         });
         this.input.addEventListener("blur", (e) => {
@@ -174,6 +176,7 @@ class Chat {
         
         let name = document.createElement("span");
         name.style.color = this.manager.userColors.get(id);
+        name.innerText = "⬤: ";
         let text = document.createElement("span");
         text.innerText = content;
         
