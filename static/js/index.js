@@ -26,10 +26,10 @@ window.onload = function() {
 
     manager.init((host) => {
         let games = [
-            ['Welcome', 'games/welcome.json'],
-            ['Cards', 'games/cards.json'],
-            ['Chess', 'games/chess.json'],
-            ['Go', 'games/go.json'],
+            ['Welcome', 'static/games/welcome.json'],
+            ['Cards', 'static/games/cards.json'],
+            ['Chess', 'static/games/chess.json'],
+            ['Go', 'static/games/go.json'],
         ];
         games.forEach((g, i) => {
             let name = g[0];

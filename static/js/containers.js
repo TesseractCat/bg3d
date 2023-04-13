@@ -11,8 +11,8 @@ import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
     static textureCache = new Map();
-    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/');
-    static svgLoader = new SVGLoader().setPath(window.location.href + '/');
+    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/assets/');
+    static svgLoader = new SVGLoader().setPath(window.location.href + '/assets/');
 
     data = {
         contents: [],

@@ -153,7 +153,7 @@ export class Hand {
         let imageElement = document.createElement('bird-card');
         imageElement.dataset.id = card.id;
         imageElement.className = 'card';
-        imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
+        imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
         imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
 
         imageElement.addEventListener('pointerdown', (e) => {

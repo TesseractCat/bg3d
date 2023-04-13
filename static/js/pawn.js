@@ -17,10 +17,10 @@ Math.clamp01 = function(x) {
 
 // Local instance of moveable object with mesh
 export class Pawn {
-    static dracoLoader = new DRACOLoader().setDecoderPath('/draco/');
+    static dracoLoader = new DRACOLoader().setDecoderPath('/static/draco/');
     static gltfLoader = new GLTFLoader()
         .setDRACOLoader(Pawn.dracoLoader)
-        .setPath(window.location.href + '/');
+        .setPath(window.location.href + '/assets/');
 
     // Serialized
     position = new THREE.Vector3(0,0,0);

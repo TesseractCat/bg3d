@@ -21,7 +21,7 @@ export default class PluginLoader {
 
     createScriptBlob(blob) {
         return new Blob([
-            `importScripts("${window.location.protocol}//${window.location.host}/prelude.js?v=${window.version}");\n\n`,
+            `importScripts("${window.location.protocol}//${window.location.host}/static/prelude.js?v=${window.version}");\n\n`,
             blob
         ], {type: "text/javascript"});
     }
@@ -57,7 +57,7 @@ export default class PluginLoader {
                     scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
             } else {
                 // Load script from URL
-                scriptBlob = this.createScriptBlob(await (await fetch(manifest.script)).blob());
+                scriptBlob = this.createScriptBlob(await (await fetch("static/games/" + manifest.script)).blob());
             }
         }
 

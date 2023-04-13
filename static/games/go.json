@@ -2,5 +2,5 @@
     "name": "Go",
     "description": "The classic game of Go.",
     "author": "Built-in",
-    "script":"games/scripts/go.js"
+    "script":"scripts/go.js"
 }

@@ -2,5 +2,5 @@
     "name": "Lobby",
     "description": "Pick a game.",
     "author": "Built-in",
-    "script":"games/scripts/welcome.js"
+    "script":"scripts/welcome.js"
 }

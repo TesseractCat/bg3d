@@ -1,7 +1,7 @@
 use std::error::Error;
 use tokio::sync::{mpsc, mpsc::error::SendError};
 use serde::Serialize;
-use warp::ws::*;
+use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor};
 
 use crate::events::Event;
@@ -46,9 +46,9 @@ impl User {
     }
 
     pub fn send_event(&self, content: &Event) -> Result<(), SendError<Message>> {
-        self.tx.send(Message::text(serde_json::to_string(content).unwrap()))
+        self.tx.send(Message::Text(serde_json::to_string(content).unwrap()))
     }
     pub fn send_string(&self, content: &str) -> Result<(), SendError<Message>> {
-        self.tx.send(Message::text(content))
+        self.tx.send(Message::Text(content.to_string()))
     }
 }

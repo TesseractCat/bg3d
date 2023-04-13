@@ -835,7 +835,7 @@ export default class Manager {
                     pings++;
                 }, 500);
                 // Create webworker to manage animate() when page not focused
-                let animateWorker = new Worker('/js/loop.js');
+                let animateWorker = new Worker('static/js/loop.js');
                 animateWorker.onmessage = (e) => {
                     if (document.hidden) {
                         this.animate();

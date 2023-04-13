@@ -4,15 +4,25 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
+use std::net::SocketAddr;
 use std::str::FromStr;
+
+use axum::{
+    extract::{
+        Path,
+        ws::{Message, WebSocket, WebSocketUpgrade}
+    },
+    response::Redirect,
+    routing::get,
+    Router
+};
+use tower_http::services::{ServeDir, ServeFile};
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{sleep, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use warp::{http::{Uri, Response}, Filter, Reply};
-use warp::ws::{Message, WebSocket};
 use data_url::DataUrl;
 
 use serde_json::Value;
@@ -45,7 +55,7 @@ async fn main() {
     let lobbies = Lobbies::default();
     
     // Paths
-    let redirect = warp::path::end().or(warp::path("index.html")).map(|_| {
+    /*let redirect = warp::path::end().or(warp::path("index.html")).map(|_| {
         let mut generator = Generator::default();
         warp::redirect::see_other(generator.next().unwrap().parse::<Uri>().unwrap())
     });
@@ -117,7 +127,30 @@ async fn main() {
             .or(ws)
             .or(default_assets)
             .or(lobby_assets)
-    );
+    );*/
+
+    let lobbies_clone = lobbies.clone();
+
+    let lobby_routes = Router::new()
+        .route_service("/", ServeFile::new("static/index.html"))
+        .nest_service("/assets", ServeDir::new("static/games"))
+        .route("/ws", get(
+            |Path(lobby): Path<String>, ws: WebSocketUpgrade| async move {
+                let lobbies = lobbies_clone.clone();
+                ws.on_upgrade(move |socket| user_connected(socket, lobby, lobbies))
+            }
+        ));
+    let redirect_routes = Router::new()
+        .route("/", get(|| async {
+            let mut generator = Generator::default();
+            Redirect::to(&format!("/{}", generator.next().unwrap()))
+        }))
+        .route("/index.html", get(|| async { Redirect::to("/") }));
+
+    let app = redirect_routes
+        .nest_service("/static",
+                      ServeDir::new("static").append_index_html_on_directories(false))
+        .nest("/:lobby", lobby_routes);
     
     // Physics steps
     let lobbies_clone = lobbies.clone();
@@ -153,15 +186,11 @@ async fn main() {
     });
 
     println!("Starting BG3D on port [{port}]...");
-    if port == 443 {
-        warp::serve(routes)
-            .tls()
-            .cert_path("/etc/letsencrypt/live/birdga.me/fullchain.pem")
-            .key_path("/etc/letsencrypt/live/birdga.me/privkey.pem")
-            .run(([0, 0, 0, 0], port)).await;
-    } else {
-        warp::serve(routes).run(([0, 0, 0, 0], port)).await;
-    }
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
@@ -181,7 +210,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     let cloned_tx = buffer_tx.clone();
     tokio::task::spawn(async move {
         loop {
-            cloned_tx.send(Message::ping(vec![])).ok();
+            cloned_tx.send(Message::Ping(vec![])).ok();
             sleep(Duration::from_secs(5)).await;
         }
     });
@@ -237,12 +266,12 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                 break;
             },
         };
-        if message.is_close() {
+        if matches!(message, Message::Close(_)) {
             println!("Websocket connection closed, user <{user_id}> left");
             break;
         }
-        if !message.is_text() {
-            if message.is_pong() { continue; } else {
+        if !matches!(message, Message::Text(_)) {
+            if matches!(message, Message::Pong(_)) { continue; } else {
                 println!("Received non-text/non-pong message");
                 continue;
             }
@@ -251,7 +280,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).unwrap();
 
-        if let Some(event_data) = serde_json::from_str(message.to_str().unwrap()).ok() {
+        if let Some(event_data) = serde_json::from_str(message.to_text().unwrap()).ok() {
             // println!("Event: {:?}", event_data);
 
             let event_result = match event_data {
