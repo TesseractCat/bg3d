@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::error::Error;
+use std::ops::Mul;
 
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
@@ -10,6 +11,7 @@ use rapier3d::prelude::*;
 use crate::user::*;
 use crate::physics::*;
 use crate::events::*;
+use crate::{PHYSICS_RATE, PHYSICS_SCALE};
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec3 {
@@ -61,6 +63,23 @@ pub enum Shape {
     #[serde(rename_all = "camelCase")]
     Cylinder { radius: f64, height: f64 },
 }
+impl Mul<f64> for &Shape {
+    type Output = Shape;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        match self {
+            Shape::Box { half_extents } => Shape::Box {
+                half_extents: Vec3 { x: half_extents.x * rhs,
+                                     y: half_extents.y * rhs,
+                                     z: half_extents.z * rhs }
+            },
+            Shape::Cylinder { radius, height } => Shape::Cylinder {
+                radius: radius * rhs,
+                height: height * rhs
+            }
+        }
+    }
+}
 impl From<&Shape> for ColliderBuilder {
     fn from(shape: &Shape) -> ColliderBuilder {
         match shape {
@@ -74,6 +93,9 @@ impl From<&Shape> for ColliderBuilder {
             },
         }
     }
+}
+impl From<Shape> for ColliderBuilder {
+    fn from(shape: Shape) -> ColliderBuilder { (&shape).into() }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -203,7 +225,7 @@ impl Lobby {
             pawns: HashMap::new(),
             assets: HashMap::new(),
 
-            world: PhysicsWorld::new(1.0/30.0),
+            world: PhysicsWorld::new(PHYSICS_RATE),
 
             next_user_id: AtomicUsize::new(0),
         }
@@ -230,7 +252,7 @@ impl Lobby {
 
             let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
             let rb = self.world.rigid_body_set.get(rb_handle).unwrap();
-            pawn.position = Vec3::from(rb.translation());
+            pawn.position = Vec3::from(&(rb.translation()/PHYSICS_SCALE));
             pawn.rotation = Vec3::from(rb.rotation());
             if !rb.is_sleeping() && rb.is_moving() {
                 dirty_pawns.push(pawn);

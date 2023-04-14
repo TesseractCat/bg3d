@@ -70,8 +70,5 @@ pub enum Event<'a> {
 
     Chat { id: Option<usize>, content: Cow<'a, String> },
 
-    Event { target: bool, #[serde(flatten)] data: Value },
-    EventCallback { receiver: usize, #[serde(flatten)] data: Value },
-
     PawnEvent { id: u64, target_host: bool, data: PawnEvent },
 }

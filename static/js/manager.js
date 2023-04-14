@@ -648,67 +648,6 @@ export default class Manager {
         if (this.socket.readyState == 1)
             this.socket.send(json);
     }
-    pendingEvents = new Map();
-    sendEvent(name, target, data, callback) {
-        //target = true (target host only), false (target all)
-        let uuid = nanoid(6);
-        let event = {
-            type:"event",
-            sender:this.id,
-            uuid:uuid,
-            name:name,
-            target:target,
-            callback:(callback !== undefined),
-            data:data
-        };
-        
-        if (target == true && this.host) {
-            // We are sending an event to ourselves, no need to use websockets, let's just detour
-            if (callback !== undefined)
-                this.pendingEvents.set(uuid, callback);
-            this.handleEvent(event);
-        } else {
-            if (callback !== undefined)
-                this.pendingEvents.set(uuid, callback);
-            this.sendSocket(event);
-        }
-    }
-    handleEvent(eventJSON) {
-        let name = eventJSON.name;
-        let response = {};
-        
-        switch (eventJSON.name) {
-            case "pawn":
-                response = this.pawns.get(eventJSON.data.id).handleEvent(eventJSON.data);
-                break;
-            case "request_add_pawn":
-                let pawn = this.loadPawn(eventJSON.data.pawn);
-                this.sendAddPawn(pawn);
-                response = pawn.id;
-                break;
-            case "request_update_pawns":
-                eventJSON.data.pawns.forEach(p => this.updatePawn(p));
-                this.sendSocket({
-                    type:"update_pawns",
-                    pawns:eventJSON.data.pawns
-                });
-                break;
-        }
-        
-        // Callback 
-        if (eventJSON.callback && this.host) {
-            this.sendSocket({
-                type:"event_callback",
-                receiver:eventJSON.sender,
-                data:response,
-                uuid:eventJSON.uuid,
-            });
-        }
-    }
-    eventCallback(callbackJSON) {
-        this.pendingEvents.get(callbackJSON.uuid)(callbackJSON.data);
-        this.pendingEvents.delete(callbackJSON.uuid);
-    }
     
     buildScene() {
         // Create scene
@@ -825,6 +764,7 @@ export default class Manager {
                     });
                 }
                 // Start ping tester
+                // Can't use WebSocket ping event type because it's not available for browser use
                 let pings = 0;
                 setInterval(() => {
                     this.lastPingSent = performance.now();
@@ -833,7 +773,7 @@ export default class Manager {
                         idx:pings
                     });
                     pings++;
-                }, 500);
+                }, 1000);
                 // Create webworker to manage animate() when page not focused
                 let animateWorker = new Worker('static/js/loop.js');
                 animateWorker.onmessage = (e) => {
@@ -860,12 +800,6 @@ export default class Manager {
             if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
                 this.pingPanel.update(rtt, 200);
-            }
-            
-            if (type == "event") {
-                this.handleEvent(msg);
-            } else if (type == "event_callback") {
-                this.eventCallback(msg);
             }
             
             if (type == "add_pawn") {

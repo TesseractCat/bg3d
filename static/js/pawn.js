@@ -249,10 +249,10 @@ export class Pawn {
         ];
         let hostEntries = [
             ["Clone", () => {
-                this.manager.addPawn(this.clone());
+                this.manager.sendAddPawn(this.clone());
             }],
             ["Delete", () => {
-                this.manager.removePawn(this.id);
+                this.manager.sendRemovePawn(this.id);
             }],
         ];
         if (this.manager.host)

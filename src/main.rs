@@ -18,10 +18,12 @@ use axum::{
 };
 use tower_http::services::{ServeDir, ServeFile};
 
+use futures::future::join_all;
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
-use tokio::time::{sleep, timeout, Duration, Instant};
+use tokio::time::{interval, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use rayon::prelude::*;
 
 use data_url::DataUrl;
 
@@ -39,6 +41,10 @@ mod events;
 use lobby::*;
 use user::*;
 use events::*;
+
+const PHYSICS_RATE: f32 = 1.0/45.0;
+const PHYSICS_SCALE: f32 = 1.0/8.0;
+const CURSOR_RATE: f32 = 1.0/10.0;
 
 //TODO: Replace this with Dashmap?
 type Lobbies = Arc<RwLock<HashMap<String, RwLock<Lobby>>>>;
@@ -83,23 +89,33 @@ async fn main() {
     let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move {
         let mut tick: u64 = 0;
+        let mut interval = interval(Duration::from_secs_f32(PHYSICS_RATE));
 
         loop {
-            //let physics_time = Instant::now();
+            let physics_time = Instant::now();
             {
                 let lobbies_rl = lobbies_clone.read().await;
-                for lobby in lobbies_rl.values() {
-                    lobby.write().await.step(tick % 3 == 0).ok();
-                }
+                let mut lobby_wls = join_all(lobbies_rl.values().map(|l| async move {l.write().await})).await;
+
+                // FIXME: This is blocking
+                // - https://ryhl.io/blog/async-what-is-blocking/
+                lobby_wls.par_iter_mut().for_each(|lobby| {
+                    lobby.step(tick % 3 == 0).ok();
+                });
             }
-            //println!("Physics elapsed time: {}", Instant::now().duration_since(physics_time).as_millis());
-            sleep(Duration::from_secs_f64(1.0/60.0)).await;
+            let elapsed = Instant::now().duration_since(physics_time).as_secs_f32();
+
+            println!("Physics elapsed time: {:.2}ms | {:.1}%",
+                     elapsed * 1000., (elapsed/PHYSICS_RATE) * 100.);
             tick += 1;
+
+            interval.tick().await;
         }
     });
     // Relay cursors
     let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move  {
+        let mut interval = interval(Duration::from_secs_f32(CURSOR_RATE));
         loop {
             {
                 let lobbies_rl = lobbies_clone.read().await;
@@ -108,7 +124,7 @@ async fn main() {
                     lobby.relay_cursors().ok();
                 }
             }
-            sleep(Duration::from_secs_f64(1.0/10.0)).await;
+            interval.tick().await;
         }
     });
 
@@ -136,9 +152,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     // Send keep-alive pings every 5 seconds
     let cloned_tx = buffer_tx.clone();
     tokio::task::spawn(async move {
+        let mut interval = interval(Duration::from_secs(5));
         loop {
             cloned_tx.send(Message::Ping(vec![])).ok();
-            sleep(Duration::from_secs(5)).await;
+            interval.tick().await;
         }
     });
     
@@ -230,14 +247,10 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
 
                 Event::Chat { content, .. } => chat(user_id, lobby.read().await.deref(), content),
 
-                Event::Event { target, data } => event(user_id, lobby.write().await.deref_mut(), target, data),
-                Event::EventCallback { receiver, data } => event_callback(user_id, lobby.write().await.deref_mut(), receiver, data),
-
                 _ => Err("Received broadcast-only event".into()),
             };
 
             if event_result.is_err() {
-                // FIXME: Print event name
                 println!("Error encountered while handling event: {:?}", event_result);
             }
         } else {
@@ -279,17 +292,17 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     
     // Deserialize collider
     // FIXME: Only enable CCD on cards/thin geometry?
-    let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic().ccd_enabled(true) } else { RigidBodyBuilder::fixed() }
-        .translation(Vector::from(&pawn.position))
+    let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic().ccd_enabled(false) } else { RigidBodyBuilder::fixed() }
+        .translation(Vector::from(&pawn.position) * PHYSICS_SCALE)
         .rotation(Rotation::from(&pawn.rotation).scaled_axis())
-        .linear_damping(1.5).angular_damping(0.5)
+        .linear_damping(1.0).angular_damping(0.5)
         .build();
     pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     for shape in &pawn.collider_shapes {
-        let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
+        let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
             .active_events(ActiveEvents::COLLISION_EVENTS)
-            .mass(1.0);
+            .mass(0.01);
         lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
     }
 
@@ -369,9 +382,9 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 lobby.world.remove_collider(handle);
             }
             for shape in &pawn.collider_shapes {
-                let collider: ColliderBuilder = ColliderBuilder::from(shape).friction(0.7)
+                let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
                     .active_events(ActiveEvents::COLLISION_EVENTS)
-                    .mass(1.0);
+                    .mass(0.01);
                 lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
             }
         }
@@ -391,7 +404,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
             // Update position and velocity
             if update.position.is_some() || update.rotation.is_some() {
                 let old_position: &Vector<f32> = rb.translation();
-                let position: Vector<f32> = Vector::from(&pawn.position);
+                let position: Vector<f32> = Vector::from(&pawn.position) * PHYSICS_SCALE;
 
                 let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
                 let time_difference = (Instant::now() - pawn.last_updated).as_secs_f32();

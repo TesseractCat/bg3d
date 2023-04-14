@@ -83,6 +83,8 @@ impl PhysicsWorld {
 
             integration_parameters: IntegrationParameters {
                 dt: dt,
+                erp: 0.95,
+                damping_ratio: 0.5,
                 ..Default::default()
             },
             physics_pipeline: PhysicsPipeline::new(),
