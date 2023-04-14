@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import { Spring } from './spring';
+import { Pawn } from './pawn';
 
 class CardElement extends HTMLElement {
     image;
@@ -240,9 +241,15 @@ export class Hand {
             let hitPoint = hits[0].point.clone();
             card.position = hitPoint.add(new Vector3(0, 2, 0));
             
-            this.manager.sendEvent("request_add_pawn", true, {pawn:card}, (id) => {
-                this.manager.pawns.get(id).grab(0);
-            });
+            let cardPawn = this.manager.loadPawn(card);
+            const grabHandler = (e) => {
+                if (e.detail.pawn.id == cardPawn.id) {
+                    this.manager.pawns.get(cardPawn.id).grab(0);
+                    this.manager.removeEventListener("add_pawn", grabHandler);
+                }
+            };
+            this.manager.addEventListener("add_pawn", grabHandler);
+            this.manager.sendAddPawn(cardPawn);
         }
     }
     clear() {

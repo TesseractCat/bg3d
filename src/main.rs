@@ -105,8 +105,8 @@ async fn main() {
             }
             let elapsed = Instant::now().duration_since(physics_time).as_secs_f32();
 
-            println!("Physics elapsed time: {:.2}ms | {:.1}%",
-                     elapsed * 1000., (elapsed/PHYSICS_RATE) * 100.);
+            // println!("Physics elapsed time: {:.2}ms | {:.1}%",
+            //          elapsed * 1000., (elapsed/PHYSICS_RATE) * 100.);
             tick += 1;
 
             interval.tick().await;

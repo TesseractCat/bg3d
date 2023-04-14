@@ -195,7 +195,7 @@ class Chat {
     }
 }
 
-export default class Manager {
+export default class Manager extends EventTarget {
     scene;
     camera;
     audioListener;
@@ -233,6 +233,10 @@ export default class Manager {
     
     lastPingSent;
     
+    constructor() {
+        super();
+    }
+
     async init(callback) {
         this.buildScene();
         this.buildRenderer();
@@ -836,6 +840,8 @@ export default class Manager {
                         this.lobbyCursors.get(cursor.id).networkTransform.tick(newPosition);
                 });
             }
+
+            this.dispatchEvent(new CustomEvent(type, { detail: msg }));
         });
     }
 }
