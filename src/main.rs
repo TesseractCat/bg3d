@@ -56,6 +56,8 @@ async fn main() {
 
     let lobbies_clone = lobbies.clone();
 
+    // Routing
+    // FIXME: Re-add cache headers, gzip compression
     let lobby_routes = Router::new()
         .route_service("/", ServeFile::new("static/index.html"))
         .nest_service("/assets", ServeDir::new("static/games"))
@@ -381,7 +383,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 RigidBodyType::Dynamic
             } else {
                 RigidBodyType::KinematicPositionBased
-            });
+            }, true);
             for collider_handle in rb.colliders().iter() {
                 let collider = lobby.world.collider_set.get_mut(*collider_handle).unwrap();
                 collider.set_sensor(pawn.selected_user.is_some());
@@ -397,7 +399,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
 
                 let wake = true;
                 rb.set_translation(position, wake);
-                rb.set_rotation(rotation.scaled_axis(), wake);
+                rb.set_rotation(rotation, wake);
                 rb.set_linvel(velocity, wake);
                 rb.set_angvel(vector![0.0, 0.0, 0.0], wake);
             }
@@ -599,7 +601,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             if pawn.moveable {
                 let rb_handle = pawn.rigid_body.unwrap();
                 let rb = lobby_mut_ref.world.rigid_body_set.get_mut(rb_handle).unwrap();
-                rb.set_body_type(RigidBodyType::Dynamic);
+                rb.set_body_type(RigidBodyType::Dynamic, true);
                 for collider_handle in rb.colliders().iter() {
                     let collider = lobby_mut_ref.world.collider_set.get_mut(*collider_handle).unwrap();
                     collider.set_sensor(false);

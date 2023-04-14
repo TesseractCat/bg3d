@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader';
+import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import Manager from './manager';

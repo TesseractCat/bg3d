@@ -120,6 +120,7 @@ impl PhysicsWorld {
 			&mut self.multibody_joint_set,
 			&mut self.ccd_solver,
 
+            None,
 			&(),
 			&self.event_handler,
         );

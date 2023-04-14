@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { nanoid } from 'nanoid';
 
-import Stats from 'three/examples/jsm/libs/stats.module';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
-import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass';
-import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import Stats from 'three/addons/libs/stats.module.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
+import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
@@ -503,7 +503,7 @@ export default class Manager {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
             let to_update_data = to_update.map(p => {
-                let rotation = new THREE.Euler().setFromQuaternion(p.rotation, 'ZYX').toVector3();
+                let rotation = new THREE.Vector3().setFromEuler(new THREE.Euler().setFromQuaternion(p.rotation, 'ZYX'));
                 let update = {id: p.id};
                 for (let dirtyParam of p.dirty) {
                     switch (dirtyParam) {
