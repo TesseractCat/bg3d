@@ -14,6 +14,7 @@
     </head>
     <body>
         <canvas id="display" tabindex='1'></canvas>
+
         <div id="overlay">
             <div id="overlay-collapse">-</div>
             <p><b>Share this link:</b></p>
@@ -48,19 +49,17 @@
             <h1>Players</h1>
             <div id="player-entries"></div>
         </div>
-        <div id="chat-panel">
-            <div id="chat-entries">
-                <p class="entry"><i>To start chatting, press 'Enter'</i></p>
-            </div>
-            <input id="chat-input"></input>
-        </div>
+
+        <bird-chat></bird-chat>
+        <bird-hand></bird-hand>
+        <bird-tooltip></bird-tooltip>
+        <bird-context-menu></bird-context-menu>
+
         <a href="https://github.com/TesseractCat/bg3d" target="_blank">
             <img id="icon" src="static/small_icon.png" alt=""></img>
         </a>
-        <div id="hand-panel"></div>
         <div id="shade">
             <h1>CONNECTION LOST</h1>
         </div>
-        <div id="tooltip">Tooltip</div>
     </body>
 </html>
