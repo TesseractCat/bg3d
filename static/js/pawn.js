@@ -508,19 +508,33 @@ export class Dice extends Pawn {
     menu() {
         let entries = super.menu();
         entries.splice(1, 1, [
-            ["Roll", () => this.shake()]
+            ["Roll", () => this.roll()]
         ]);
         return entries;
     }
     
     flip() { }
     rotate(m) { }
+
+    shakeEnd = 0;
     shake() {
+        this.shakeEnd = Date.now();
+    }
+
+    roll() {
         this.selectAndRun(() => {
             let value = Math.floor(Math.random() * this.data.rollRotations.length);
             this.selectRotation = this.data.rollRotations[value];
             this.dirty.add("selectRotation");
         });
+    }
+
+    release(tryMerge = true) {
+        super.release(tryMerge);
+
+        if (Date.now() - this.shakeEnd < 500) {
+            this.roll();
+        }
     }
     
     static className() { return "Dice"; };
