@@ -561,8 +561,39 @@ export default class Manager extends EventTarget {
         // Setup ground plane
         const geom = new THREE.PlaneGeometry(200, 200);
         geom.rotateX(-Math.PI/2);
-        const material = new THREE.ShadowMaterial();
-        material.opacity = 0.3;
+        const material = new THREE.ShaderMaterial();//new THREE.ShadowMaterial();
+        //material.opacity = 0.5;
+        material.lights = true;
+        material.uniforms = THREE.ShaderLib.shadow.uniforms;
+        material.vertexShader = `varying vec4 worldPos;\n` + THREE.ShaderLib.shadow.vertexShader.replace("main() {", `
+        main() {
+            worldPos = modelMatrix * vec4(position, 1.0);
+        `);
+        material.fragmentShader = `
+        #define GRID_THICKNESS 0.05
+        #define GRID_SIZE 1.0
+        #define FADE_DISTANCE 40.0
+
+        varying vec4 worldPos;
+        
+        #include <common>
+        #include <packing>
+        #include <fog_pars_fragment>
+        #include <bsdfs>
+        #include <lights_pars_begin>
+        #include <shadowmap_pars_fragment>
+        #include <shadowmask_pars_fragment>
+
+        void main() {
+            bool grid = distance(fract(worldPos.xz * GRID_SIZE), vec2(0.5)) < GRID_THICKNESS;
+
+            float fade = 1.0 - clamp(distance(worldPos.xyz, cameraPosition)/FADE_DISTANCE, 0.0, 1.0);
+            float dotAmount = (grid ? 0.2 : 0.0) * fade;
+            float shadowAmount = 1.0 - getShadowMask();
+
+            gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0);
+        }
+        `;
         this.plane = new THREE.Mesh(geom, material);
         this.plane.position.y = 0;
         this.plane.receiveShadow = true;
@@ -570,7 +601,7 @@ export default class Manager extends EventTarget {
     }
     buildRenderer() {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.z = 15;
+        this.camera.position.z = 8;
         this.camera.position.y = 8;
 
         this.audioListener = new THREE.AudioListener();
