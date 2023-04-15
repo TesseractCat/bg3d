@@ -169,3 +169,25 @@ button, select {
 button {
     border: 1px solid grey;
 }
+
+kbd {
+    background-color: #eee;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.5);
+
+    color: #333;
+    display: inline-block;
+
+    font-size: 0.85em;
+    font-weight: 700;
+
+    line-height: 1;
+    padding: 2px 4px;
+    white-space: nowrap;
+}
+
+.icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.15em;
+}
