@@ -7,6 +7,11 @@ import {Pawn, Deck, Dice} from './pawns';
 
 import PluginLoader from './pluginloader'
 
+import ContextMenu from './contextmenu.js';
+import Tooltip from './tooltip.js';
+import Chat from './chat.js';
+import Hand from './hand.js';
+
 let manager;
 let pluginLoader;
 

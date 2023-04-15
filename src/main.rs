@@ -99,6 +99,8 @@ async fn main() {
 
                 // FIXME: This is blocking
                 // - https://ryhl.io/blog/async-what-is-blocking/
+                // Maybe spawn a thread per lobby for physics?
+                // - Issues with getting the RwLock for hashmap?
                 lobby_wls.par_iter_mut().for_each(|lobby| {
                     lobby.step(tick % 3 == 0).ok();
                 });

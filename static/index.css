@@ -112,54 +112,6 @@ canvas {
     text-align:center;
 }
 
-/* CHAT PANEL */
-
-#chat-panel {
-    position:absolute;
-    bottom: 20px;
-    right: 20px;
-    width: 240px;
-    padding: 20px;
-    background-color: #DED6BA;
-    border-radius: 10px;
-    box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
-    user-select:none;
-    overflow-x:hidden;
-    
-    /*display:none;*/
-    
-    cursor:pointer;
-    transition:opacity 0.2s;
-    opacity:0.2;
-}
-#chat-panel #chat-entries {
-    max-height:150px;
-    overflow-y:auto;
-}
-#chat-panel #chat-input {
-    margin-top:10px;
-    width:100%;
-    border-radius:5px;
-    border:1px solid grey;
-    padding:5px;
-    box-sizing:border-box;
-
-    pointer-events:none;
-}
-#chat-panel .entry {
-    overflow-x: hidden;
-}
-@media only screen and (max-width: 768px) {
-    #chat-panel {
-        right:5%;
-        left:5%;
-        width:auto;
-    }
-    #chat-panel #chat-entries {
-        max-height:75px;
-    }
-}
-
 /* HAND PANEL */
 
 #hand-panel {
@@ -199,43 +151,6 @@ canvas {
 #hand-panel.minimized {
     margin-bottom:-120px;
     pointer-events:none;
-}
-
-/* CONTEXT MENU */
-
-#context-menu {
-    position:absolute;
-    display:none;
-
-    width: 150px;
-    padding: 5px 0px;
-
-    background: aliceblue;
-    border: 1px solid rgba(0,0,0,0.5);
-    border-radius: 2px;
-
-    user-select:none;
-}
-#context-menu button, #context-menu p {
-    display:block;
-    box-sizing:border-box;
-
-    width: 100%;
-    padding-left: 15%;
-}
-#context-menu button {
-    font-size:0.9em;
-    border: none;
-    border-radius:0px;
-    background-color: transparent;
-    text-align: left;
-}
-#context-menu button:hover {
-    background-color: rgba(0,0,0,0.2);
-}
-#context-menu p {
-    font-style: italic;
-    text-transform: capitalize;
 }
 
 /* SHADE */
@@ -280,29 +195,18 @@ canvas {
 }
 @media only screen and (max-width: 768px) {
     #icon {
-        display:none;
+        display: none;
     }
 }
 
 a, a:visited {
-    color:#444;
+    color: #444;
 }
 button, select {
-    font-family:inherit;
-    font-size:0.75rem;
-    border-radius:5px;
+    font-family: inherit;
+    font-size: 0.75rem;
+    border-radius: 5px;
 }
 button {
-    border:1px solid grey;
-}
-
-#tooltip {
-    display:none;
-    position:absolute;
-    pointer-events:none;
-    background-color:rgba(0,0,0,0.8);
-    color:white;
-    transform:translate(0, -100%);
-    padding:3px;
-    border-radius:2px;
+    border: 1px solid grey;
 }

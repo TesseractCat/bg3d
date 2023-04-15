@@ -2,7 +2,7 @@ import { Vector3 } from 'three';
 import { Spring } from './spring';
 import { Pawn } from './pawn';
 
-class CardElement extends HTMLElement {
+class Card extends HTMLElement {
     image;
     hiddenImage;
 
@@ -133,16 +133,59 @@ img:not(#hidden) {
         }
     }
 }
-window.customElements.define('bird-card', CardElement);
 
-export class Hand {
-    manager;
+export default class Hand extends HTMLElement {
     cards = new Map();
+    shadowRoot;
     element;
     
-    constructor(manager) {
-        this.manager = manager;
-        this.element = document.querySelector("#hand-panel");
+    constructor() {
+        super();
+
+        this.shadowRoot = this.attachShadow({ mode: 'open' });
+        this.element = document.createElement("div");
+        this.shadowRoot.appendChild(this.element);
+
+        const style = document.createElement('style');
+        style.textContent = `
+        :host {
+            position:absolute;
+            bottom:0px;
+            left:0px;
+            right:0px;
+            pointer-events:none;
+        }
+        bird-card {
+            cursor:pointer;
+            height:200px;
+
+            display:inline-block;
+
+            margin-left:-40px;
+            pointer-events:auto;
+            user-select:none;
+        }
+        bird-card:first-child {
+            margin-left:0px;
+        }
+        bird-card:hover {
+            margin-bottom:40px;
+        }
+
+        div {
+            margin-bottom: -80px;
+
+            display:flex;
+            justify-content:center;
+            align-items:flex-end;
+            text-align:center;
+        }
+        div.minimized {
+            margin-bottom: -120px;
+            pointer-events: none;
+        }
+        `;
+        this.shadowRoot.appendChild(style);
     }
     
     pushCard(deck, grab=false) {
@@ -153,7 +196,6 @@ export class Hand {
         
         let imageElement = document.createElement('bird-card');
         imageElement.dataset.id = card.id;
-        imageElement.className = 'card';
         imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
         imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
 
@@ -165,7 +207,7 @@ export class Hand {
             const cardDrop = () => {
                 document.removeEventListener('pointerup', cardDrop);
                 document.removeEventListener('pointermove', cardMove);
-                this.element.querySelectorAll('.card').forEach((e) => {
+                this.element.querySelectorAll('bird-card').forEach((e) => {
                     e.removeEventListener('pointermove', cardHover);
                 });
 
@@ -197,7 +239,7 @@ export class Hand {
 
             document.addEventListener('pointerup', cardDrop);
             document.addEventListener('pointermove', cardMove);
-            this.element.querySelectorAll(`.card:not([data-id="${card.id}"])`).forEach((e) => {
+            this.element.querySelectorAll(`bird-card:not([data-id="${card.id}"])`).forEach((e) => {
                 e.addEventListener('pointermove', cardHover);
             });
         });
@@ -220,40 +262,21 @@ export class Hand {
             if (cardJSON.hasOwnProperty('data')) {
                 card.data = cardJSON.data;
 
-                let imageElement = this.element.querySelector(`.card[data-id="${card.id}"]`);
+                let imageElement = this.element.querySelector(`bird-card[data-id="${card.id}"]`);
                 imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
             }
         }
     }
     takeCard(id) {
-        if ([...this.manager.pawns.values()].filter(p => p.selected).length != 0)
-            return;
-        
         let card = this.cards.get(id);
         this.cards.delete(id);
-        this.element.querySelector(`.card[data-id="${id}"]`)?.remove();
-        
-        let raycastableObjects = [...this.manager.pawns.values()].map(x => x.mesh);
-        raycastableObjects.push(this.manager.plane);
-        let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
-        
-        if (hits.length >= 1) {
-            let hitPoint = hits[0].point.clone();
-            card.position = hitPoint.add(new Vector3(0, 2, 0));
-            
-            let cardPawn = this.manager.loadPawn(card);
-            const grabHandler = (e) => {
-                if (e.detail.pawn.id == cardPawn.id) {
-                    this.manager.pawns.get(cardPawn.id).grab(0);
-                    this.manager.removeEventListener("add_pawn", grabHandler);
-                }
-            };
-            this.manager.addEventListener("add_pawn", grabHandler);
-            this.manager.sendAddPawn(cardPawn);
-        }
+        this.element.querySelector(`bird-card[data-id="${id}"]`)?.remove();
+
+        this.dispatchEvent(new CustomEvent("take", {
+            detail: card
+        }));
     }
     clear() {
-        console.log("Clearing hand...");
         // Remove children
         while (this.element.firstChild) {
             this.element.firstChild.remove();
@@ -269,3 +292,6 @@ export class Hand {
         }
     }
 }
+
+window.customElements.define('bird-card', Card);
+window.customElements.define('bird-hand', Hand);

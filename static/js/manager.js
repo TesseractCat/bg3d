@@ -11,7 +11,6 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
-import { Hand } from './hand';
 
 class Cursor {
     mesh;
@@ -32,169 +31,6 @@ class Cursor {
     }
 }
 
-class ContextMenu {
-    manager;
-    element;
-
-    visible = false;
-
-    constructor(manager) {
-        this.manager = manager;
-        this.element = document.querySelector('#context-menu');
-
-        this.element.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-        document.addEventListener('pointerdown', (e) => {
-            if (!this.element.contains(e.target) && this.visible) {
-                this.hide();
-            }
-        });
-    }
-
-    show(event, menu) {
-        // Remove children
-        while (this.element.firstChild) {
-            this.element.firstChild.remove();
-        }
-        
-        // Create buttons
-        for (let [i, section] of menu.entries()) {
-            for (let entry of section) {
-                if (entry.length == 1) {
-                    let text = document.createElement("p");
-                    text.innerText = entry[0];
-
-                    this.element.appendChild(text);
-                } else if (entry.length == 2) {
-                    let [name, action] = entry;
-
-                    let button = document.createElement("button");
-                    button.innerText = name;
-                    button.addEventListener("click", () => {
-                        this.hide();
-                        action();
-                    });
-
-                    this.element.appendChild(button);
-                }
-            }
-
-            // Create divider
-            if (i != menu.length - 1) {
-                let divider = document.createElement("hr");
-                this.element.appendChild(divider);
-            }
-        }
-
-        this.element.style.left = event.clientX + "px";
-        this.element.style.top = event.clientY + "px";
-        this.element.style.display = "block";
-
-        this.visible = true;
-    }
-    hide() {
-        this.element.style.display = "none";
-
-        this.visible = false;
-    }
-}
-
-class Chat {
-    manager;
-
-    panel;
-    input;
-    entries;
-
-    focused = false;
-
-    constructor(manager) {
-        this.manager = manager;
-
-        this.panel = document.querySelector("#chat-panel");
-        this.input = document.querySelector("#chat-input");
-        this.entries = document.querySelector("#chat-entries");
-
-        let clickingPanel = false;
-        this.panel.addEventListener('pointerdown', () => {
-            if (!this.focused)
-                clickingPanel = true;
-        });
-        document.addEventListener("mouseup", () => {
-            if (clickingPanel) {
-                this.focus();
-                clickingPanel = false;
-            }
-        });
-        this.input.addEventListener("keydown", (e) => {
-            if (e.key == "Enter") {
-                if (this.input.value != "") {
-                    this.send(this.input.value);
-                }
-                this.blur();
-            } else if (e.key == "Escape") {
-                this.blur();
-            }
-        });
-        this.input.addEventListener("blur", (e) => {
-            this.blur();
-        });
-    }
-
-    focus() {
-        this.focused = true;
-
-        this.panel.style.cursor = "auto";
-        this.panel.style.opacity = "1";
-        this.input.style.pointerEvents = "auto";
-        this.input.focus();
-        this.input.select();
-    }
-    blur() {
-        this.focused = false;
-
-        this.panel.style.cursor = "pointer";
-        this.panel.style.opacity = "0.2";
-        this.input.style.pointerEvents = "none";
-        this.input.value = "";
-        this.input.blur();
-        display.focus();
-    }
-
-    send(content) {
-        this.manager.sendSocket({
-            type:"chat",
-            content:content,
-        });
-    }
-
-    chatFadeTimeout;
-    addChatEntry(id, content) {
-        let entry = document.createElement("p");
-        entry.classList.add("entry");
-        
-        let name = document.createElement("span");
-        name.style.color = this.manager.userColors.get(id);
-        name.innerText = "⬤: ";
-        let text = document.createElement("span");
-        text.innerText = content;
-        
-        entry.appendChild(name);
-        entry.appendChild(text);
-        this.entries.appendChild(entry);
-        this.entries.scrollTop = this.entries.scrollHeight;
-        
-        this.panel.style.opacity = "1";
-        if (this.chatFadeTimeout !== undefined)
-            clearTimeout(this.chatFadeTimeout);
-        this.chatFadeTimeout = setTimeout(() => {
-            if (this.input != document.activeElement)
-                this.panel.style.opacity = "0.2";
-        }, 4000);
-    }
-}
-
 export default class Manager extends EventTarget {
     scene;
     camera;
@@ -210,9 +46,10 @@ export default class Manager extends EventTarget {
     
     pawns = new Map();
 
-    hand = new Hand(this);
-    contextMenu = new ContextMenu(this);
-    chat = new Chat(this);
+    hand;
+    chat;
+    contextMenu;
+    tooltip;
     
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
@@ -244,6 +81,44 @@ export default class Manager extends EventTarget {
         
         this.resize();
 
+        // Setup custom elements
+        this.hand = document.querySelector("bird-hand");
+        this.chat = document.querySelector("bird-chat");
+        this.contextMenu = document.querySelector("bird-context-menu");
+        this.tooltip = document.querySelector("bird-tooltip");
+
+        this.chat.addEventListener("chat", (e) => {
+            this.sendSocket({
+                type: "chat",
+                content: e.detail
+            });
+        });
+        this.hand.addEventListener("take", (e) => {
+            let card = e.detail;
+
+            if ([...this.pawns.values()].filter(p => p.selected).length != 0)
+                return;
+
+            let raycastableObjects = [...this.pawns.values()].map(x => x.mesh);
+            raycastableObjects.push(this.plane);
+            let hits = this.raycaster.intersectObjects(raycastableObjects, true);
+            
+            if (hits.length >= 1) {
+                let hitPoint = hits[0].point.clone();
+                card.position = hitPoint.add(new THREE.Vector3(0, 2, 0));
+                
+                let cardPawn = this.loadPawn(card);
+                const grabHandler = (e) => {
+                    if (e.detail.pawn.id == cardPawn.id) {
+                        this.pawns.get(cardPawn.id).grab(0);
+                        this.removeEventListener("add_pawn", grabHandler);
+                    }
+                };
+                this.addEventListener("add_pawn", grabHandler);
+                this.sendAddPawn(cardPawn);
+            }
+        });
+
         // Enable cache
         THREE.Cache.enabled = true;
         
@@ -251,8 +126,6 @@ export default class Manager extends EventTarget {
         display.addEventListener('pointermove', (e) => {
             this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
-            tooltip.style.top = e.clientY + "px";
-            tooltip.style.left = e.clientX + "px";
         });
         
         let dragged = false;
@@ -583,12 +456,16 @@ export default class Manager extends EventTarget {
 
             display.style.cursor = hovered ? "pointer" : "auto";
             if (hovered != null && hovered instanceof Container) {
-                tooltip.innerText = hovered.name;
-                if (hovered.data.capacity !== undefined && hovered.data.capacity != null)
-                    tooltip.innerText += ` [${hovered.data.capacity}]`;
-                tooltip.style.display = "block";
+                if (!this.tooltip.visible()) {
+                    this.tooltip.innerText = hovered.name;
+                    if (hovered.data.capacity !== undefined && hovered.data.capacity != null)
+                        this.tooltip.innerText += ` [${hovered.data.capacity}]`;
+                    this.tooltip.show();
+                }
             } else {
-                tooltip.style.display = "none";
+                if (this.tooltip.visible()) {
+                    this.tooltip.hide();
+                }
             }
             
             // Raycast for cursor plane
@@ -827,7 +704,7 @@ export default class Manager extends EventTarget {
             }
 
             if (type == "chat") {
-                this.chat.addChatEntry(msg.id, msg.content);
+                this.chat.addChatEntry(msg.id, msg.content, this.userColors.get(msg.id));
             }
             
             if (type == "relay_cursors") {
