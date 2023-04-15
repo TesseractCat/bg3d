@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { nanoid } from 'nanoid';
 
 import Stats from 'three/addons/libs/stats.module.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -38,14 +37,13 @@ export default class Manager extends EventTarget {
     renderer;
     composer;
     controls;
-    socket;
     plane;
+
+    socket;
     
     stats;
     pingPanel;
     
-    pawns = new Map();
-
     hand;
     chat;
     contextMenu;
@@ -60,6 +58,7 @@ export default class Manager extends EventTarget {
     };
     lobbyCursors = new Map();
     
+    pawns = new Map();
     host = false;
     id;
     userColors = new Map();
@@ -541,12 +540,14 @@ export default class Manager extends EventTarget {
         directionalLight.position.y = 25;
         directionalLight.position.x = 10;//0
         directionalLight.shadow.normalBias = 0.1;//0.05;
-        directionalLight.shadow.camera.left = -50;
-        directionalLight.shadow.camera.right = 50;
-        directionalLight.shadow.camera.bottom = -50;
-        directionalLight.shadow.camera.top = 50;
-        directionalLight.shadow.mapSize.width = 2048;//1024;
-        directionalLight.shadow.mapSize.height = 2048;//1024;
+        const shadowExtents = 40;
+        const shadowResolution = window.isMobile ? 1024 : 2048;
+        directionalLight.shadow.camera.left = -shadowExtents;
+        directionalLight.shadow.camera.right = shadowExtents;
+        directionalLight.shadow.camera.bottom = -shadowExtents;
+        directionalLight.shadow.camera.top = shadowExtents;
+        directionalLight.shadow.mapSize.width = shadowResolution;
+        directionalLight.shadow.mapSize.height = shadowResolution;
         this.scene.add(directionalLight);
         const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.1);
         directionalLight2.position.y = 10;
@@ -580,7 +581,11 @@ export default class Manager extends EventTarget {
         });
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        if (window.isMobile) {
+            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+        } else {
+            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         
         // this.composer = new EffectComposer(this.renderer);

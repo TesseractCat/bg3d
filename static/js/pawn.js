@@ -7,6 +7,7 @@ import { NetworkedTransform } from './transform';
 import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import { Spring, Vector3Spring } from './spring';
+import { AudioLoader, Audio as GlobalAudio } from 'three';
 
 Math.clamp = function(x, min, max) {
     return Math.min(Math.max(x, min), max);
@@ -21,6 +22,7 @@ export class Pawn {
     static gltfLoader = new GLTFLoader()
         .setDRACOLoader(Pawn.dracoLoader)
         .setPath(window.location.href + '/assets/');
+    static audioLoader = new AudioLoader().setPath(window.location.href + '/assets/');
 
     // Serialized
     position = new THREE.Vector3(0,0,0);
@@ -63,7 +65,8 @@ export class Pawn {
     constructor({
         position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
         mesh = null, colliderShapes = [], tint,
-        moveable = true, id = null, name = null}) {
+        moveable = true, id = null, name = null
+    }) {
         
         if (id == null) {
             this.id = Pawn.nextId();

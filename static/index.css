@@ -30,6 +30,7 @@ canvas {
 }
 
 /* MAIN PANEL */
+
 #overlay {
     position: absolute;
     top: 20px;
@@ -60,10 +61,10 @@ canvas {
     white-space:nowrap;
 }
 #instructions {
-    width:95%;
     margin:auto;
     text-align: left;
     padding-bottom:5px;
+    font-size: 0.9em;
 }
 #instructions p {
     line-height:20px;
@@ -110,6 +111,10 @@ canvas {
     border-radius: 0px 0px 0px 10px;
     cursor:pointer;
     text-align:center;
+}
+
+.tree {
+    color: #444;
 }
 
 /* SHADE */

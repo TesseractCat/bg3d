@@ -688,11 +688,15 @@ class OrbitControls extends EventDispatcher {
 		}
         function handleKeyUp( event ) {
             
-            if (event.code == scope._lastKeyEvent.code) {
+			if (scope._lastKeyEvent) {
 
-                scope._lastKeyEvent = null;
+				if (event.code == scope._lastKeyEvent.code) {
 
-            }
+					scope._lastKeyEvent = null;
+
+				}
+
+			}
 
         }
 
