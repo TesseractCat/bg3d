@@ -1,7 +1,7 @@
 import {
     SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Raycaster, AudioListener,
     Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
-    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache
+    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
@@ -12,7 +12,7 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
 import { OrbitControls } from './OrbitControls.js';
 
-import { Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
+import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
 class Cursor {
@@ -110,7 +110,7 @@ export default class Manager extends EventTarget {
                 let hitPoint = hits[0].point.clone();
                 card.position = hitPoint.add(new Vector3(0, 2, 0));
                 
-                let cardPawn = this.loadPawn(card);
+                let cardPawn = deserializePawn(card);
                 const grabHandler = (e) => {
                     if (e.detail.pawn.id == cardPawn.id) {
                         this.pawns.get(cardPawn.id).grab(0);
@@ -233,27 +233,16 @@ export default class Manager extends EventTarget {
             type:"clear_pawns",
         });
     }
-    addPawn(toAdd) {
-        if (this.pawns.has(toAdd.id) || this.hand.cards.has(toAdd.id)) {
-            this.updatePawn(toAdd);
+    addPawn(pawn) {
+        if (this.pawns.has(pawn.id) || this.hand.cards.has(pawn.id)) {
+            this.updatePawn(pawn);
         } else {
-            if (toAdd instanceof Pawn) {
-                this.pawns.set(toAdd.id, toAdd);
-                toAdd.init(this);
-            } else {
-                let pawn = this.loadPawn(toAdd);
-                this.pawns.set(pawn.id, pawn);
-                pawn.init(this);
-            }
+            this.pawns.set(pawn.id, pawn);
+            pawn.init(this);
         }
     }
-    sendAddPawn(toAdd) {
-        let serialized = toAdd.serialize();
-
-        this.sendSocket({
-            type:"add_pawn",
-            pawn:serialized
-        });
+    sendAddPawn(pawn) {
+        this.sendSocket({ type: "add_pawn", pawn: pawn.serialize() });
     }
     removePawn(id) {
         if (this.pawns.has(id)) {
@@ -269,68 +258,47 @@ export default class Manager extends EventTarget {
             pawns:[id],
         });
     }
-    loadPawn(pawnJSON) {
-        let pawn;
-        switch (pawnJSON.class) {
-            case "Pawn":
-                pawn = Pawn.deserialize(pawnJSON);
-                break;
-            case "SnapPoint":
-                pawn = SnapPoint.deserialize(pawnJSON);
-                break;
-            case "Dice":
-                pawn = Dice.deserialize(pawnJSON);
-                break;
-            case "Deck":
-                pawn = Deck.deserialize(pawnJSON);
-                break;
-            case "Container":
-                pawn = Container.deserialize(pawnJSON);
-                break;
-            default:
-                console.error("Encountered unknown pawn type!");
-                return;
-        }
-        return pawn;
-    }
-    updatePawn(pawnJSON) {
-        if (!this.pawns.has(pawnJSON.id)) {
-            if (this.hand.cards.has(pawnJSON.id)) {
-                this.hand.updateCard(pawnJSON);
+    updatePawn(serializedPawn) {
+        if (!this.pawns.has(serializedPawn.id)) {
+            if (this.hand.cards.has(serializedPawn.id)) {
+                this.hand.updateCard(serializedPawn);
             } else {
                 console.warn("Attempting to update non-existent pawn");
             }
             return;
         }
-        let pawn = this.pawns.get(pawnJSON.id);
+        let pawn = this.pawns.get(serializedPawn.id);
 
-        if (pawnJSON.hasOwnProperty('selected')) {
-            if (pawn.networkSelected && !pawnJSON.selected) {
+        if (serializedPawn.hasOwnProperty('selected')) {
+            if (pawn.networkSelected && !serializedPawn.selected) {
                 // This pawn has been grabbed/released, reset the network buffer and update position
-                if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
-                    pawn.setPosition(new Vector3().copy(pawnJSON.position));
+                if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
+                    pawn.setPosition(new Vector3().copy(serializedPawn.position));
                     pawn.setRotation(new Quaternion().setFromEuler(
-                        new Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                        new Euler().setFromVector3(serializedPawn.rotation, 'ZYX')
                     ));
                 }
             }
-            pawn.networkSelected = pawnJSON.selected;
+            pawn.networkSelected = serializedPawn.selected;
         }
-        if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
+        if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
-                new Vector3().copy(pawnJSON.position),
+                new Vector3().copy(serializedPawn.position),
                 new Quaternion().setFromEuler(
-                    new Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                    new Euler().setFromVector3(serializedPawn.rotation, 'ZYX')
                 )
             );
         }
-        if (pawnJSON.hasOwnProperty('selectRotation')) {
-            pawn.selectRotation = pawnJSON.selectRotation;
+        if (serializedPawn.hasOwnProperty('selectRotation')) {
+            pawn.selectRotation = serializedPawn.selectRotation;
         }
-        if (pawnJSON.hasOwnProperty('data')) {
-            pawn.data = pawnJSON.data;
+        if (serializedPawn.hasOwnProperty('data')) {
+            pawn.data = serializedPawn.data;
             pawn.processData();
         }
+    }
+    sendUpdatePawn(pawn) {
+        this.sendSocket({type: "update_pawns", pawns: [pawn.serialize()]});
     }
     
     addUser(id, color) {
@@ -380,25 +348,9 @@ export default class Manager extends EventTarget {
     }
     tick() {
         // Send all dirty pawns (even the ones selected by a client)
-        let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
+        let to_update = [...this.pawns.values()].filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
-            let to_update_data = to_update.map(p => {
-                let rotation = new Vector3().setFromEuler(new Euler().setFromQuaternion(p.rotation, 'ZYX'));
-                let update = {id: p.id};
-                for (let dirtyParam of p.dirty) {
-                    switch (dirtyParam) {
-                        case "rotation":
-                            update[dirtyParam] = rotation;
-                            break;
-                        default:
-                            update[dirtyParam] = p[dirtyParam];
-                            break;
-                    }
-                }
-                return update;
-            });
-
-            this.sendSocket({type: "update_pawns", pawns: to_update_data});
+            this.sendSocket({type: "update_pawns", pawns: to_update.map(p => p.serializeDirty())});
             to_update.forEach(p => p.dirty.clear());
         }
         if (this.localCursor.dirty) {
@@ -679,7 +631,7 @@ export default class Manager extends EventTarget {
                     setInterval(() => this.tick(), Manager.networkTimestep);
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => {
-                        let pawn = this.loadPawn(p);
+                        let pawn = deserializePawn(p);
                         pawn.init(this);
                         this.pawns.set(pawn.id, pawn);
                     });
@@ -724,7 +676,7 @@ export default class Manager extends EventTarget {
             }
             
             if (type == "add_pawn") {
-                this.addPawn(msg.pawn);
+                this.addPawn(deserializePawn(msg.pawn));
             } else if (type == "remove_pawns") {
                 msg.pawns.forEach(id => this.removePawn(id));
             } else if (type == "update_pawns") {

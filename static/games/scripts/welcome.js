@@ -1,4 +1,4 @@
-self.start = async function() {
+self.world.addEventListener("start", async () => {
     let birdHeight = 4.3;
     let bird = new Pawn({
         name: "Bird Statue",
@@ -46,11 +46,30 @@ self.start = async function() {
     //     ],
     // })
 
-    await Promise.all([
-        bird.create(),
-        birdSnap.create(),
-        deck.create(),
-        die.create(),
-        // bag.create(),
-    ]);
-}
+    self.world.add([bird, deck, birdSnap, die]);
+
+    for (let i = 0; i < 5; i++) {
+        let birdHeight = 4.3;
+        let bird = new Pawn({
+            name: "Bird Statue",
+            position: new Vector3(-1.9,2.8,-1.35),
+            rotation: new Vector3(0, Math.PI/6, 0),
+            mesh: 'generic/bird.gltf', colliderShapes: [
+                new Cylinder(1.5, birdHeight)
+            ],
+        });
+        self.world.add(bird);
+
+        await timeout(500);
+    }
+    while (true) {
+        for (let pawn of self.world.pawns().values()) {
+            if (pawn.name == "Bird Statue") {
+                pawn.position.y += Math.random() * 2.0;
+            }
+        }
+        //self.world.commit(self.world.pawns().values().filter(p => p.name == "Bird Statue").map(p => p.id));
+        self.world.commit();
+        await timeout(1000);
+    }
+});

@@ -6,7 +6,7 @@ import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js'
 import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import Manager from './manager';
-import { Pawn } from './pawn';
+import { deserializePawn, Pawn } from './pawns';
 import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
@@ -415,7 +415,7 @@ export class Container extends Pawn {
                 return;
         }
 
-        let item = this.manager.loadPawn(this.data.holds).clone();
+        let item = deserializePawn(this.data.holds).clone();
         item.setPosition(this.position.clone().add(new Vector3(0, 2, 0)));
 
         this.manager.addPawn(item);

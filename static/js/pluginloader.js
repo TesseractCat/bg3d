@@ -2,7 +2,7 @@ import { Quaternion, Euler } from 'three';
 import * as zip from '@zip.js/zip.js';
 
 import Manager from './manager';
-import { Pawn, SnapPoint, Deck, Container, Dice } from './pawns';
+import { Pawn, SnapPoint, Deck, Container, Dice, deserializePawn } from './pawns';
 import { Box, Cylinder } from './shapes';
 
 function findEntry(entries, path) {
@@ -25,8 +25,10 @@ export default class PluginLoader {
         ], {type: "text/javascript"});
     }
     async loadFromFile(file) {
-        if (!this.manager.host)
+        if (!this.manager.host) {
+            console.warn("Attempted to load plugin on non-host client!");
             return;
+        }
 
         console.log("Loading plugin...");
         let reader = new zip.ZipReader(new zip.BlobReader(file));
@@ -66,7 +68,7 @@ export default class PluginLoader {
                 this.pluginWorker.terminate();
 
             this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
-            this.pluginWorker.addEventListener('message', (e) => this.onWorker(e));
+            this.pluginWorker.addEventListener('message', (e) => this.onWorker(e.data));
         }
 
         // First clear all existing assets and pawns
@@ -87,81 +89,40 @@ export default class PluginLoader {
         }
 
         // Start worker
-        this.callWorker("start");
+        this.pluginWorker.postMessage({name: "start"});
+
+        // Hook events
+        const update = (pawns) => {
+            this.pluginWorker.postMessage({name: "update", pawns: pawns});
+        };
+        this.manager.addEventListener("update_pawns", (e) => {
+            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id).serialize()));
+        });
+        this.manager.addEventListener("add_pawn", (e) => {
+            update([this.manager.pawns.get(e.detail.pawn.id).serialize()]);
+        });
+        this.manager.addEventListener("remove_pawns", (e) => {
+            this.pluginWorker.postMessage({name: "remove", pawns: e.detail.pawns});
+        });
+        this.manager.addEventListener("clear_pawns", (e) => {
+            this.pluginWorker.postMessage({name: "clear"});
+        });
 
         console.log("Plugin loaded!");
         if (updateSelect)
             document.querySelector("#games").value = "Custom";
     }
 
-    callWorker(action) {
-        let resultPromise = new Promise((resolve, reject) => {
-            let wait = (e) => {
-                let data = e.data;
-                if (data.type == "return") {
-                    this.pluginWorker.removeEventListener('message', wait);
-                    resolve(data.result);
+    onWorker(msg) {
+        if (msg.name == "commit") {
+            for (let pawn of msg.data) {
+                if (!this.manager.pawns.has(pawn.id)) {
+                    this.manager.sendAddPawn(deserializePawn(pawn));
+                } else {
+                    this.manager.sendUpdatePawn(deserializePawn(pawn));
                 }
-            };
-            this.pluginWorker.addEventListener('message', wait);
-        });
-        this.pluginWorker.postMessage({
-            type:"call",
-            action:action,
-        });
-        return resultPromise;
-    }
-    async onWorker(message) {
-        let data = message.data;
-        let respond = (result) => {
-            this.pluginWorker.postMessage({
-                type:"return",
-                result:result,
-            });
-        }
-
-        if (data.type == "addPawn") {
-            let pawn = this.loadPawn(data.pawn);
-            if (pawn) {
-                this.manager.sendAddPawn(pawn);
-                respond(pawn.id);
-            } else {
-                respond(-1);
             }
-        } else if (data.type == "removePawn") {
-            this.manager.sendRemovePawn(pawn.id);
         }
-    }
-
-    loadPawn(pawn) {
-        if (pawn.rotation) {
-            pawn.rotation = new Quaternion().setFromEuler(
-                new Euler().setFromVector3(pawn.rotation)
-            );
-        }
-
-        let result;
-        switch (pawn.type) {
-        case "Pawn":
-            result = new Pawn(pawn);
-            break;
-        case "SnapPoint":
-            result = new SnapPoint(pawn);
-            break;
-        case "Deck":
-            result = new Deck(pawn);
-            break;
-        case "Container":
-            pawn.holds = this.loadPawn(pawn.holds).serialize();
-            result = new Container(pawn);
-            break;
-        case "Dice":
-            result = new Dice(pawn);
-            break;
-        default:
-            break;
-        }
-        return result;
     }
 
     registerGame(manifest) {

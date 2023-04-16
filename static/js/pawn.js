@@ -67,12 +67,7 @@ export class Pawn {
         mesh = null, colliderShapes = [], tint,
         moveable = true, id = null, name = null
     }) {
-        
-        if (id == null) {
-            this.id = Pawn.nextId();
-        } else {
-            this.id = id;
-        }
+        this.id = (id == null) ? Pawn.nextId() : id;
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
@@ -417,8 +412,8 @@ export class Pawn {
         return out;
     }
     serializeState() {
-        let rotation = new Vector3().copy(
-            new Euler().setFromQuaternion(this.rotation)
+        let rotation = new Vector3().setFromEuler(
+            new Euler().setFromQuaternion(this.rotation, 'ZYX')
         );
         return {
             id:this.id,
@@ -428,15 +423,33 @@ export class Pawn {
             selectRotation:this.selectRotation,
         };
     }
-    static deserialize(pawnJSON) {
-        let rotation = new Quaternion().setFromEuler(new Euler().setFromVector3(pawnJSON.rotation));
+    serializeDirty() {
+        let out = {id:this.id};
+        for (let dirtyParam of this.dirty) {
+            if (dirtyParam == "rotation") {
+                out[dirtyParam] = new Vector3().setFromEuler(
+                    new Euler().setFromQuaternion(this.rotation, 'ZYX')
+                );
+            } else {
+                out[dirtyParam] = this[dirtyParam];
+            }
+        }
+        return out;
+    }
+    static deserialize(serializedPawn) {
+        let rotation = new Quaternion();
+        if (serializedPawn.rotation)
+            rotation.setFromEuler(new Euler().setFromVector3(serializedPawn.rotation, 'ZYX'));
+
         let pawn = new this({
-            ...pawnJSON.data,
-            ...pawnJSON,
+            ...serializedPawn.data,
+            ...serializedPawn,
             rotation: rotation,
         });
-        pawn.networkSelected = pawnJSON.selected;
-        pawn.selectRotation = pawnJSON.selectRotation;
+        if (serializedPawn.selected)
+            pawn.networkSelected = serializedPawn.selected;
+        if (serializedPawn.selectRotation)
+            pawn.selectRotation = serializedPawn.selectRotation;
         return pawn;
     }
     clone(parameters) {

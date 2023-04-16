@@ -61,7 +61,8 @@ class Vector2 {
 }
 
 class Box {
-    type = "Box";
+    class = "Box";
+
     halfExtents;
 
     constructor(halfExtents = new Vector3()) {
@@ -75,7 +76,8 @@ class Box {
     }
 }
 class Cylinder {
-    type = "Cylinder";
+    class = "Cylinder";
+
     radius;
     height;
 
@@ -89,7 +91,9 @@ class Cylinder {
 }
 
 class Pawn {
-    type = 'Pawn';
+    class = "Pawn";
+
+    id;
 
     position;
     rotation;
@@ -101,11 +105,10 @@ class Pawn {
     name;
     colliderShapes;
 
-    #id = null;
+    constructor({id = null, position = new Vector3(), rotation = new Vector3(),
+                 mesh, tint, moveable, name, colliderShapes = []}) {
+        this.id = (id == null) ? Pawn.nextId() : id;
 
-    constructor({position = new Vector3(), rotation = new Vector3(),
-                 mesh, tint,
-                 moveable, name, colliderShapes = []}) {
         this.position = new Vector3().copy(position);
         this.rotation = new Vector3().copy(rotation);
 
@@ -117,9 +120,13 @@ class Pawn {
         this.colliderShapes = colliderShapes.map(shape => shape.clone());
     }
 
-    async create() {
-        this.id = await addPawn(this);
-        return this;
+    static nextId() {
+        // Generate a random 52 bit integer (max safe js uint)
+        // https://stackoverflow.com/a/70167319
+        let [upper,lower] = new Uint32Array(Float64Array.of(Math.random()).buffer);
+        upper = upper & 1048575; // upper & (2^20 - 1)
+        upper = upper * Math.pow(2, 32); // upper << 32
+        return upper + lower;
     }
 
     clone(parameters) {
@@ -127,7 +134,7 @@ class Pawn {
     }
 }
 class SnapPoint extends Pawn {
-    type = 'SnapPoint';
+    class = "SnapPoint";
 
     radius;
     size;
@@ -144,7 +151,7 @@ class SnapPoint extends Pawn {
     }
 }
 class Deck extends Pawn {
-    type = 'Deck';
+    class = "Deck";
 
     contents;
     back;
@@ -178,7 +185,7 @@ class Deck extends Pawn {
     }
 }
 class Container extends Pawn {
-    type = 'Container';
+    class = "Container";
 
     holds;
     capacity;
@@ -192,7 +199,7 @@ class Container extends Pawn {
     }
 }
 class Dice extends Pawn {
-    type = 'Dice';
+    class = "Dice";
 
     rollRotations;
 
@@ -205,50 +212,70 @@ class Dice extends Pawn {
 
 // Functions
 
-function callMain(message, waitReturn = true) {
-    if (!waitReturn) {
-        postMessage(message);
-        return;
-    }
-    let resultPromise = new Promise((resolve, reject) => {
-        let wait = (e) => {
-            let data = e.data;
-            if (data.type == "return") {
-                removeEventListener('message', wait);
-                resolve(data.result);
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// World
+
+class World extends EventTarget {
+    #pawns = new Map();
+
+    constructor() {
+        super();
+
+        self.onmessage = (e) => {
+            let msg = e.data;
+
+            if (msg.name == "update") {
+                for (let pawn of msg.pawns) {
+                    this.#pawns.set(pawn.id, pawn);
+                }
+            } else if (msg.name == "remove") {
+                for (let id of msg.pawns) {
+                    this.#pawns.delete(id);
+                }
+            } else if (msg.name == "clear") {
+                this.#pawns.clear();
             }
+
+            this.dispatchEvent(new CustomEvent(msg.name));
         };
-        addEventListener('message', wait);
-    });
-    postMessage(message);
-    return resultPromise;
-}
-
-async function addPawn(pawn) {
-    let id = await callMain({
-        type:"addPawn",
-        pawn:pawn,
-    });
-    return id;
-}
-async function removePawn(id) {
-    callMain({
-        type:"removePawn",
-        pawn:id,
-    }, false);
-}
-
-// Events
-
-self.start = function() { }
-
-addEventListener('message', async function (e) {
-    let data = e.data;
-    if (data.type == "call") {
-        let result = await self[data.action]();
-        postMessage({
-            type:"return",
-            result:result
-        });
     }
-});
+
+    pawns() {
+        return this.#pawns;
+    }
+    add(pawns) {
+        if (!pawns?.[Symbol.iterator]) {
+            pawns = [pawns];
+        }
+        for (let pawn of pawns) {
+            this.#pawns.set(pawn.id, pawn);
+        }
+        this.commit(pawns.map(p => p.id));
+    }
+    remove(ids) {
+        if (!ids?.[Symbol.iterator]) {
+            ids = [ids];
+        }
+        for (let id of ids) {
+            this.#pawns.delete(id);
+        }
+        this.commit(ids);
+    }
+    commit(ids = null) {
+        if (ids) {
+            postMessage({
+                name: "commit",
+                data: [...this.#pawns.values()].filter(p => ids.indexOf(p.id) != -1)
+            });
+        } else {
+            postMessage({
+                name: "commit",
+                data: [...this.#pawns.values()]
+            });
+        }
+    }
+}
+self.world = new World();
