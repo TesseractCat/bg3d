@@ -16,7 +16,7 @@ use axum::{
     routing::get,
     Router
 };
-use tower_http::services::{ServeDir, ServeFile};
+use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
 use futures::future::join_all;
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
@@ -83,7 +83,8 @@ async fn main() {
     let app = redirect_routes
         .nest_service("/static",
                       ServeDir::new("static").append_index_html_on_directories(false))
-        .nest("/:lobby", lobby_routes);
+        .nest("/:lobby", lobby_routes)
+        .layer(CompressionLayer::new());
     
     // Physics steps
     let lobbies_clone = lobbies.clone();

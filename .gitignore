@@ -1,5 +1,6 @@
 *.vim
 static/index.html
+meta.json
 
 # Logs
 logs
