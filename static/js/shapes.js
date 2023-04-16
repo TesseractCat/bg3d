@@ -3,7 +3,7 @@ import { Vector3 } from 'three';
 export class Shape { }
 
 export class Box {
-    type = "Box";
+    class = "Box";
     halfExtents;
 
     constructor(halfExtents) {
@@ -12,7 +12,7 @@ export class Box {
 }
 
 export class Cylinder {
-    type = "Cylinder";
+    class = "Cylinder";
     radius;
     height;
 

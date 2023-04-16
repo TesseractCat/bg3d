@@ -56,7 +56,7 @@ pub struct Vec2 {
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
+#[serde(tag = "class")]
 pub enum Shape {
     #[serde(rename_all = "camelCase")]
     Box { half_extents: Vec3 },

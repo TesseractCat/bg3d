@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, panic};
 use std::collections::HashMap;
 use std::borrow::Cow;
 use std::sync::Arc;
