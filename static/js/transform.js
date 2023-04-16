@@ -1,8 +1,8 @@
-import * as THREE from 'three';
+import { Quaternion, Vector3 } from 'three';
 
 export class Transform {
-    position = new THREE.Vector3();
-    rotation = new THREE.Quaternion();
+    position = new Vector3();
+    rotation = new Quaternion();
     
     constructor() { }
     clone() {
@@ -21,8 +21,8 @@ export class Transform {
 }
 
 export class NetworkedTransform {
-    position = new THREE.Vector3();
-    rotation = new THREE.Quaternion();
+    position = new Vector3();
+    rotation = new Quaternion();
     
     buffer = [];
     lastSynced = 0;
@@ -33,7 +33,7 @@ export class NetworkedTransform {
         this.position.copy(position);
         this.rotation.copy(rotation);
     }
-    tick(position, rotation = new THREE.Quaternion()) {
+    tick(position, rotation = new Quaternion()) {
         let now = performance.now();
         this.lastSynced = now;
         this.pushBuffer(now, position, rotation);
@@ -56,8 +56,8 @@ export class NetworkedTransform {
     pushBuffer(time, position, rotation) {
         this.buffer.push({
             time:time,
-            position:new THREE.Vector3().copy(position),
-            rotation:new THREE.Quaternion().copy(rotation)
+            position:new Vector3().copy(position),
+            rotation:new Quaternion().copy(rotation)
         });
         if (this.buffer.length > 2)
             this.buffer.shift();

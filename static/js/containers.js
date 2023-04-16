@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { TextureLoader, Vector2, Vector3, Euler, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding } from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
@@ -11,7 +11,7 @@ import { Box } from './shapes.js';
 
 export class Deck extends Pawn {
     static textureCache = new Map();
-    static textureLoader = new THREE.TextureLoader().setPath(window.location.href + '/assets/');
+    static textureLoader = new TextureLoader().setPath(window.location.href + '/assets/');
     static svgLoader = new SVGLoader().setPath(window.location.href + '/assets/');
 
     data = {
@@ -22,7 +22,7 @@ export class Deck extends Pawn {
         border: null,
         cornerRadius: 0,
         cardThickness: 0,
-        size: new THREE.Vector2()
+        size: new Vector2()
     }
     
     box;
@@ -33,10 +33,10 @@ export class Deck extends Pawn {
     sideTexture;
     
     constructor({contents = [], back = null, sideColor = 0xcccccc,
-                 size = new THREE.Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
+                 size = new Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
                  ...rest}) {
         rest.colliderShapes = [
-            new Box(new THREE.Vector3(size.x/2, (cardThickness * contents.length * 1.15)/2, size.y/2))
+            new Box(new Vector3(size.x/2, (cardThickness * contents.length * 1.15)/2, size.y/2))
         ];
         super(rest);
         
@@ -68,34 +68,34 @@ export class Deck extends Pawn {
         geometry.deleteAttribute('normal');
         geometry = BufferGeometryUtils.mergeVertices(geometry);
         geometry.computeVertexNormals();
-        let material = new THREE.MeshBasicMaterial({alphaTest:0.5, opacity:0});
+        let material = new MeshBasicMaterial({alphaTest:0.5, opacity:0});
         
-        const box = new THREE.Mesh(geometry, material);
+        const box = new Mesh(geometry, material);
         box.customDepthMaterial = material;
         box.castShadow = true;
         box.receiveShadow = true;
         box.scale.set(1, -1, 1);
         box.position.set(-0.5, 0.5, 0.5);
-        box.quaternion.setFromEuler(new THREE.Euler(Math.PI/2, 0, 0));
+        box.quaternion.setFromEuler(new Euler(Math.PI/2, 0, 0));
         
         this.box = box;
-        this.mesh.scale.copy(new THREE.Vector3(
+        this.meshObject.scale.copy(new Vector3(
             this.data.size.x,
             this.data.cardThickness * this.data.contents.length,
             this.data.size.y
         ));
-        this.mesh.add(box);
+        this.meshObject.add(box);
 
         this.sideTexture = (await this.loadTexture("generic/cards/side.jpg")).clone();
         this.sideTexture.needsUpdate = true;
-        [this.sideTexture.wrapS, this.sideTexture.wrapT] = [THREE.RepeatWrapping, THREE.RepeatWrapping];
+        [this.sideTexture.wrapS, this.sideTexture.wrapT] = [RepeatWrapping, RepeatWrapping];
         
         this.updateDeck(true);
 
         display.addEventListener('pointermove', this.mouseMove);
     }
     #roundedSquare(radius) {
-        let shape = new THREE.Shape();
+        let shape = new Shape();
         let width = 1;
         let height = 1;
         let x = 0;
@@ -139,10 +139,10 @@ export class Deck extends Pawn {
         super.animate(dt);
 
         if (this.faceMaterial) {
-            if (this.flipped() && !this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
-                this.faceMaterial.color = new THREE.Color(0x000000);
-            } else if (!this.flipped() && this.faceMaterial.color.equals(new THREE.Color(0x000000))) {
-                this.faceMaterial.color = new THREE.Color(0xffffff);
+            if (this.flipped() && !this.faceMaterial.color.equals(new Color(0x000000))) {
+                this.faceMaterial.color = new Color(0x000000);
+            } else if (!this.flipped() && this.faceMaterial.color.equals(new Color(0x000000))) {
+                this.faceMaterial.color = new Color(0xffffff);
             }
         }
     }
@@ -171,7 +171,7 @@ export class Deck extends Pawn {
             return Deck.textureCache.get(texture);
 
         let t = await Deck.textureLoader.loadAsync(texture);
-        t.encoding = THREE.sRGBEncoding;
+        t.encoding = sRGBEncoding;
         t.anisotropy = 4;
 
         Deck.textureCache.set(texture, t);
@@ -238,7 +238,7 @@ export class Deck extends Pawn {
             [0, count];
         let cardPawn = this.clone({
             contents: this.data.contents.slice(range[0], range[1]),
-            position: new THREE.Vector3().copy(this.position).add(new THREE.Vector3(0,1,0))
+            position: new Vector3().copy(this.position).add(new Vector3(0,1,0))
         });
         
         this.manager.addPawn(cardPawn);
@@ -291,7 +291,7 @@ export class Deck extends Pawn {
     async updateDeck(fadeIn = false) {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
-        this.mesh.scale.setComponent(1, thickness);
+        this.meshObject.scale.setComponent(1, thickness);
         this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
@@ -416,7 +416,7 @@ export class Container extends Pawn {
         }
 
         let item = this.manager.loadPawn(this.data.holds).clone();
-        item.setPosition(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
+        item.setPosition(this.position.clone().add(new Vector3(0, 2, 0)));
 
         this.manager.addPawn(item);
         this.manager.pawns.get(item.id).grab(0);

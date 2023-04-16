@@ -1,4 +1,8 @@
-import * as THREE from 'three';
+import {
+    SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Raycaster, AudioListener,
+    Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
+    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache
+} from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -16,12 +20,12 @@ class Cursor {
     networkTransform;
     
     constructor(color) {
-        const cursorGeometry = new THREE.SphereGeometry(0.32, 12, 12);
-        const cursorMaterial = new THREE.MeshBasicMaterial( {color: color} );
-        const cursorObject = new THREE.Mesh(cursorGeometry, cursorMaterial);
+        const cursorGeometry = new SphereGeometry(0.32, 12, 12);
+        const cursorMaterial = new MeshBasicMaterial( {color: color} );
+        const cursorObject = new Mesh(cursorGeometry, cursorMaterial);
         
         this.mesh = cursorObject;
-        this.networkTransform = new NetworkedTransform(new THREE.Vector3(), new THREE.Quaternion());
+        this.networkTransform = new NetworkedTransform(new Vector3(), new Quaternion());
     }
     animate() {
         this.networkTransform.animate();
@@ -49,11 +53,11 @@ export default class Manager extends EventTarget {
     contextMenu;
     tooltip;
     
-    raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
+    raycaster = new Raycaster();
+    mouse = new Vector2();
     
     localCursor = {
-        position: new THREE.Vector3(),
+        position: new Vector3(),
         dirty: false
     };
     lobbyCursors = new Map();
@@ -98,13 +102,13 @@ export default class Manager extends EventTarget {
             if ([...this.pawns.values()].filter(p => p.selected).length != 0)
                 return;
 
-            let raycastableObjects = [...this.pawns.values()].map(x => x.mesh);
+            let raycastableObjects = [...this.pawns.values()].map(x => x.meshObject);
             raycastableObjects.push(this.plane);
             let hits = this.raycaster.intersectObjects(raycastableObjects, true);
             
             if (hits.length >= 1) {
                 let hitPoint = hits[0].point.clone();
-                card.position = hitPoint.add(new THREE.Vector3(0, 2, 0));
+                card.position = hitPoint.add(new Vector3(0, 2, 0));
                 
                 let cardPawn = this.loadPawn(card);
                 const grabHandler = (e) => {
@@ -119,7 +123,7 @@ export default class Manager extends EventTarget {
         });
 
         // Enable cache
-        THREE.Cache.enabled = true;
+        Cache.enabled = true;
         
         // Track mouse position
         display.addEventListener('pointermove', (e) => {
@@ -216,12 +220,12 @@ export default class Manager extends EventTarget {
     
     clearPawns() {
         [...this.pawns.keys()].forEach(id => {
-            this.scene.remove(this.pawns.get(id).mesh);
+            this.scene.remove(this.pawns.get(id).meshObject);
             this.pawns.get(id).dispose();
             this.pawns.delete(id);
         });
         this.hand.clear();
-        THREE.Cache.clear();
+        Cache.clear();
         Deck.textureCache.clear();
     }
     sendClearPawns() {
@@ -253,7 +257,7 @@ export default class Manager extends EventTarget {
     }
     removePawn(id) {
         if (this.pawns.has(id)) {
-            this.scene.remove(this.pawns.get(id).mesh);
+            this.scene.remove(this.pawns.get(id).meshObject);
             this.pawns.get(id).dispose();
             this.pawns.delete(id);
         }
@@ -304,9 +308,9 @@ export default class Manager extends EventTarget {
             if (pawn.networkSelected && !pawnJSON.selected) {
                 // This pawn has been grabbed/released, reset the network buffer and update position
                 if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
-                    pawn.setPosition(new THREE.Vector3().copy(pawnJSON.position));
-                    pawn.setRotation(new THREE.Quaternion().setFromEuler(
-                        new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                    pawn.setPosition(new Vector3().copy(pawnJSON.position));
+                    pawn.setRotation(new Quaternion().setFromEuler(
+                        new Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
                     ));
                 }
             }
@@ -314,9 +318,9 @@ export default class Manager extends EventTarget {
         }
         if (pawnJSON.hasOwnProperty('position') && pawnJSON.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
-                new THREE.Vector3().copy(pawnJSON.position),
-                new THREE.Quaternion().setFromEuler(
-                    new THREE.Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
+                new Vector3().copy(pawnJSON.position),
+                new Quaternion().setFromEuler(
+                    new Euler().setFromVector3(pawnJSON.rotation, 'ZYX')
                 )
             );
         }
@@ -354,7 +358,7 @@ export default class Manager extends EventTarget {
         
         // Create cursor entry/object
         if (id != this.id) {
-            let cursor = new Cursor(new THREE.Color(color));
+            let cursor = new Cursor(new Color(color));
             this.scene.add(cursor.mesh);
             this.lobbyCursors.set(id, cursor);
         }
@@ -379,7 +383,7 @@ export default class Manager extends EventTarget {
         let to_update = Array.from(this.pawns.values()).filter(p => p.dirty.size != 0);
         if (to_update.length > 0) {
             let to_update_data = to_update.map(p => {
-                let rotation = new THREE.Vector3().setFromEuler(new THREE.Euler().setFromQuaternion(p.rotation, 'ZYX'));
+                let rotation = new Vector3().setFromEuler(new Euler().setFromQuaternion(p.rotation, 'ZYX'));
                 let update = {id: p.id};
                 for (let dirtyParam of p.dirty) {
                     switch (dirtyParam) {
@@ -408,7 +412,7 @@ export default class Manager extends EventTarget {
         // FIXME: Don't do this on mobile devices
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.mesh).map(x => x.mesh);
+        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.meshObject).map(x => x.meshObject);
         let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
         this.pawns.forEach((p, k) => p.hovered = false);
 
@@ -416,7 +420,7 @@ export default class Manager extends EventTarget {
         if (hovered.length > 0) {
             hovered[0].object.traverseAncestors((a) => {
                 for (const [key, value] of this.pawns) {
-                    if (value.mesh == a) {
+                    if (value.meshObject == a) {
                         if (value.moveable && !value.selected) {
                             pawn = value;
                         }
@@ -468,7 +472,7 @@ export default class Manager extends EventTarget {
             }
             
             // Raycast for cursor plane
-            let newCursorPosition = new THREE.Vector3();
+            let newCursorPosition = new Vector3();
             if (point) {
                 newCursorPosition.copy(point);
             } else {
@@ -531,11 +535,11 @@ export default class Manager extends EventTarget {
     
     buildScene() {
         // Create scene
-        this.scene = new THREE.Scene();
+        this.scene = new Scene();
         this.scene.background = null;
         
         // Setup light
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        const directionalLight = new DirectionalLight(0xffffff, 0.5);
         directionalLight.castShadow = true;
         directionalLight.position.y = 25;
         directionalLight.position.x = 10;//0
@@ -549,23 +553,23 @@ export default class Manager extends EventTarget {
         directionalLight.shadow.mapSize.width = shadowResolution;
         directionalLight.shadow.mapSize.height = shadowResolution;
         this.scene.add(directionalLight);
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.1);
+        const directionalLight2 = new DirectionalLight(0xffffff, 0.1);
         directionalLight2.position.y = 10;
         directionalLight2.position.z = -15;
         directionalLight2.position.x = -20;
         this.scene.add(directionalLight2);
 
-        const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+        const ambientLight = new AmbientLight(0x404040, 1.5);
         this.scene.add(ambientLight);
         
         // Setup ground plane
-        const geom = new THREE.PlaneGeometry(200, 200);
+        const geom = new PlaneGeometry(200, 200);
         geom.rotateX(-Math.PI/2);
-        const material = new THREE.ShaderMaterial();//new THREE.ShadowMaterial();
+        const material = new ShaderMaterial();//new ShadowMaterial();
         //material.opacity = 0.5;
         material.lights = true;
-        material.uniforms = THREE.ShaderLib.shadow.uniforms;
-        material.vertexShader = `varying vec4 worldPos;\n` + THREE.ShaderLib.shadow.vertexShader.replace("main() {", `
+        material.uniforms = ShaderLib.shadow.uniforms;
+        material.vertexShader = `varying vec4 worldPos;\n` + ShaderLib.shadow.vertexShader.replace("main() {", `
         main() {
             worldPos = modelMatrix * vec4(position, 1.0);
         `);
@@ -594,30 +598,30 @@ export default class Manager extends EventTarget {
             gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0);
         }
         `;
-        this.plane = new THREE.Mesh(geom, material);
+        this.plane = new Mesh(geom, material);
         this.plane.position.y = 0;
         this.plane.receiveShadow = true;
         this.scene.add(this.plane);
     }
     buildRenderer() {
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.z = 8;
         this.camera.position.y = 8;
 
-        this.audioListener = new THREE.AudioListener();
+        this.audioListener = new AudioListener();
         this.camera.add(this.audioListener);
         
-        this.renderer = new THREE.WebGLRenderer({
+        this.renderer = new WebGLRenderer({
             canvas: display, alpha: true, antialias: true, stencil: false,
         });
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.autoUpdate = true;
         if (window.isMobile) {
-            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+            this.renderer.shadowMap.type = PCFShadowMap;
         } else {
-            this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            this.renderer.shadowMap.type = PCFSoftShadowMap;
         }
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.outputEncoding = sRGBEncoding;
         
         // this.composer = new EffectComposer(this.renderer);
         // const renderPass = new RenderPass(this.scene, this.camera);
@@ -638,7 +642,7 @@ export default class Manager extends EventTarget {
         
         this.controls.keyPanSpeed = 5.0;
         this.controls.keys = { LEFT: 'KeyA', UP: 'KeyW', RIGHT: 'KeyD', BOTTOM: 'KeyS' };
-        //this.controls.mouseButtons = { MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+        //this.controls.mouseButtons = { MIDDLE: MOUSE.PAN, RIGHT: MOUSE.ROTATE };
         this.controls.listenToKeyEvents(this.renderer.domElement);
     }
     buildWebSocket(callback) {
@@ -654,7 +658,7 @@ export default class Manager extends EventTarget {
             console.log('Connected!');
         });
         this.socket.addEventListener('close', (e) => {
-            shade.style.display = 'block'
+            shade.style.display = 'block';
         });
         this.socket.addEventListener('message', (e) => {
             let msg = JSON.parse(e.data);
@@ -748,7 +752,7 @@ export default class Manager extends EventTarget {
                     if (cursor.id == this.id)
                         return;
                     
-                    let newPosition = new THREE.Vector3().copy(cursor.position).add(new THREE.Vector3(0, 0.25, 0));
+                    let newPosition = new Vector3().copy(cursor.position).add(new Vector3(0, 0.25, 0));
                     if (this.lobbyCursors.has(cursor.id))
                         this.lobbyCursors.get(cursor.id).networkTransform.tick(newPosition);
                 });

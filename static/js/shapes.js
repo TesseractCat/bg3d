@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Vector3 } from 'three';
 
 export class Shape { }
 
@@ -7,7 +7,7 @@ export class Box {
     halfExtents;
 
     constructor(halfExtents) {
-        this.halfExtents = new THREE.Vector3().copy(halfExtents);
+        this.halfExtents = new Vector3().copy(halfExtents);
     }
 }
 

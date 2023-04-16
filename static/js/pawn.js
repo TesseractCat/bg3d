@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
@@ -25,16 +25,16 @@ export class Pawn {
     static audioLoader = new AudioLoader().setPath(window.location.href + '/assets/');
 
     // Serialized
-    position = new THREE.Vector3(0,0,0);
-    rotation = new THREE.Quaternion();
+    position = new Vector3(0,0,0);
+    rotation = new Quaternion();
     data = {};
     
     selected = false;
-    selectRotation = new THREE.Vector3();
+    selectRotation = new Vector3();
     
     id;
     name;
-    meshUrl;
+    mesh;
     tint;
     
     moveable = true;
@@ -42,14 +42,14 @@ export class Pawn {
     
     // Non-Serialized
     dirty = new Set();
-    lastPosition = new THREE.Vector3();
-    lastRotation = new THREE.Quaternion();
+    lastPosition = new Vector3();
+    lastRotation = new Quaternion();
     
     networkSelected = false;
     networkTransform;
 
-    mesh = new THREE.Object3D();
-    size = new THREE.Vector3();
+    meshObject = new Object3D();
+    size = new Vector3();
     hovered = false;
     selectStaticPosition;
     
@@ -63,7 +63,7 @@ export class Pawn {
     }
     
     constructor({
-        position = new THREE.Vector3(), rotation = new THREE.Quaternion(),
+        position = new Vector3(), rotation = new Quaternion(),
         mesh = null, colliderShapes = [], tint,
         moveable = true, id = null, name = null
     }) {
@@ -76,11 +76,11 @@ export class Pawn {
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
-        this.selectRotation.copy(new THREE.Euler().setFromQuaternion(this.rotation));
+        this.selectRotation.copy(new Euler().setFromQuaternion(this.rotation));
 
         this.name = name;
         this.moveable = moveable;
-        this.meshUrl = mesh;
+        this.mesh = mesh;
         this.tint = tint;
         this.colliderShapes = colliderShapes;
         
@@ -92,15 +92,15 @@ export class Pawn {
         this.manager = manager;
 
         // Load mesh
-        if (this.meshUrl != null) { // GLTF URL
-            Pawn.gltfLoader.load(this.meshUrl, (gltf) => {
+        if (this.mesh != null) { // GLTF URL
+            Pawn.gltfLoader.load(this.mesh, (gltf) => {
                 gltf.scene.traverse((child) => {
                     child.castShadow = true;
                     child.receiveShadow = true;
 
-                    if (child instanceof THREE.Mesh) {
+                    if (child instanceof Mesh) {
                         if (this.tint !== undefined)
-                            child.material.color.multiply(new THREE.Color(this.tint));
+                            child.material.color.multiply(new Color(this.tint));
                         if (child.material.map !== null)
                             child.material.map.anisotropy = 4;
 
@@ -126,11 +126,11 @@ export class Pawn {
                     }
                 });
 
-                let boundingBox = new THREE.Box3().setFromObject(gltf.scene);
+                let boundingBox = new Box3().setFromObject(gltf.scene);
                 let height = boundingBox.max.y - boundingBox.min.y;
                 gltf.scene.translateY(-boundingBox.min.y - 0.5 * height);
 
-                this.mesh.add(gltf.scene);
+                this.meshObject.add(gltf.scene);
                 this.updateMeshTransform();
                 this.updateBoundingBox();
             });
@@ -139,12 +139,12 @@ export class Pawn {
         }
 
         // Add to scene
-        this.manager.scene.add(this.mesh);
+        this.manager.scene.add(this.meshObject);
         this.initialized = true;
     }
     dispose() {
-        this.mesh.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
+        this.meshObject.traverse((child) => {
+            if (child instanceof Mesh) {
                 child.geometry.dispose();
                 for (let material of (Array.isArray(child.material) ? child.material : [child.material]))
                     material.dispose();
@@ -152,7 +152,7 @@ export class Pawn {
         });
     }
     
-    // grabSpring = new Vector3Spring(new THREE.Vector3(0,0,0), 500, 40, 2);
+    // grabSpring = new Vector3Spring(new Vector3(0,0,0), 500, 40, 2);
     grabSpring = new Spring(0, 500, 15);
     animate(dt) {
         if (this.selected) {
@@ -162,14 +162,14 @@ export class Pawn {
             if (grabPoint === undefined) {
                 // Raycast for movement
                 let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-                let raycastableObjects = raycastablePawns.map(x => x.mesh);
+                let raycastableObjects = raycastablePawns.map(x => x.meshObject);
                 raycastableObjects.push(this.manager.plane);
                 let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
 
                 if (hits.length != 0) {
                     grabPoint = hits[0].point.clone();
 
-                    let boundingBox = new THREE.Box3().setFromObject(hits[0].object);
+                    let boundingBox = new Box3().setFromObject(hits[0].object);
                     grabPoint.y = boundingBox.max.y;
                 }
 
@@ -196,17 +196,17 @@ export class Pawn {
                 let height = this.size.y/2 + (snapped ? 0.5 : 1);
                 // newPosition.copy(this.grabSpring.animateTo(
                 //     grabPoint.clone().add(
-                //         new THREE.Vector3(0, height, 0)
+                //         new Vector3(0, height, 0)
                 //     ),
                 //     dt
                 // ));
                 newPosition.lerp(grabPoint.clone().add(
-                    new THREE.Vector3(0, this.grabSpring.animateTo(height, dt), 0)
+                    new Vector3(0, this.grabSpring.animateTo(height, dt), 0)
                 ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
-                newRotation.slerp(new THREE.Quaternion().setFromEuler(
-                    new THREE.Euler().setFromVector3(this.selectRotation, 'ZYX')
+                newRotation.slerp(new Quaternion().setFromEuler(
+                    new Euler().setFromVector3(this.selectRotation, 'ZYX')
                 ), Math.clamp01(dt * 10));
 
                 this.setPosition(newPosition);
@@ -304,12 +304,12 @@ export class Pawn {
         // Fire merge event if applicable
         if (tryMerge) {
             let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-            let raycastableObjects = raycastablePawns.map(x => x.mesh);
+            let raycastableObjects = raycastablePawns.map(x => x.meshObject);
             let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
             if (hits[0]) {
                 for (let rhs of raycastablePawns) {
                     let isParent = false;
-                    rhs.mesh.traverse((child) => {
+                    rhs.meshObject.traverse((child) => {
                         if (child == hits[0].object)
                             isParent = true;
                     });
@@ -385,22 +385,22 @@ export class Pawn {
     }
     
     updateMeshTransform() {
-        if (this.mesh) {
-            this.mesh.position.copy(this.position);
-            this.mesh.quaternion.copy(this.rotation);
+        if (this.meshObject) {
+            this.meshObject.position.copy(this.position);
+            this.meshObject.quaternion.copy(this.rotation);
         }
     }
     updateBoundingBox() {
-        let p = this.mesh.position.clone();
-        let r = this.mesh.quaternion.clone();
-        this.mesh.position.set(0,0,0);
-        this.mesh.quaternion.identity();
+        let p = this.meshObject.position.clone();
+        let r = this.meshObject.quaternion.clone();
+        this.meshObject.position.set(0,0,0);
+        this.meshObject.quaternion.identity();
 
-        let boundingBox = new THREE.Box3().setFromObject(this.mesh);
-        this.size = boundingBox.getSize(new THREE.Vector3());
+        let boundingBox = new Box3().setFromObject(this.meshObject);
+        this.size = boundingBox.getSize(new Vector3());
 
-        this.mesh.position.copy(p);
-        this.mesh.quaternion.copy(r);
+        this.meshObject.position.copy(p);
+        this.meshObject.quaternion.copy(r);
     }
     
     static className() { return "Pawn"; };
@@ -409,7 +409,7 @@ export class Pawn {
         Object.assign(out, {
             class: this.constructor.className(),
             name: this.name,
-            mesh: this.meshUrl, tint: this.tint,
+            mesh: this.mesh, tint: this.tint,
             mass: 1.0, moveable: this.moveable,
             colliderShapes: this.colliderShapes,
             data: this.data
@@ -417,8 +417,8 @@ export class Pawn {
         return out;
     }
     serializeState() {
-        let rotation = new THREE.Vector3().copy(
-            new THREE.Euler().setFromQuaternion(this.rotation)
+        let rotation = new Vector3().copy(
+            new Euler().setFromQuaternion(this.rotation)
         );
         return {
             id:this.id,
@@ -429,7 +429,7 @@ export class Pawn {
         };
     }
     static deserialize(pawnJSON) {
-        let rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(pawnJSON.rotation));
+        let rotation = new Quaternion().setFromEuler(new Euler().setFromVector3(pawnJSON.rotation));
         let pawn = new this({
             ...pawnJSON.data,
             ...pawnJSON,
@@ -456,12 +456,12 @@ export class Pawn {
 export class SnapPoint extends Pawn {
     data = {
         radius: 0,
-        size: new THREE.Vector2(),
+        size: new Vector2(),
         scale: 0,
         snaps: [],
     }
 
-    constructor({radius=1, size=new THREE.Vector2(1,1), scale=1, snaps=[], ...rest}) {
+    constructor({radius=1, size=new Vector2(1,1), scale=1, snaps=[], ...rest}) {
         rest.moveable = false;
         rest.colliderShapes = [];
         super(rest);
@@ -472,10 +472,10 @@ export class SnapPoint extends Pawn {
     }
 
     snapsTo(position) {
-        let halfExtents = new THREE.Vector3(this.data.size.x - 1, 0, this.data.size.y - 1).divideScalar(2.0);
+        let halfExtents = new Vector3(this.data.size.x - 1, 0, this.data.size.y - 1).divideScalar(2.0);
 
         // Transform position into local space
-        let localPosition = this.mesh.worldToLocal(position.clone());
+        let localPosition = this.meshObject.worldToLocal(position.clone());
         localPosition.divideScalar(this.data.scale);
         localPosition.add(halfExtents);
         let roundedPosition = localPosition.clone().round();
@@ -491,7 +491,7 @@ export class SnapPoint extends Pawn {
             resultPosition.sub(halfExtents);
             resultPosition.multiplyScalar(this.data.scale);
 
-            return this.mesh.localToWorld(resultPosition);
+            return this.meshObject.localToWorld(resultPosition);
         }
     }
 

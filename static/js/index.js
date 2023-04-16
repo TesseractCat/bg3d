@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Vector3, Quaternion } from 'three';
 
 import mouseShake from './mouse-shake.js'
 
@@ -79,8 +79,8 @@ window.onload = function() {
             let templateName = info[1];
             
             let pawn = games[idx].templates.get(templateName).clone();
-            pawn.setPosition(new THREE.Vector3(0, 5, 0));
-            pawn.setRotation(new THREE.Quaternion());
+            pawn.setPosition(new Vector3(0, 5, 0));
+            pawn.setRotation(new Quaternion());
             manager.addPawn(pawn);
         });
         

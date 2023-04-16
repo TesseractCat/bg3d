@@ -1,6 +1,5 @@
-import * as THREE from 'three';
+import { Quaternion, Euler } from 'three';
 import * as zip from '@zip.js/zip.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import Manager from './manager';
 import { Pawn, SnapPoint, Deck, Container, Dice } from './pawns';
@@ -136,8 +135,8 @@ export default class PluginLoader {
 
     loadPawn(pawn) {
         if (pawn.rotation) {
-            pawn.rotation = new THREE.Quaternion().setFromEuler(
-                new THREE.Euler().setFromVector3(pawn.rotation)
+            pawn.rotation = new Quaternion().setFromEuler(
+                new Euler().setFromVector3(pawn.rotation)
             );
         }
 
