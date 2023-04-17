@@ -6,6 +6,7 @@ use std::ops::Mul;
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
 use tokio::time::Instant;
+use tokio::task::JoinHandle;
 use rapier3d::prelude::*;
 
 use crate::user::*;
@@ -211,6 +212,7 @@ pub struct Lobby {
     pub assets: HashMap<String, Asset>,
 
     pub world: PhysicsWorld,
+    pub physics_handle: Option<JoinHandle<()>>,
 
     next_user_id: AtomicUsize,
 }
@@ -226,6 +228,7 @@ impl Lobby {
             assets: HashMap::new(),
 
             world: PhysicsWorld::new(PHYSICS_RATE),
+            physics_handle: None,
 
             next_user_id: AtomicUsize::new(0),
         }

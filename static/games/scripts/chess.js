@@ -32,11 +32,10 @@ function addPiece(piece, positions) {
 
         return [white.clone(), black.clone()];
     });
-    console.log(pawns);
     self.world.add(pawns);
 }
 
-self.world.addEventListener("start", () => {
+self.world.addEventListener("start", async () => {
     // Spawn board
     self.world.add(new Pawn({
         name: 'Board',
@@ -100,4 +99,11 @@ self.world.addEventListener("start", () => {
         new Vector2(7, 1),
     ];
     addPiece(pawn, pawnPositions);
+
+    // await timeout(2000);
+
+    // self.world.addEventListener("update", (e) => {
+    //     self.world.pawns().get(e.detail[0]).position.y += 1;
+    //     self.world.commit();
+    // });
 });

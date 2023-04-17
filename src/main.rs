@@ -16,6 +16,7 @@ use axum::{
     routing::get,
     Router
 };
+use tokio::task::JoinHandle;
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
 use futures::future::join_all;
@@ -23,7 +24,6 @@ use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{interval, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use rayon::prelude::*;
 
 use data_url::DataUrl;
 
@@ -47,7 +47,7 @@ const PHYSICS_SCALE: f32 = 1.0/8.0;
 const CURSOR_RATE: f32 = 1.0/10.0;
 
 //TODO: Replace this with Dashmap?
-type Lobbies = Arc<RwLock<HashMap<String, RwLock<Lobby>>>>;
+type Lobbies = Arc<RwLock<HashMap<String, Arc<RwLock<Lobby>>>>>;
 
 #[tokio::main]
 async fn main() {
@@ -63,7 +63,7 @@ async fn main() {
     let lobbies_clone = lobbies.clone();
 
     // Routing
-    // FIXME: Re-add cache headers, gzip compression
+    // FIXME: Re-add cache headers
     let lobby_routes = Router::new()
         .route_service("/", ServeFile::new("static/index.html"))
         .nest_service("/assets", ServeDir::new("static/games"))
@@ -86,35 +86,6 @@ async fn main() {
         .nest("/:lobby", lobby_routes)
         .layer(CompressionLayer::new());
     
-    // Physics steps
-    let lobbies_clone = lobbies.clone();
-    tokio::task::spawn(async move {
-        let mut tick: u64 = 0;
-        let mut interval = interval(Duration::from_secs_f32(PHYSICS_RATE));
-
-        loop {
-            let physics_time = Instant::now();
-            {
-                let lobbies_rl = lobbies_clone.read().await;
-                let mut lobby_wls = join_all(lobbies_rl.values().map(|l| async move {l.write().await})).await;
-
-                // FIXME: This is blocking
-                // - https://ryhl.io/blog/async-what-is-blocking/
-                // Maybe spawn a thread per lobby for physics?
-                // - Issues with getting the RwLock for hashmap?
-                lobby_wls.par_iter_mut().for_each(|lobby| {
-                    lobby.step(tick % 3 == 0).ok();
-                });
-            }
-            let elapsed = Instant::now().duration_since(physics_time).as_secs_f32();
-
-            // println!("Physics elapsed time: {:.2}ms | {:.1}%",
-            //          elapsed * 1000., (elapsed/PHYSICS_RATE) * 100.);
-            tick += 1;
-
-            interval.tick().await;
-        }
-    });
     // Relay cursors
     let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move  {
@@ -144,6 +115,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
     
+    // FIXME: The following two tasks probabily need to be aborted after the user disconnects
     // Automatically send buffered messages
     let mut buffer_rx = UnboundedReceiverStream::new(buffer_rx);
     tokio::task::spawn(async move {
@@ -165,13 +137,39 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
     // Track user
     let user_id: usize = {
         let mut host: bool = false;
+
+        // Create lobby if it doesn't exist
         if lobbies.read().await.get(&lobby_name).is_none() {
             let mut lobbies_wl = lobbies.write().await;
 
             let mut lobby = Lobby::new();
             lobby.name = lobby_name.clone();
 
-            lobbies_wl.insert(lobby_name.clone(), RwLock::new(lobby));
+            let lobby_arc = Arc::new(RwLock::new(lobby));
+
+            // Start task to step physics
+            let lobby_physics_clone = lobby_arc.clone();            
+            let physics_handle = tokio::task::spawn(async move {
+                let mut interval = interval(Duration::from_secs_f32(PHYSICS_RATE));
+
+                let mut tick: u32 = 0;
+                loop {
+                    {
+                        let lobby_physics_clone = lobby_physics_clone.clone();
+                        if let Err(err) = tokio::task::spawn_blocking(move || {
+                            let mut lobby_wl = lobby_physics_clone.blocking_write();
+                            lobby_wl.step(tick % 3 == 0).ok();
+                        }).await {
+                            println!("Encountered error during physics step: {}", err);
+                        }
+                    }
+                    tick += 1;
+                    interval.tick().await;
+                }
+            });
+            lobby_arc.write().await.physics_handle = Some(physics_handle);
+
+            lobbies_wl.insert(lobby_name.clone(), lobby_arc);
             host = true;
         }
 
@@ -264,26 +262,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         Err(e) => println!("Error encountered while disconnecting user: {:?}", e),
         _ => (),
     };
-}
-
-// --- GENERIC EVENTS ---
-
-fn event(_user_id: usize, lobby: &mut Lobby, target_host: bool, mut data: Value) -> Result<(), Box<dyn Error>> {
-    data["type"] = Value::String("event".to_string());
-    // Relay event
-    if target_host {
-        lobby.users.get(&lobby.host).ok_or("Missing host")?.send_string(&data.to_string())?;
-    } else {
-        lobby.users.values().send_string(&data.to_string())?;
-    }
-
-    Ok(())
-}
-fn event_callback(_user_id: usize, lobby: &mut Lobby, target: usize, mut data: Value) -> Result<(), Box<dyn Error>> {
-    data["type"] = Value::String("event_callback".to_string());
-    // Relay callback
-    lobby.users.get(&target).ok_or("Missing callback target")?.send_string(&data.to_string())?;
-    Ok(())
 }
 
 // --- PAWN EVENTS ---
@@ -647,10 +625,11 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             println!("Host of lobby [{lobby_name}] left, reassigning <{user_id}> -> <{}>", lobby.host);
         }
     } else { // Otherwise, delete lobby if last user
+        lobby.physics_handle.as_ref().ok_or("Attempting to remove lobby without physics handle")?.abort();
         drop(lobby);
         drop(lobbies_rl);
-        let mut lobbies_wl = lobbies.write().await;
 
+        let mut lobbies_wl = lobbies.write().await;
         lobbies_wl.remove(lobby_name);
 
         println!("Lobby [{lobby_name}] removed");

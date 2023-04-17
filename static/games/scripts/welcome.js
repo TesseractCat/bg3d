@@ -45,7 +45,7 @@ self.world.addEventListener("start", async () => {
             new Cylinder(1.5, 2.5)
         ],
     })
-    self.world.add(bag);
+    //self.world.add(bag);
 
     self.world.add([bird, deck, birdSnap, die]);
 
@@ -64,13 +64,13 @@ self.world.addEventListener("start", async () => {
         await timeout(500);
     }
     while (true) {
-        for (let pawn of self.world.pawns().values()) {
-            if (pawn.name == "Bird Statue") {
-                pawn.position.y += Math.random() * 2.0;
-            }
-        }
+        // for (let pawn of self.world.pawns().values()) {
+        //     if (pawn.name == "Bird Statue") {
+        //         pawn.position.y += Math.random() * 2.0;
+        //     }
+        // }
         //self.world.commit(self.world.pawns().values().filter(p => p.name == "Bird Statue").map(p => p.id));
         self.world.commit();
-        await timeout(1000);
+        await timeout(500);
     }*/
 });

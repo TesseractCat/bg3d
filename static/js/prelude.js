@@ -140,20 +140,25 @@ class World extends EventTarget {
 
         self.onmessage = (e) => {
             let msg = e.data;
+            let ids = [];
 
             if (msg.name == "update") {
                 for (let pawn of msg.pawns) {
                     this.#pawns.set(pawn.id, pawn);
+                    ids.push(pawn.id);
                 }
             } else if (msg.name == "remove") {
                 for (let id of msg.pawns) {
                     this.#pawns.delete(id);
+                    ids.push(id);
                 }
             } else if (msg.name == "clear") {
                 this.#pawns.clear();
             }
 
-            this.dispatchEvent(new CustomEvent(msg.name));
+            this.dispatchEvent(new CustomEvent(msg.name, {
+                detail: ids
+            }));
         };
     }
 
