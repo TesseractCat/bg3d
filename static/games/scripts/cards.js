@@ -4,7 +4,7 @@ function getCards() {
     return suits.flatMap((suit) => ranks.map((rank) => `generic/cards/${rank}${suit}.jpg`));
 }
 
-self.start = async function() {
+self.world.addEventListener("start", async () => {
     let deck = new Deck({
         name: 'Cards',
         back: 'generic/cards/back.jpg',
@@ -12,7 +12,6 @@ self.start = async function() {
         position: new Vector3(0, 1, 0),
         size: new Vector2(2.5, 3.5),
     });
-    deck.create();
 
     let chipColors = [
         ['Red', 0xff0000, 10],
@@ -28,7 +27,7 @@ self.start = async function() {
             position: new Vector3(-3, 4, (i * 2) - 3),
             size: new Vector2(1.57, 1.57), cardThickness: 0.08,
         });
-        chips.create();
+        self.world.add(chips);
     }
 
     let die = new Dice({
@@ -47,5 +46,5 @@ self.start = async function() {
             new Box(new Vector3(1/3,1/3,1/3))
         ]
     });
-    die.create();
-}
+    self.world.add([deck, die]);
+});

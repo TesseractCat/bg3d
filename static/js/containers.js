@@ -70,21 +70,20 @@ export class Deck extends Pawn {
         geometry.computeVertexNormals();
         let material = new MeshBasicMaterial({alphaTest:0.5, opacity:0});
         
-        const box = new Mesh(geometry, material);
-        box.customDepthMaterial = material;
-        box.castShadow = true;
-        box.receiveShadow = true;
-        box.scale.set(1, -1, 1);
-        box.position.set(-0.5, 0.5, 0.5);
-        box.quaternion.setFromEuler(new Euler(Math.PI/2, 0, 0));
+        this.#box = new Mesh(geometry, material);
+        this.#box.customDepthMaterial = material;
+        this.#box.castShadow = true;
+        this.#box.receiveShadow = true;
+        this.#box.scale.set(1, -1, 1);
+        this.#box.position.set(-0.5, 0.5, 0.5);
+        this.#box.quaternion.setFromEuler(new Euler(Math.PI/2, 0, 0));
         
-        this.#box = box;
         this.getMesh().scale.copy(new Vector3(
             this.data.size.x,
             this.data.cardThickness * this.data.contents.length,
             this.data.size.y
         ));
-        this.getMesh().add(box);
+        this.getMesh().add(this.#box);
 
         this.#sideTexture = (await this.loadTexture("generic/cards/side.jpg")).clone();
         this.#sideTexture.needsUpdate = true;
@@ -238,7 +237,7 @@ export class Deck extends Pawn {
             [0, count];
         let cardPawn = this.clone({
             contents: this.data.contents.slice(range[0], range[1]),
-            position: new Vector3().copy(this.position).add(new Vector3(0,1,0))
+            position: new Vector3().copy(this.position).add(new Vector3(0,1,0)),
         });
         
         window.manager.addPawn(cardPawn);

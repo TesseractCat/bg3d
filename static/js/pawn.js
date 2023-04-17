@@ -16,7 +16,6 @@ Math.clamp01 = function(x) {
     return Math.clamp(x, 0, 1);
 };
 
-// Local instance of moveable object with mesh
 export class Pawn {
     static dracoLoader = new DRACOLoader().setDecoderPath('/static/draco/');
     static gltfLoader = new GLTFLoader()
@@ -49,7 +48,9 @@ export class Pawn {
     networkTransform;
 
     #meshObject = new Object3D();
-    size = new Vector3();
+    getMesh() { return this.#meshObject }
+
+    #size = new Vector3();
     hovered = false;
     selectStaticPosition;
     
@@ -186,13 +187,8 @@ export class Pawn {
             if (grabPoint) {
                 // Lerp
                 let newPosition = this.position.clone();
-                let height = this.size.y/2 + (snapped ? 0.5 : 1);
-                // newPosition.copy(this.grabSpring.animateTo(
-                //     grabPoint.clone().add(
-                //         new Vector3(0, height, 0)
-                //     ),
-                //     dt
-                // ));
+                let height = this.#size.y/2 + (snapped ? 0.5 : 1);
+                
                 newPosition.lerp(grabPoint.clone().add(
                     new Vector3(0, this.grabSpring.animateTo(height, dt), 0)
                 ), Math.clamp01(dt * 10));
@@ -390,7 +386,7 @@ export class Pawn {
         this.getMesh().quaternion.identity();
 
         let boundingBox = new Box3().setFromObject(this.getMesh());
-        this.size = boundingBox.getSize(new Vector3());
+        this.#size = boundingBox.getSize(new Vector3());
 
         this.getMesh().position.copy(p);
         this.getMesh().quaternion.copy(r);
@@ -425,8 +421,8 @@ export class Pawn {
             rotation.setFromEuler(new Euler().setFromVector3(serializedPawn.rotation, 'ZYX'));
 
         let pawn = new this({
-            ...serializedPawn.data,
             ...serializedPawn,
+            ...serializedPawn.data,
             rotation: rotation,
         });
         if (serializedPawn.selected)
@@ -439,12 +435,10 @@ export class Pawn {
         // Serialize and Deserialize to clone
         let serialized = this.serialize();
         serialized.id = null;
-        let pawn = this.constructor.deserialize({...serialized, ...parameters});
+        let pawn = this.constructor.deserialize({...serialized, ...serialized.data, ...parameters});
         return pawn;
     }
     processData() { }
-
-    getMesh() { return this.#meshObject }
 }
 
 export class SnapPoint extends Pawn {
