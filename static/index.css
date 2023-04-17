@@ -17,6 +17,7 @@
     --icon-hover: #dddbd5;
     --overlay: #E5DEC8;
     --chat: #DED6BA;
+    --context-menu: aliceblue;
     --radius: 10px;
     --panel-width: 280px;
 
@@ -24,10 +25,16 @@
 }
 /* @media screen and (prefers-color-scheme: dark) {
     :root {
-        --bg-top: #282828;
-        --bg-bottom: #1d2021;
-        --overlay: #ebdbb2;
-        --chat: #ebdbb2;
+        --bg-top: #FFE9F3;
+        --bg-bottom: #F4BFDB;
+        --overlay: #512D38;
+        --chat: var(--overlay);
+
+        --overlay-gray: #AAA;
+    }
+
+    #overlay, bird-chat {
+        color: #EEE;
     }
 } */
 
@@ -174,6 +181,9 @@ bird-chat {
     bottom: 20px;
     right: 20px;
     width: var(--panel-width);
+}
+bird-context-menu {
+    --background: var(--context-menu);
 }
 
 #icon {

@@ -119,7 +119,7 @@ window.onload = function() {
 
     // Disable context menu
     document.addEventListener('contextmenu', e => {
-        if (e.target.id != 'game-link')
+        if (!(e.target instanceof HTMLAnchorElement || e.target instanceof Chat))
             e.preventDefault();
     });
 };

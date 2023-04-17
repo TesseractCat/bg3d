@@ -515,7 +515,7 @@ export default class Manager extends EventTarget {
         this.scene.add(ambientLight);
         
         // Setup ground plane
-        const geom = new PlaneGeometry(200, 200);
+        const geom = new PlaneGeometry(160, 160);
         geom.rotateX(-Math.PI/2);
         const material = new ShaderMaterial();//new ShadowMaterial();
         //material.opacity = 0.5;
@@ -541,14 +541,21 @@ export default class Manager extends EventTarget {
         #include <shadowmap_pars_fragment>
         #include <shadowmask_pars_fragment>
 
+        // https://iquilezles.org/articles/distfunctions2d/
+        // float sdBox(vec2 p, vec2 b) {
+        //     vec2 d = abs(p)-b;
+        //     return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
+        // }
+
         void main() {
             bool grid = distance(fract(worldPos.xz * GRID_SIZE), vec2(0.5)) < GRID_THICKNESS;
 
             float fade = 1.0 - clamp(distance(worldPos.xyz, cameraPosition)/FADE_DISTANCE, 0.0, 1.0);
+            //float boxAmount = (abs(sdBox(worldPos.xz, vec2(40))) < 0.05 ? 0.2 : 0.0) * fade;
             float dotAmount = (grid ? 0.2 : 0.0) * fade;
             float shadowAmount = 1.0 - getShadowMask();
 
-            gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0);
+            gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0 /* + boxAmount */);
             //gl_FragColor = vec4(vec3(dotAmount - shadowAmount/4.0), dotAmount + shadowAmount/4.0);
         }
         `;

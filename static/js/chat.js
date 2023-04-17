@@ -25,6 +25,11 @@ export default class Chat extends HTMLElement {
 
         const style = document.createElement('style');
         style.textContent = `
+        ::selection {
+            color: #EEE;
+            background: rgba(0,0,0,0.8);
+        }
+
         #panel {
             padding: 20px;
             background-color: var(--background);
@@ -70,11 +75,17 @@ export default class Chat extends HTMLElement {
         this.shadowRoot.appendChild(style);
 
         let clickingPanel = false;
-        this.panel.addEventListener('pointerdown', () => {
+        this.panel.addEventListener('pointerdown', (e) => {
+            if (e.button != 0)
+                return;
+
             if (!this.focused)
                 clickingPanel = true;
         });
-        document.addEventListener("mouseup", () => {
+        document.addEventListener('pointerup', (e) => {
+            if (e.button != 0)
+                return;
+
             if (clickingPanel) {
                 this.focus();
                 clickingPanel = false;
@@ -92,6 +103,10 @@ export default class Chat extends HTMLElement {
         });
         this.input.addEventListener("blur", (e) => {
             this.blur();
+        });
+        this.shadowRoot.addEventListener("contextmenu", (e) => {
+            if (e.target != this.input)
+                e.preventDefault();
         });
     }
 

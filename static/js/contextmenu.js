@@ -25,7 +25,7 @@ export default class ContextMenu extends HTMLElement {
             width: 150px;
             padding: 5px 0px;
 
-            background: aliceblue;
+            background: var(--background);
             border: 1px solid rgba(0,0,0,0.5);
             border-radius: 2px;
 

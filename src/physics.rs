@@ -4,6 +4,7 @@ use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use serde::{Serialize, Deserialize};
 
 use crate::lobby::Vec3;
+use crate::PHYSICS_SCALE;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CollisionAudioInfo {
@@ -103,6 +104,17 @@ impl PhysicsWorld {
 		
         // Ground plane
 		w.collider_set.insert(ColliderBuilder::halfspace(Vector::y_axis()).build());
+
+        // Walls
+        let wall_distance = 80. * PHYSICS_SCALE;
+		w.collider_set.insert(ColliderBuilder::halfspace(Vector::x_axis())
+                                    .translation(Vector::x_axis().into_inner() * -wall_distance).build());
+		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::x_axis())
+                                    .translation(Vector::x_axis().into_inner() * wall_distance).build());
+		w.collider_set.insert(ColliderBuilder::halfspace(Vector::z_axis())
+                                    .translation(Vector::z_axis().into_inner() * -wall_distance).build());
+		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::z_axis())
+                                    .translation(Vector::z_axis().into_inner() * wall_distance).build());
 		
 		return w;
     }
