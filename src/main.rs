@@ -257,7 +257,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
                 println!("Error encountered while handling event: {:?}", event_result);
             }
         } else {
-            println!("User <{user_id}> sent malformed message");
+            println!("User <{user_id}> sent malformed message: {:?}", serde_json::from_str::<Event>(message.to_text().unwrap()).err().unwrap());
         }
     }
     match user_disconnected(user_id, &lobby_name, &lobbies).await {

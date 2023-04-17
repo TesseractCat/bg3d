@@ -22,7 +22,7 @@
 
 import { BufferGeometry } from 'three';
 import { Float32BufferAttribute } from 'three';
-import * as Curves from 'three';
+import * as Curves from 'three/src/extras/curves/Curves.js';
 import { Vector2 } from 'three';
 import { Vector3 } from 'three';
 import { Shape } from 'three';

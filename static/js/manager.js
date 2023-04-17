@@ -102,7 +102,7 @@ export default class Manager extends EventTarget {
             if ([...this.pawns.values()].filter(p => p.selected).length != 0)
                 return;
 
-            let raycastableObjects = [...this.pawns.values()].map(x => x.meshObject);
+            let raycastableObjects = [...this.pawns.values()].map(x => x.getMesh());
             raycastableObjects.push(this.plane);
             let hits = this.raycaster.intersectObjects(raycastableObjects, true);
             
@@ -220,7 +220,7 @@ export default class Manager extends EventTarget {
     
     clearPawns() {
         [...this.pawns.keys()].forEach(id => {
-            this.scene.remove(this.pawns.get(id).meshObject);
+            this.scene.remove(this.pawns.get(id).getMesh());
             this.pawns.get(id).dispose();
             this.pawns.delete(id);
         });
@@ -238,7 +238,7 @@ export default class Manager extends EventTarget {
             this.updatePawn(pawn);
         } else {
             this.pawns.set(pawn.id, pawn);
-            pawn.init(this);
+            pawn.init();
         }
     }
     sendAddPawn(pawn) {
@@ -246,7 +246,7 @@ export default class Manager extends EventTarget {
     }
     removePawn(id) {
         if (this.pawns.has(id)) {
-            this.scene.remove(this.pawns.get(id).meshObject);
+            this.scene.remove(this.pawns.get(id).getMesh());
             this.pawns.get(id).dispose();
             this.pawns.delete(id);
         }
@@ -364,7 +364,7 @@ export default class Manager extends EventTarget {
         // FIXME: Don't do this on mobile devices
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
-        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.meshObject).map(x => x.meshObject);
+        let raycastableObjects = Array.from(this.pawns.values()).filter(x => x.getMesh()).map(x => x.getMesh());
         let hovered = this.raycaster.intersectObjects(raycastableObjects, true);
         this.pawns.forEach((p, k) => p.hovered = false);
 
@@ -372,7 +372,7 @@ export default class Manager extends EventTarget {
         if (hovered.length > 0) {
             hovered[0].object.traverseAncestors((a) => {
                 for (const [key, value] of this.pawns) {
-                    if (value.meshObject == a) {
+                    if (value.getMesh() == a) {
                         if (value.moveable && !value.selected) {
                             pawn = value;
                         }
@@ -632,8 +632,7 @@ export default class Manager extends EventTarget {
                     // If we aren't the host, let's deserialize the pawns received
                     msg.pawns.forEach(p => {
                         let pawn = deserializePawn(p);
-                        pawn.init(this);
-                        this.pawns.set(pawn.id, pawn);
+                        this.addPawn(pawn);
                     });
                 }
                 // Start ping tester

@@ -23,20 +23,22 @@ function getPiece(name, radius, height) {
 function addPiece(piece, positions) {
     let [white, black] = piece;
 
-    positions.forEach((p) => {
+    let pawns = positions.flatMap((p) => {
         black.position = chessToWorldPos(p);
         black.rotation.y = 0;
-        black.create();
 
         white.position = chessToWorldPos(new Vector2(p.x, 7 - p.y));
         white.rotation.y = Math.PI;
-        white.create();
+
+        return [white.clone(), black.clone()];
     });
+    console.log(pawns);
+    self.world.add(pawns);
 }
 
-self.start = async function() {
+self.world.addEventListener("start", () => {
     // Spawn board
-    new Pawn({
+    self.world.add(new Pawn({
         name: 'Board',
         position: new Vector3(0,0.5,0),
         mesh: 'checkers/checkerboard.gltf',
@@ -44,15 +46,15 @@ self.start = async function() {
             new Box(new Vector3(8.0,0.5,8.0))
         ],
         moveable: false
-    }).create();
+    }));
 
     // Snap positions
-    new SnapPoint({
+    self.world.add(new SnapPoint({
         position: new Vector3(0,1,0),
         size: new Vector2(8,8),
         radius: 1,
         scale: 2,
-    }).create();
+    }));
 
     // Define pieces
     let queen = getPiece('queen', 0.7, 2.81);
@@ -98,4 +100,4 @@ self.start = async function() {
         new Vector2(7, 1),
     ];
     addPiece(pawn, pawnPositions);
-}
+});

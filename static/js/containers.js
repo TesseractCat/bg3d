@@ -25,12 +25,12 @@ export class Deck extends Pawn {
         size: new Vector2()
     }
     
-    box;
+    #box;
 
-    faceMaterial;
-    backMaterial;
-    sideMaterial;
-    sideTexture;
+    #faceMaterial;
+    #backMaterial;
+    #sideMaterial;
+    #sideTexture;
     
     constructor({contents = [], back = null, sideColor = 0xcccccc,
                  size = new Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
@@ -49,8 +49,8 @@ export class Deck extends Pawn {
         this.data.cardThickness = cardThickness;
         this.data.size.copy(size);
     }
-    async init(manager) {
-        super.init(manager);
+    async init() {
+        super.init();
         
         let shape = this.#roundedSquare(this.data.cornerRadius);
         if (this.data.border) {
@@ -78,21 +78,21 @@ export class Deck extends Pawn {
         box.position.set(-0.5, 0.5, 0.5);
         box.quaternion.setFromEuler(new Euler(Math.PI/2, 0, 0));
         
-        this.box = box;
-        this.meshObject.scale.copy(new Vector3(
+        this.#box = box;
+        this.getMesh().scale.copy(new Vector3(
             this.data.size.x,
             this.data.cardThickness * this.data.contents.length,
             this.data.size.y
         ));
-        this.meshObject.add(box);
+        this.getMesh().add(box);
 
-        this.sideTexture = (await this.loadTexture("generic/cards/side.jpg")).clone();
-        this.sideTexture.needsUpdate = true;
-        [this.sideTexture.wrapS, this.sideTexture.wrapT] = [RepeatWrapping, RepeatWrapping];
+        this.#sideTexture = (await this.loadTexture("generic/cards/side.jpg")).clone();
+        this.#sideTexture.needsUpdate = true;
+        [this.#sideTexture.wrapS, this.#sideTexture.wrapT] = [RepeatWrapping, RepeatWrapping];
         
         this.updateDeck(true);
 
-        display.addEventListener('pointermove', this.mouseMove);
+        display.addEventListener('pointermove', this.#mouseMove);
     }
     #roundedSquare(radius) {
         let shape = new Shape();
@@ -113,9 +113,9 @@ export class Deck extends Pawn {
     }
     dispose() {
         super.dispose();
-        display.removeEventListener('pointermove', this.mouseMove);
-        if (this.sideTexture)
-            this.sideTexture.dispose();
+        display.removeEventListener('pointermove', this.#mouseMove);
+        if (this.#sideTexture)
+            this.#sideTexture.dispose();
         // FIXME: Dispose of textures, if possible
     }
 
@@ -127,7 +127,7 @@ export class Deck extends Pawn {
                 ["Split", () => this.split()],
                 ["Shuffle", () => this.shuffle()],
             ];
-            if (this.manager.host) {
+            if (window.manager.host) {
                 deckEntries.push(["Deal", () => this.deal()]);
             }
             entries.splice(1, 0, deckEntries);
@@ -138,27 +138,27 @@ export class Deck extends Pawn {
     animate(dt) {
         super.animate(dt);
 
-        if (this.faceMaterial) {
-            if (this.flipped() && !this.faceMaterial.color.equals(new Color(0x000000))) {
-                this.faceMaterial.color = new Color(0x000000);
-            } else if (!this.flipped() && this.faceMaterial.color.equals(new Color(0x000000))) {
-                this.faceMaterial.color = new Color(0xffffff);
+        if (this.#faceMaterial) {
+            if (this.flipped() && !this.#faceMaterial.color.equals(new Color(0x000000))) {
+                this.#faceMaterial.color = new Color(0x000000);
+            } else if (!this.flipped() && this.#faceMaterial.color.equals(new Color(0x000000))) {
+                this.#faceMaterial.color = new Color(0xffffff);
             }
         }
     }
-    mouseMove = (e) => {
+    #mouseMove = (e) => {
         if (this.data.contents.length == 1 &&
             this.selected && e.clientY > window.innerHeight * 0.75) {
 
             super.release(false);
 
-            this.manager.removePawn(this.id);
-            this.manager.hand.pushCard(this, true);
-            this.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
+            window.manager.removePawn(this.id);
+            window.manager.hand.pushCard(this, true);
+            window.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
 
             // 'Release' pointer on OrbitControls
             // Note, call this after super.release(false) to prevent merging
-            this.manager.controls.domElement.dispatchEvent(
+            window.manager.controls.domElement.dispatchEvent(
                 new PointerEvent('pointerup', {
                     pointerId: e.pointerId
                 })
@@ -187,9 +187,9 @@ export class Deck extends Pawn {
         if (e.key == "g" && this.data.contents.length == 1) {
             super.release(false);
 
-            this.manager.removePawn(this.id);
-            this.manager.hand.pushCard(this);
-            this.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
+            window.manager.removePawn(this.id);
+            window.manager.hand.pushCard(this);
+            window.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
         }
         if (!this.selected && e.key == 't') {
             this.grabCards();
@@ -197,16 +197,16 @@ export class Deck extends Pawn {
     }
 
     deal() {
-        this.manager.sendEvent("pawn", false, {id: this.id, name: "deal"});
+        window.manager.sendEvent("pawn", false, {id: this.id, name: "deal"});
     }
     grabCards(intoHand = false, count = 1) {
         if (count < 1)
             return;
         let cards = this.spawnCards(count);
         if (intoHand && count == 1) {
-            this.manager.removePawn(cards.id);
-            this.manager.hand.pushCard(cards);
-            this.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
+            window.manager.removePawn(cards.id);
+            window.manager.hand.pushCard(cards);
+            window.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
         } else {
             if (cards)
                 cards.grab(0);
@@ -241,11 +241,11 @@ export class Deck extends Pawn {
             position: new Vector3().copy(this.position).add(new Vector3(0,1,0))
         });
         
-        this.manager.addPawn(cardPawn);
+        window.manager.addPawn(cardPawn);
         
         this.data.contents.splice(range[0], count);
 
-        this.manager.sendSocket({
+        window.manager.sendSocket({
             type: "extract_pawns",
             from_id: this.id,
             to_id: cardPawn.id,
@@ -268,9 +268,9 @@ export class Deck extends Pawn {
         if (rhs instanceof Deck && rhs.name == this.name && rhs.flipped() == this.flipped()) {
             this.insert(this.flipped(), rhs.data.contents);
 
-            this.manager.removePawn(rhs.id);
+            window.manager.removePawn(rhs.id);
 
-            this.manager.sendSocket({
+            window.manager.sendSocket({
                 type: "merge_pawns",
                 into_id: this.id,
                 from_id: rhs.id,
@@ -291,7 +291,7 @@ export class Deck extends Pawn {
     async updateDeck(fadeIn = false) {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
-        this.meshObject.scale.setComponent(1, thickness);
+        this.getMesh().scale.setComponent(1, thickness);
         this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
@@ -309,33 +309,33 @@ export class Deck extends Pawn {
         ]);
         
         // Dispose of old materials
-        for (let material of [this.backMaterial, this.faceMaterial, this.sideMaterial]) {
+        for (let material of [this.#backMaterial, this.#faceMaterial, this.#sideMaterial]) {
             if (material)
                 material.dispose();
         }
         // Apply new materials
-        this.sideTexture.repeat.y = this.data.contents.length - 1;
-        this.sideMaterial = new MeshPhongDitheredMaterial({
+        this.#sideTexture.repeat.y = this.data.contents.length - 1;
+        this.#sideMaterial = new MeshPhongDitheredMaterial({
             color: this.data.sideColor,
-            map: this.sideTexture,
+            map: this.#sideTexture,
             shininess:5,
         });
-        this.faceMaterial = new MeshPhongDitheredMaterial({
+        this.#faceMaterial = new MeshPhongDitheredMaterial({
             color: 0xffffff,
             map: faceTexture,
             shininess:5,
         });
-        this.backMaterial = new MeshPhongDitheredMaterial({
+        this.#backMaterial = new MeshPhongDitheredMaterial({
             color: 0xffffff,
             map: backTexture,
             shininess:5,
         });
-        this.box.material = [
-            this.faceMaterial, this.sideMaterial, this.backMaterial
+        this.#box.material = [
+            this.#faceMaterial, this.#sideMaterial, this.#backMaterial
         ];
         if (fadeIn) {
-            this.box.customDepthMaterial = new DepthDitheredMaterial().clone();
-            for (let material of this.box.material.concat([this.box.customDepthMaterial])) {
+            this.#box.customDepthMaterial = new DepthDitheredMaterial().clone();
+            for (let material of this.#box.material.concat([this.#box.customDepthMaterial])) {
                 material.opacity = 0.0;
                 let fadeInInterval = setInterval(() => {
                     material.opacity += 6.0/60.0;
@@ -369,7 +369,7 @@ export class Deck extends Pawn {
             super.flip();
     }
     shake() {
-        this.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
+        window.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
     }
     flipped() {
         return Math.abs(this.selectRotation.x - Math.PI) < 0.01;
@@ -380,13 +380,17 @@ export class Deck extends Pawn {
 
 export class Container extends Pawn {
     data = {
-        holds: {},
-        capacity: undefined,
+        holds: null,
+        capacity: null,
     }
     
     constructor({holds, capacity, ...rest}) {
         super(rest);
-        this.data.holds = holds;
+
+        if (holds)
+            this.data.holds = holds;
+        this.processData();
+
         this.data.capacity = capacity;
     }
     
@@ -415,17 +419,17 @@ export class Container extends Pawn {
                 return;
         }
 
-        let item = deserializePawn(this.data.holds).clone();
+        let item = this.data.holds.clone();
         item.setPosition(this.position.clone().add(new Vector3(0, 2, 0)));
 
-        this.manager.addPawn(item);
-        this.manager.pawns.get(item.id).grab(0);
+        window.manager.addPawn(item);
+        window.manager.pawns.get(item.id).grab(0);
 
         if (this.data.capacity) {
             this.data.capacity -= 1;
         }
 
-        this.manager.sendSocket({
+        window.manager.sendSocket({
             type: "extract_pawns",
             from_id: this.id,
             to_id: item.id,
@@ -444,13 +448,27 @@ export class Container extends Pawn {
         if (this.data.capacity) {
             this.data.capacity += 1;
         }
-        this.manager.removePawn(rhs.id);
+        window.manager.removePawn(rhs.id);
 
-        this.manager.sendSocket({
+        window.manager.sendSocket({
             type: "merge_pawns",
             into_id: this.id,
             from_id: rhs.id,
         });
+    }
+
+    serialize() {
+        let out = super.serialize();
+        if (this.data.holds instanceof Pawn)
+            out.data.holds = this.data.holds.serialize();
+        return out;
+    }
+    processData() {
+        if (this.data.holds) {
+            if (!(this.data.holds instanceof Pawn)) {
+                this.data.holds = deserializePawn(this.data.holds);
+            }
+        }
     }
     
     static className() { return "Container"; };

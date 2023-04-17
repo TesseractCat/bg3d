@@ -1,6 +1,6 @@
-self.start = async function() {
+self.world.addEventListener("start", async () => {
     // Spawn board
-    new Pawn({
+    self.world.add(new Pawn({
         name: 'Board',
         position: new Vector3(0,0.25,0),
         mesh: 'go/goban.gltf',
@@ -8,15 +8,15 @@ self.start = async function() {
             new Box(new Vector3(8.5,0.25,8.5))
         ],
         moveable: false
-    }).create();
+    }));
 
     // Snap positions
-    new SnapPoint({
+    self.world.add(new SnapPoint({
         position: new Vector3(0,0.5,0),
         size: new Vector2(19,19),
         radius: 0.5,
         scale: 0.85,
-    }).create();
+    }));
 
     // Stones
     let whiteStone = new Pawn({
@@ -46,6 +46,5 @@ self.start = async function() {
                                          whiteStoneBag.position.y,
                                          -whiteStoneBag.position.z);
 
-    whiteStoneBag.create();
-    blackStoneBag.create();
-}
+    self.world.add([whiteStoneBag, blackStoneBag]);
+});

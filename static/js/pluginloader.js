@@ -2,7 +2,7 @@ import { Quaternion, Euler } from 'three';
 import * as zip from '@zip.js/zip.js';
 
 import Manager from './manager';
-import { Pawn, SnapPoint, Deck, Container, Dice, deserializePawn } from './pawns';
+import { deserializePawn } from './pawns';
 import { Box, Cylinder } from './shapes';
 
 function findEntry(entries, path) {
@@ -20,7 +20,7 @@ export default class PluginLoader {
 
     createScriptBlob(blob) {
         return new Blob([
-            `importScripts("${window.location.protocol}//${window.location.host}/static/prelude.js?v=${window.version}");\n\n`,
+            `importScripts("${window.location.protocol}//${window.location.host}/static/prelude.bundle.js?v=${window.version}");\n\n`,
             blob
         ], {type: "text/javascript"});
     }

@@ -48,7 +48,7 @@ self.world.addEventListener("start", async () => {
 
     self.world.add([bird, deck, birdSnap, die]);
 
-    for (let i = 0; i < 5; i++) {
+    /*for (let i = 0; i < 5; i++) {
         let birdHeight = 4.3;
         let bird = new Pawn({
             name: "Bird Statue",
@@ -71,5 +71,5 @@ self.world.addEventListener("start", async () => {
         //self.world.commit(self.world.pawns().values().filter(p => p.name == "Bird Statue").map(p => p.id));
         self.world.commit();
         await timeout(1000);
-    }
+    }*/
 });

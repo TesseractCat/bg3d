@@ -99,7 +99,7 @@ impl From<Shape> for ColliderBuilder {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-#[serde(untagged)]
+#[serde(tag = "class", content = "data")]
 pub enum PawnData {
     #[serde(rename_all = "camelCase")]
     Deck {
@@ -118,8 +118,7 @@ pub enum PawnData {
 pub struct Pawn {
     pub id: u64, // Identifiers
     
-    pub class: String, // Immutable Properties
-    pub name: Option<String>,
+    pub name: Option<String>, // Immutable Properties
     pub mesh: Option<String>,
     pub tint: Option<u64>,
 
@@ -133,6 +132,7 @@ pub struct Pawn {
     pub selected_user: Option<usize>,
     pub select_rotation: Vec3,
     
+    #[serde(flatten)]
     pub data: PawnData, // Misc
 
 	#[serde(skip)]
@@ -146,7 +146,6 @@ pub struct Pawn {
 pub struct PawnUpdate {
     pub id: u64,
     
-    pub class: Option<String>,
     pub name: Option<String>,
     pub mesh: Option<String>,
     pub tint: Option<u64>,
@@ -160,6 +159,7 @@ pub struct PawnUpdate {
     pub selected: Option<bool>,
     pub select_rotation: Option<Vec3>,
     
+    #[serde(flatten)]
     pub data: Option<PawnData>,
 }
 impl Pawn {

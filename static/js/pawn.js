@@ -41,14 +41,14 @@ export class Pawn {
     colliderShapes;
     
     // Non-Serialized
+    #lastPosition = new Vector3();
+    #lastRotation = new Quaternion();
     dirty = new Set();
-    lastPosition = new Vector3();
-    lastRotation = new Quaternion();
     
     networkSelected = false;
     networkTransform;
 
-    meshObject = new Object3D();
+    #meshObject = new Object3D();
     size = new Vector3();
     hovered = false;
     selectStaticPosition;
@@ -83,9 +83,7 @@ export class Pawn {
         this.networkTransform = new NetworkedTransform(position, rotation);
     }
     initialized = false;
-    init(manager) {
-        this.manager = manager;
-
+    init() {
         // Load mesh
         if (this.mesh != null) { // GLTF URL
             Pawn.gltfLoader.load(this.mesh, (gltf) => {
@@ -125,7 +123,7 @@ export class Pawn {
                 let height = boundingBox.max.y - boundingBox.min.y;
                 gltf.scene.translateY(-boundingBox.min.y - 0.5 * height);
 
-                this.meshObject.add(gltf.scene);
+                this.getMesh().add(gltf.scene);
                 this.updateMeshTransform();
                 this.updateBoundingBox();
             });
@@ -134,11 +132,11 @@ export class Pawn {
         }
 
         // Add to scene
-        this.manager.scene.add(this.meshObject);
+        window.manager.scene.add(this.getMesh());
         this.initialized = true;
     }
     dispose() {
-        this.meshObject.traverse((child) => {
+        this.getMesh().traverse((child) => {
             if (child instanceof Mesh) {
                 child.geometry.dispose();
                 for (let material of (Array.isArray(child.material) ? child.material : [child.material]))
@@ -156,10 +154,10 @@ export class Pawn {
 
             if (grabPoint === undefined) {
                 // Raycast for movement
-                let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-                let raycastableObjects = raycastablePawns.map(x => x.meshObject);
-                raycastableObjects.push(this.manager.plane);
-                let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+                let raycastablePawns = Array.from(window.manager.pawns.values()).filter(x => x != this);
+                let raycastableObjects = raycastablePawns.map(x => x.getMesh());
+                raycastableObjects.push(window.manager.plane);
+                let hits = window.manager.raycaster.intersectObjects(raycastableObjects, true);
 
                 if (hits.length != 0) {
                     grabPoint = hits[0].point.clone();
@@ -170,7 +168,7 @@ export class Pawn {
 
                 if (grabPoint) {
                     // Snap points
-                    let snapPoints = Array.from(this.manager.pawns.values()).filter(x => x instanceof SnapPoint);
+                    let snapPoints = Array.from(window.manager.pawns.values()).filter(x => x instanceof SnapPoint);
 
                     for (let snapPoint of snapPoints) {
                         if (snapPoint.data.snaps.length != 0 && !snapPoint.data.snaps.includes(this.name))
@@ -222,14 +220,14 @@ export class Pawn {
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
         if (!this.dirty.has("position") && this.selected) {
-            if (this.position.distanceToSquared(this.lastPosition) > 0.01 ||
-                this.rotation.angleTo(this.lastRotation) > 0.01) {
+            if (this.position.distanceToSquared(this.#lastPosition) > 0.01 ||
+                this.rotation.angleTo(this.#lastRotation) > 0.01) {
 
                 this.dirty.add("position");
                 this.dirty.add("rotation");
 
-                this.lastPosition.copy(this.position);
-                this.lastRotation.copy(this.rotation);
+                this.#lastPosition.copy(this.position);
+                this.#lastRotation.copy(this.rotation);
             }
         }
     }
@@ -247,13 +245,13 @@ export class Pawn {
         ];
         let hostEntries = [
             ["Clone", () => {
-                this.manager.sendAddPawn(this.clone());
+                window.manager.sendAddPawn(this.clone());
             }],
             ["Delete", () => {
-                this.manager.sendRemovePawn(this.id);
+                window.manager.sendRemovePawn(this.id);
             }],
         ];
-        if (this.manager.host)
+        if (window.manager.host)
             entries.push(hostEntries);
         return entries;
     }
@@ -280,7 +278,7 @@ export class Pawn {
         
         this.selected = true;
         this.dirty.add("selected");
-        this.manager.hand.minimize(true);
+        window.manager.hand.minimize(true);
 
         this.grabSpring.set(this.position.y);
     }
@@ -294,17 +292,17 @@ export class Pawn {
         this.dirty.add("rotation");
         this.dirty.add("selected");
         
-        this.manager.hand.minimize(false);
+        window.manager.hand.minimize(false);
 
         // Fire merge event if applicable
         if (tryMerge) {
-            let raycastablePawns = Array.from(this.manager.pawns.values()).filter(x => x != this);
-            let raycastableObjects = raycastablePawns.map(x => x.meshObject);
-            let hits = this.manager.raycaster.intersectObjects(raycastableObjects, true);
+            let raycastablePawns = Array.from(window.manager.pawns.values()).filter(x => x != this);
+            let raycastableObjects = raycastablePawns.map(x => x.getMesh());
+            let hits = window.manager.raycaster.intersectObjects(raycastableObjects, true);
             if (hits[0]) {
                 for (let rhs of raycastablePawns) {
                     let isParent = false;
-                    rhs.meshObject.traverse((child) => {
+                    rhs.getMesh().traverse((child) => {
                         if (child == hits[0].object)
                             isParent = true;
                     });
@@ -356,7 +354,7 @@ export class Pawn {
     }
     rotate(m) {
         this.selectAndRun(() => {
-            let increment = this.manager.info?.rotationIncrement || Math.PI/8;
+            let increment = window.manager.info?.rotationIncrement || Math.PI/8;
             this.selectRotation.y += m * increment;
             this.dirty.add("selectRotation");
         });
@@ -380,48 +378,33 @@ export class Pawn {
     }
     
     updateMeshTransform() {
-        if (this.meshObject) {
-            this.meshObject.position.copy(this.position);
-            this.meshObject.quaternion.copy(this.rotation);
+        if (this.getMesh()) {
+            this.getMesh().position.copy(this.position);
+            this.getMesh().quaternion.copy(this.rotation);
         }
     }
     updateBoundingBox() {
-        let p = this.meshObject.position.clone();
-        let r = this.meshObject.quaternion.clone();
-        this.meshObject.position.set(0,0,0);
-        this.meshObject.quaternion.identity();
+        let p = this.getMesh().position.clone();
+        let r = this.getMesh().quaternion.clone();
+        this.getMesh().position.set(0,0,0);
+        this.getMesh().quaternion.identity();
 
-        let boundingBox = new Box3().setFromObject(this.meshObject);
+        let boundingBox = new Box3().setFromObject(this.getMesh());
         this.size = boundingBox.getSize(new Vector3());
 
-        this.meshObject.position.copy(p);
-        this.meshObject.quaternion.copy(r);
+        this.getMesh().position.copy(p);
+        this.getMesh().quaternion.copy(r);
     }
     
     static className() { return "Pawn"; };
     serialize() {
-        let out = this.serializeState();
-        Object.assign(out, {
-            class: this.constructor.className(),
-            name: this.name,
-            mesh: this.mesh, tint: this.tint,
-            mass: 1.0, moveable: this.moveable,
-            colliderShapes: this.colliderShapes,
-            data: this.data
-        });
-        return out;
-    }
-    serializeState() {
-        let rotation = new Vector3().setFromEuler(
+        let out = structuredClone(this);
+        out.class = this.constructor.className();
+        out.mass = 1.0;
+        out.rotation = new Vector3().setFromEuler(
             new Euler().setFromQuaternion(this.rotation, 'ZYX')
         );
-        return {
-            id:this.id,
-            selected:this.selected,
-            position:this.position,
-            rotation:rotation,
-            selectRotation:this.selectRotation,
-        };
+        return out;
     }
     serializeDirty() {
         let out = {id:this.id};
@@ -431,7 +414,7 @@ export class Pawn {
                     new Euler().setFromQuaternion(this.rotation, 'ZYX')
                 );
             } else {
-                out[dirtyParam] = this[dirtyParam];
+                out[dirtyParam] = structuredClone(this[dirtyParam]);
             }
         }
         return out;
@@ -455,15 +438,13 @@ export class Pawn {
     clone(parameters) {
         // Serialize and Deserialize to clone
         let serialized = this.serialize();
-        let deserialized = JSON.parse(JSON.stringify(serialized));
-        deserialized.id = null;
-        let pawn = this.constructor.deserialize({
-            ...deserialized,
-            ...parameters,
-        });
+        serialized.id = null;
+        let pawn = this.constructor.deserialize({...serialized, ...parameters});
         return pawn;
     }
     processData() { }
+
+    getMesh() { return this.#meshObject }
 }
 
 export class SnapPoint extends Pawn {
@@ -488,7 +469,7 @@ export class SnapPoint extends Pawn {
         let halfExtents = new Vector3(this.data.size.x - 1, 0, this.data.size.y - 1).divideScalar(2.0);
 
         // Transform position into local space
-        let localPosition = this.meshObject.worldToLocal(position.clone());
+        let localPosition = this.getMesh().worldToLocal(position.clone());
         localPosition.divideScalar(this.data.scale);
         localPosition.add(halfExtents);
         let roundedPosition = localPosition.clone().round();
@@ -504,7 +485,7 @@ export class SnapPoint extends Pawn {
             resultPosition.sub(halfExtents);
             resultPosition.multiplyScalar(this.data.scale);
 
-            return this.meshObject.localToWorld(resultPosition);
+            return this.getMesh().localToWorld(resultPosition);
         }
     }
 
