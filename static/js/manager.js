@@ -519,6 +519,7 @@ export default class Manager extends EventTarget {
         geom.rotateX(-Math.PI/2);
         const material = new ShaderMaterial();//new ShadowMaterial();
         //material.opacity = 0.5;
+        //material.transparent = true;
         material.lights = true;
         material.uniforms = ShaderLib.shadow.uniforms;
         material.vertexShader = `varying vec4 worldPos;\n` + ShaderLib.shadow.vertexShader.replace("main() {", `
@@ -548,6 +549,7 @@ export default class Manager extends EventTarget {
             float shadowAmount = 1.0 - getShadowMask();
 
             gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0);
+            //gl_FragColor = vec4(vec3(dotAmount - shadowAmount/4.0), dotAmount + shadowAmount/4.0);
         }
         `;
         this.plane = new Mesh(geom, material);

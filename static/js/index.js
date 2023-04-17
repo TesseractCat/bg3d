@@ -97,18 +97,9 @@ window.onload = function() {
     document.getElementById("game-link").href = window.location.href;
     
     // Overlay functionality
-    document.getElementById("overlay-collapse").addEventListener("click", function() {
-        const elem = document.getElementById("overlay-collapse");
-        let collapsed = elem.innerText == "+";
-        if (collapsed) {
-            elem.innerText = "-";
-            overlay.style.width = "";
-            overlay.style.maxHeight = "";
-        } else {
-            elem.innerText = "+";
-            overlay.style.width = "10px";
-            overlay.style.maxHeight = "10px";
-        }
+    document.getElementById("overlay-collapse").addEventListener("click", (e) => {
+        e.target.innerText = e.target.innerText == "-" ? "+" : "-";
+        document.getElementById("overlay").classList.toggle("minimized");
     });
         
     // Allow plugins to be dropped

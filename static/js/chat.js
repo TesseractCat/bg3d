@@ -25,30 +25,24 @@ export default class Chat extends HTMLElement {
 
         const style = document.createElement('style');
         style.textContent = `
-        :host {
-            position:absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 280px;
-        }
         #panel {
             padding: 20px;
-            background-color: #DED6BA;
-            border-radius: 10px;
+            background-color: var(--background);
+            border-radius: var(--radius);
             box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
-            user-select:none;
-            overflow-x:hidden;
+            user-select: none;
+            overflow-x: hidden;
             
-            cursor:pointer;
-            transition:opacity 0.2s;
-            opacity:0.2;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            opacity: 0.2;
         }
         #entries {
-            max-height:150px;
-            overflow-y:auto;
+            max-height: 150px;
+            overflow-y: auto;
         }
         input {
-            margin-top:10px;
+            margin-top: 10px;
             width:100%;
             border-radius:5px;
             border:1px solid grey;
