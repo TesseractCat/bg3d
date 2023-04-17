@@ -1,6 +1,5 @@
 import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
@@ -17,9 +16,7 @@ Math.clamp01 = function(x) {
 };
 
 export class Pawn {
-    static dracoLoader = new DRACOLoader().setDecoderPath('/static/draco/');
     static gltfLoader = new GLTFLoader()
-        .setDRACOLoader(Pawn.dracoLoader)
         .setPath(window.location.href + '/assets/');
     static audioLoader = new AudioLoader().setPath(window.location.href + '/assets/');
 

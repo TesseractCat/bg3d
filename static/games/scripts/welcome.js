@@ -4,13 +4,13 @@ self.world.addEventListener("start", async () => {
         name: "Bird Statue",
         position: new Vector3(-1.9,2.8,-1.35),
         rotation: new Vector3(0, Math.PI/6, 0),
-        mesh: 'generic/bird.gltf', colliderShapes: [
+        mesh: 'generic/bird.glb', colliderShapes: [
             new Cylinder(1.5, birdHeight)
         ],
     });
 
     let deck = new Deck({
-        name: "Welcome", contents: ["generic/welcome.png"],
+        name: "Welcome", contents: ["generic/welcome.jpg"],
         sideColor: 0x000000, cornerRadius: 0.06,
         position: new Vector3(0.9, 0, 0),
         size: new Vector2(1.25 * 8, 1 * 8),
@@ -37,14 +37,15 @@ self.world.addEventListener("start", async () => {
         ]
     });
 
-    // let bag = new Container({
-    //     name: "Bird Bag", holds: bird,
-    //     position: new Vector3(1.9,1.25,-1.35),
-    //     rotation: new Vector3(0, -Math.PI/6, 0),
-    //     mesh: 'generic/bag.gltf', colliderShapes: [
-    //         new Cylinder(1.5, 2.5)
-    //     ],
-    // })
+    let bag = new Container({
+        name: "Bird Bag", holds: bird, capacity: 5,
+        position: new Vector3(1.9,1.25,-1.35),
+        rotation: new Vector3(0, -Math.PI/6, 0),
+        mesh: 'generic/bag.gltf', colliderShapes: [
+            new Cylinder(1.5, 2.5)
+        ],
+    })
+    self.world.add(bag);
 
     self.world.add([bird, deck, birdSnap, die]);
 

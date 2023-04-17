@@ -5,14 +5,14 @@ function chessToWorldPos(chessPos, height = 3) {
 function getPiece(name, radius, height) {
     let white = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '.gltf',
+        mesh: 'chess/' + name + '.glb',
         colliderShapes: [
             new Cylinder(radius, height)
         ]
     });
     let black = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '.gltf',
+        mesh: 'chess/' + name + '.glb',
         tint: 0x0A0A0A,
         colliderShapes: [
             new Cylinder(radius, height)
@@ -41,7 +41,7 @@ self.world.addEventListener("start", () => {
     self.world.add(new Pawn({
         name: 'Board',
         position: new Vector3(0,0.5,0),
-        mesh: 'checkers/checkerboard.gltf',
+        mesh: 'checkers/checkerboard.glb',
         colliderShapes: [
             new Box(new Vector3(8.0,0.5,8.0))
         ],

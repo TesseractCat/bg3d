@@ -13,6 +13,7 @@ export default class Tooltip extends HTMLElement {
             display: none;
             position:absolute;
             pointer-events:none;
+            user-select: none;
 
             background-color:rgba(0,0,0,0.8);
             color:white;

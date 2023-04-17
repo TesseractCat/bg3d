@@ -434,11 +434,16 @@ export class Container extends Pawn {
             to_id: item.id,
         });
     }
-    grab(button) {
+    grab(button, shift) {
         if (this.selected || this.networkSelected)
             return;
-        if (button == 0)
-            super.grab();
+        if (button == 0) {
+            if (shift) {
+                this.spawnItem();
+            } else {
+                super.grab();
+            }
+        }
     }
     merge(rhs) {
         if (rhs.name != this.data.holds.name)
