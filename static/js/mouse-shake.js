@@ -57,7 +57,7 @@
 	};
 
 	//update mouse position
-	document.addEventListener('mousemove',function(e){
+	document.addEventListener('pointermove',function(e){
 		//new position
 		stuff.x=e.pageX;
 		stuff.y=e.pageY;

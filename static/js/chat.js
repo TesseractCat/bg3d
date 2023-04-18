@@ -17,7 +17,12 @@ export default class Chat extends HTMLElement {
 
         this.entries = document.createElement("div");
         this.entries.id = "entries";
-        this.entries.innerHTML = `<p class="entry"><i>To start chatting, press 'Enter'</i></p>`;
+        const isMobile = window.matchMedia("(max-width: 768px)").matches;
+        if (isMobile) {
+            this.entries.innerHTML = `<p class="entry"><i>To start chatting, tap here</i></p>`;
+        } else {
+            this.entries.innerHTML = `<p class="entry"><i>To start chatting, press 'Enter'</i></p>`;
+        }
         this.panel.appendChild(this.entries);
 
         this.input = document.createElement("input");
