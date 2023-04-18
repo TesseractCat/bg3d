@@ -1,7 +1,7 @@
 git pull
 bash version.sh
 pkill BG3D
-npm update
+npm install
 npm run build
 npm run prelude
 cargo build --release
