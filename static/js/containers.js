@@ -1,4 +1,4 @@
-import { TextureLoader, Vector2, Vector3, Euler, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding } from 'three';
+import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding } from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
@@ -273,9 +273,14 @@ export class Deck extends Pawn {
             window.manager.scene.add(previewMesh);
             const start = performance.now();
             const startPosition = previewMesh.position.clone();
+            const startRotation = new Quaternion().setFromEuler(previewMesh.rotation.clone());
             const animatePreview = (now) => {
                 if ((now - start)/250 < 1) {
                     previewMesh.position.copy(startPosition.lerp(this.getMesh().position, (now - start)/250));
+                    previewMesh.rotation.setFromQuaternion(startRotation.slerp(
+                        new Quaternion().setFromEuler(this.getMesh().rotation),
+                        (now - start)/250
+                    ));
                     requestAnimationFrame(animatePreview);
                 } else {
                     window.manager.scene.remove(previewMesh);

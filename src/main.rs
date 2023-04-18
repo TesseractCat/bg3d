@@ -495,8 +495,12 @@ fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, c
     add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
 fn merge_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
-    let from = lobby.remove_pawn(from_id).ok_or("Trying to merge from missing pawn")?;
-    let into = lobby.pawns.get_mut(&into_id).ok_or("Trying to merge into missing pawn")?;
+    if !lobby.pawns.contains_key(&from_id) || !lobby.pawns.contains_key(&into_id) {
+        // Bail out early
+        return Err("From/into pawn missing when merging".into());
+    }
+    let from = lobby.remove_pawn(from_id).unwrap();
+    let into = lobby.pawns.get_mut(&into_id).unwrap();
 
     let flipped = into.flipped();
     match &mut into.data {
