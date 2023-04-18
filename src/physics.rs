@@ -102,7 +102,7 @@ impl PhysicsWorld {
             event_receiver: collision_rx,
         };
 		
-        // Ground plane
+        // Ground
 		w.collider_set.insert(ColliderBuilder::halfspace(Vector::y_axis()).build());
 
         // Walls

@@ -236,7 +236,7 @@ impl Lobby {
 
     pub fn remove_pawn(&mut self, id: u64) -> Option<Pawn> {
         // Remove rigidbody first
-        let rb_handle = self.pawns.get(&id)?.rigid_body.unwrap();
+        let rb_handle = self.pawns.get(&id)?.rigid_body?;
         self.world.remove_rigidbody(rb_handle);
         self.pawns.remove(&id)
     }
@@ -253,8 +253,8 @@ impl Lobby {
         for pawn in self.pawns.values_mut() {
             if pawn.selected_user.is_some() { continue; } // Ignore selected pawns
 
-            let rb_handle = pawn.rigid_body.expect("A pawn must have a rigid body handle");
-            let rb = self.world.rigid_body_set.get(rb_handle).unwrap();
+            let rb_handle = pawn.rigid_body.ok_or("A pawn must have a rigid body handle")?;
+            let rb = self.world.rigid_body_set.get(rb_handle).ok_or("Invalid rigidbody handle")?;
             pawn.position = Vec3::from(&(rb.translation()/PHYSICS_SCALE));
             pawn.rotation = Vec3::from(rb.rotation());
             if !rb.is_sleeping() && rb.is_moving() {

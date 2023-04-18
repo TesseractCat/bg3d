@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use serde::{Serialize, Deserialize};
-use serde_json::Value;
 
 use crate::user::User;
 use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo};
@@ -23,9 +22,6 @@ pub enum PawnEvent {
     GrabCards { count: Option<usize> },
     Deal,
     Shuffle,
-
-    #[serde(skip_deserializing)]
-    Callback,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

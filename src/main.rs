@@ -1,11 +1,12 @@
-use std::{env, panic};
+#![allow(non_snake_case)]
+
+use std::env;
 use std::collections::HashMap;
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
-use std::str::FromStr;
 
 use axum::{
     extract::{
@@ -16,18 +17,14 @@ use axum::{
     routing::get,
     Router
 };
-use tokio::task::JoinHandle;
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
-use futures::future::join_all;
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{interval, timeout, Duration, Instant};
 use tokio::sync::{RwLock, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use data_url::DataUrl;
-
-use serde_json::Value;
 
 use names::Generator;
 use random_color::Color;
@@ -70,13 +67,17 @@ async fn main() {
         .route("/ws", get(
             |Path(lobby): Path<String>, ws: WebSocketUpgrade| async move {
                 let lobbies = lobbies_clone.clone();
-                ws.on_upgrade(move |socket| user_connected(socket, lobby, lobbies))
+                ws.on_upgrade(move |socket| async {
+                    if let Err(err) = user_connected(socket, lobby, lobbies).await {
+                        println!("Error encountered in websocket connection: {:?}", err);
+                    }
+                })
             }
         ));
     let redirect_routes = Router::new()
         .route("/", get(|| async {
             let mut generator = Generator::default();
-            Redirect::to(&format!("/{}", generator.next().unwrap()))
+            Redirect::to(&format!("/{}", generator.next().expect("Generator failed")))
         }))
         .route("/index.html", get(|| async { Redirect::to("/") }));
 
@@ -110,7 +111,7 @@ async fn main() {
         .unwrap();
 }
 
-async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
+async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> Result<(), Box<dyn Error>> {
     let (mut tx, mut rx) = ws.split();
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
@@ -174,7 +175,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         }
 
         let lobbies_rl = lobbies.read().await;
-        let mut lobby = lobbies_rl.get(&lobby_name).unwrap().write().await;
+        let mut lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?.write().await;
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
@@ -223,45 +224,44 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) {
         }
 
         let lobbies_rl = lobbies.read().await;
-        let lobby = lobbies_rl.get(&lobby_name).unwrap();
+        let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
-        if let Some(event_data) = serde_json::from_str(message.to_text().unwrap()).ok() {
-            // println!("Event: {:?}", event_data);
+        match serde_json::from_str(message.to_text()?) {
+            Ok(event_data) => {
+                let event_result = match event_data {
+                    Event::Join { } => user_joined(user_id, lobby.read().await.deref()), 
+                    Event::Ping { idx } => ping(user_id, lobby.read().await.deref(), idx),
 
-            let event_result = match event_data {
-                Event::Join { } => user_joined(user_id, lobby.read().await.deref()), 
-                Event::Ping { idx } => ping(user_id, lobby.read().await.deref(), idx),
+                    Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
+                    Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
+                    Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
+                    Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
-                Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
-                Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
-                Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
-                Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
+                    Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
+                    Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
 
-                Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
-                Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
+                    Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
+                    Event::RegisterAsset { name, data, last: _ } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
+                    Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
 
-                Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
-                Event::RegisterAsset { name, data, last } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
-                Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
+                    Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
 
-                Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
+                    Event::Chat { content, .. } => chat(user_id, lobby.read().await.deref(), content),
 
-                Event::Chat { content, .. } => chat(user_id, lobby.read().await.deref(), content),
+                    _ => Err("Received broadcast-only event".into()),
+                };
 
-                _ => Err("Received broadcast-only event".into()),
-            };
-
-            if event_result.is_err() {
-                println!("Error encountered while handling event: {:?}", event_result);
+                if let Err(err) = event_result {
+                    println!("Error encountered while handling event: {:?}", err);
+                }
+            },
+            Err(err) => {
+                println!("User <{user_id}> sent malformed message: {:?}", err);
             }
-        } else {
-            println!("User <{user_id}> sent malformed message: {:?}", serde_json::from_str::<Event>(message.to_text().unwrap()).err().unwrap());
-        }
+        };
     }
-    match user_disconnected(user_id, &lobby_name, &lobbies).await {
-        Err(e) => println!("Error encountered while disconnecting user: {:?}", e),
-        _ => (),
-    };
+
+    user_disconnected(user_id, &lobby_name, &lobbies).await
 }
 
 // --- PAWN EVENTS ---
@@ -284,7 +284,7 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
         let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
             .active_events(ActiveEvents::COLLISION_EVENTS)
             .mass(0.01);
-        lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
+        lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.ok_or("Pawn missing rigibody")?);
     }
 
     // Tell other users that this was added
@@ -309,7 +309,9 @@ fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> 
 
     // Remove pawn rigidbodies from lobby
     for (id, _) in lobby.pawns.iter() {
-        let rb_handle = lobby.pawns.get(&id).ok_or("Trying to remove missing pawn")?.rigid_body.unwrap();
+        let rb_handle = lobby.pawns
+                                         .get(&id).ok_or("Trying to remove missing pawn")?
+                                         .rigid_body.ok_or("Pawn missing rigidbody")?;
         lobby.world.remove_rigidbody(rb_handle);
     }
     lobby.pawns = HashMap::new();
@@ -355,8 +357,8 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         // Update physics
         if update.collider_shapes.is_some() {
             let collider_handles: Vec<ColliderHandle> = {
-                let rb_handle = pawn.rigid_body.unwrap();
-                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
+                let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
+                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
                 rb.colliders().iter().map(|h| *h).collect()
             };
             for handle in collider_handles {
@@ -366,12 +368,13 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
                     .active_events(ActiveEvents::COLLISION_EVENTS)
                     .mass(0.01);
-                lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.unwrap());
+                lobby.world.insert_with_parent(collider.build(),
+                                               pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
             }
         }
         if pawn.moveable {
-            let rb_handle = pawn.rigid_body.unwrap();
-            let rb = lobby.world.rigid_body_set.get_mut(rb_handle).unwrap();
+            let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
+            let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
             // Don't simulate selected pawns
             rb.set_body_type(if pawn.selected_user.is_none() {
                 RigidBodyType::Dynamic
@@ -379,7 +382,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 RigidBodyType::KinematicPositionBased
             }, true);
             for collider_handle in rb.colliders().iter() {
-                let collider = lobby.world.collider_set.get_mut(*collider_handle).unwrap();
+                let collider = lobby.world.collider_set.get_mut(*collider_handle).ok_or("Invalid collider handle").unwrap();
                 collider.set_sensor(pawn.selected_user.is_some());
             }
             // Update position and velocity
@@ -411,7 +414,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         .send_event(&Event::UpdatePawns { updates, collisions: None })
 }
 
-fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
     let from = lobby.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
 
     let flipped = from.flipped();
@@ -420,8 +423,8 @@ fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, co
             if *capacity == Some(0) {
                 Err::<Pawn, Box<dyn Error>>("Trying to extract from empty container".into())
             } else {
-                if capacity.is_some() {
-                    capacity.replace(capacity.unwrap() - 1);
+                if let Some(c) = *capacity {
+                    capacity.replace(c - 1);
                 }
                 let mut to = *holds.clone();
                 to.id = to_id;
@@ -464,15 +467,15 @@ fn extract_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, co
     })?;
     add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
-fn merge_pawns(user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
+fn merge_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
     let from = lobby.remove_pawn(from_id).ok_or("Trying to merge from missing pawn")?;
     let into = lobby.pawns.get_mut(&into_id).ok_or("Trying to merge into missing pawn")?;
 
     let flipped = into.flipped();
     match &mut into.data {
         PawnData::Container { capacity, .. } => {
-            if capacity.is_some() {
-                capacity.replace(capacity.unwrap() + 1);
+            if let Some(c) = *capacity {
+                capacity.replace(c + 1);
             }
             Ok::<(), Box<dyn Error>>(())
         },
@@ -513,7 +516,7 @@ fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> 
 
     lobby.users.values()
         .send_event(&Event::RegisterGame(
-            Cow::Borrowed(lobby.info.as_ref().unwrap())
+            Cow::Borrowed(lobby.info.as_ref().ok_or("Lobby missing GameInfo")?)
         ))
 }
 fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String) -> Result<(), Box<dyn Error>> {
@@ -548,7 +551,7 @@ fn clear_assets(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>>
 
 fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
     // Get user
-    let user = lobby.users.get(&user_id).unwrap();
+    let user = lobby.users.get(&user_id).ok_or("Invalid user id")?;
     
     println!("User <{}> joined lobby [{}] with {} users and {} pawns",
         user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
@@ -593,11 +596,11 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             pawn.selected_user = None;
 
             if pawn.moveable {
-                let rb_handle = pawn.rigid_body.unwrap();
-                let rb = lobby_mut_ref.world.rigid_body_set.get_mut(rb_handle).unwrap();
+                let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody")?;
+                let rb = lobby_mut_ref.world.rigid_body_set.get_mut(rb_handle).ok_or("Invalid rigidbody handle")?;
                 rb.set_body_type(RigidBodyType::Dynamic, true);
                 for collider_handle in rb.colliders().iter() {
-                    let collider = lobby_mut_ref.world.collider_set.get_mut(*collider_handle).unwrap();
+                    let collider = lobby_mut_ref.world.collider_set.get_mut(*collider_handle).ok_or("Invalid collider handle")?;
                     collider.set_sensor(false);
                 }
             }
@@ -639,14 +642,14 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
 
 fn ping(user_id: usize, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
     // Pong
-    lobby.users.get(&user_id).unwrap().send_event(&Event::Pong { idx })?;
+    lobby.users.get(&user_id).ok_or("Invalid user id")?.send_event(&Event::Pong { idx })?;
     Ok(())
 }
 
 // -- CURSOR EVENTS --
 
 fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<(), Box<dyn Error>> {
-    let mut user = lobby.users.get_mut(&user_id).unwrap();
+    let mut user = lobby.users.get_mut(&user_id).ok_or("Invalid user id")?;
 
     user.cursor_position = position;
     Ok(())
