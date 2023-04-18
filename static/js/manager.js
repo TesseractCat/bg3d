@@ -590,6 +590,7 @@ export default class Manager extends EventTarget {
 
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
+        this.stats.dom.id = "stats";
         document.body.appendChild(this.stats.dom);
     }
     buildControls() {

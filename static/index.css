@@ -52,6 +52,7 @@ body {
 }
 
 canvas {
+    image-rendering: pixelated;
     outline: none;
 }
 
@@ -206,6 +207,12 @@ bird-context-menu {
 }
 @media only screen and (max-width: 768px) {
     #icon {
+        display: none;
+    }
+    bird-chat {
+        width: auto;
+    }
+    #stats {
         display: none;
     }
 }

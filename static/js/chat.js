@@ -87,8 +87,11 @@ export default class Chat extends HTMLElement {
                 return;
 
             if (clickingPanel) {
-                this.focus();
-                clickingPanel = false;
+                // Otherwise the pointer event will cause the input to blur immediately
+                requestAnimationFrame(() => {
+                    this.focus();
+                    clickingPanel = false;
+                });
             }
         });
         this.input.addEventListener("keydown", (e) => {
