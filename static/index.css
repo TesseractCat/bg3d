@@ -212,9 +212,9 @@ bird-context-menu {
     bird-chat {
         width: auto;
     }
-    #stats {
+    /* #stats {
         display: none;
-    }
+    } */
 }
 
 a, a:visited {

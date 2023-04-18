@@ -8,6 +8,8 @@ use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
 
+use axum::http::StatusCode;
+use axum::response::{Response, ErrorResponse, IntoResponse};
 use axum::{
     extract::{
         Path,
@@ -15,7 +17,8 @@ use axum::{
     },
     response::Redirect,
     routing::get,
-    Router
+    Router,
+    http::Uri
 };
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
@@ -57,16 +60,24 @@ async fn main() {
     // Define our lobbies HashMap
     let lobbies = Lobbies::default();
 
-    let lobbies_clone = lobbies.clone();
+    let lobbies_assets_clone = lobbies.clone();
+    let lobbies_ws_clone = lobbies.clone();
 
     // Routing
     // FIXME: Re-add cache headers
     let lobby_routes = Router::new()
         .route_service("/", ServeFile::new("static/index.html"))
-        .nest_service("/assets", ServeDir::new("static/games"))
+        .nest_service("/assets", ServeDir::new("static/games").fallback(get(
+            move |Path(lobby): Path<String>, uri: Uri| {
+                let lobbies = lobbies_assets_clone.clone();
+                println!("Someone requested asset path \"{}\" for lobby [{lobby}]", uri.path());
+
+                retrieve_asset(lobbies, lobby, uri)
+            }
+        )))
         .route("/ws", get(
             |Path(lobby): Path<String>, ws: WebSocketUpgrade| async move {
-                let lobbies = lobbies_clone.clone();
+                let lobbies = lobbies_ws_clone.clone();
                 ws.on_upgrade(move |socket| async {
                     if let Err(err) = user_connected(socket, lobby, lobbies).await {
                         println!("Error encountered in websocket connection: {:?}", err);
@@ -84,6 +95,8 @@ async fn main() {
     let app = redirect_routes
         .nest_service("/static",
                       ServeDir::new("static").append_index_html_on_directories(false))
+        .nest_service("/plugins",
+                      ServeDir::new("plugins").append_index_html_on_directories(false))
         .nest("/:lobby", lobby_routes)
         .layer(CompressionLayer::new());
     
@@ -109,6 +122,20 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::response::Result<impl IntoResponse> {
+    let lobbies_rl = lobbies.read().await;
+
+    let lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.read().await;
+    let asset = lobby.assets.get(path.path()).ok_or(StatusCode::NOT_FOUND)?;
+
+    axum::response::Result::Ok((
+        [
+            ("Content-Type", asset.mime_type.to_string()),
+            ("Cache-Control", "no-cache, no-store, must-revalidate".to_string())
+        ],
+        asset.data.clone()
+    ))
 }
 
 async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> Result<(), Box<dyn Error>> {
@@ -202,7 +229,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
             Ok(Some(r)) => match r {
                 Ok(m) => m,
                 Err(e) => {
-                    println!("Websocket error: {}", e);
+                    println!("Websocket connection error, user <{user_id}> disconnected: {}", e);
                     break;
                 }
             },
@@ -241,7 +268,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                     Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
 
                     Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
-                    Event::RegisterAsset { name, data, last: _ } => register_asset(user_id, lobby.write().await.deref_mut(), name, data),
+                    Event::RegisterAssets { assets } => register_assets(user_id, lobby.write().await.deref_mut(), assets),
                     Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
 
                     Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
@@ -519,23 +546,29 @@ fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> 
             Cow::Borrowed(lobby.info.as_ref().ok_or("Lobby missing GameInfo")?)
         ))
 }
-fn register_asset(user_id: usize, lobby: &mut Lobby, name: String, data: String) -> Result<(), Box<dyn Error>> {
+fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
-    if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
+    for (name, data) in assets.into_iter() {
+        if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
+    
+        let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
+        let asset = Asset {
+            mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
+            data: url.decode_to_vec().ok().ok_or("Failed to decode base64")?.0, // Vec<u8>
+        };
+    
+        // No assets above 2 MiB
+        if asset.data.len() > 1024 * 1024 * 2 { return Err("Asset too large".into()); }
+    
+        lobby.assets.insert(name.to_string(), asset);
+    
+        println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
+    }
 
-    let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
-    let asset = Asset {
-        mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
-        data: url.decode_to_vec().ok().ok_or("Failed to decode base64")?.0, // Vec<u8>
-    };
-
-    // No assets above 2 MiB
-    if asset.data.len() > 1024 * 1024 * 2 { return Err("Asset too large".into()); }
-
-    lobby.assets.insert(name.to_string(), asset);
-
-    println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
+    // Alert host that the assets have been registered
+    lobby.users.get(&user_id).ok_or("Failed to get host")?
+         .send_event(&Event::RegisterAssets { assets: HashMap::default() })?;
     Ok(())
 }
 fn clear_assets(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {

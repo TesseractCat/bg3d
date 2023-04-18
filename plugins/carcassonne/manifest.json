@@ -1,0 +1,6 @@
+{
+    "name": "Carcassonne",
+    "description": "Tile-based city/landscape builder.",
+    "author": "TesseractCat",
+    "script":"carcassonne.js"
+}

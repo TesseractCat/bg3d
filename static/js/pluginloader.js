@@ -47,7 +47,7 @@ export default class PluginLoader {
         await this.loadManifest(manifest, {entries: entries});
         await reader.close();
     }
-    async loadManifest(manifest, {entries = [], updateSelect = true}) {
+    async loadManifest(manifest, {entries = [], path = "", updateSelect = true}) {
         // Load script
         let scriptBlob;
         if (manifest.script != undefined) {
@@ -58,18 +58,21 @@ export default class PluginLoader {
                     scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
             } else {
                 // Load script from URL
-                scriptBlob = this.createScriptBlob(await (await fetch("static/games/" + manifest.script)).blob());
+                scriptBlob = this.createScriptBlob(await (await fetch(`${path}/${manifest.script}`)).blob());
             }
         }
 
-        // Load worker
-        if (scriptBlob) {
-            if (this.pluginWorker)
-                this.pluginWorker.terminate();
-
-            this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
-            this.pluginWorker.addEventListener('message', (e) => this.onWorker(e.data));
+        if (!scriptBlob) {
+            console.error("Failed to load script!");
+            return;
         }
+
+        // Load worker
+        if (this.pluginWorker)
+            this.pluginWorker.terminate();
+
+        this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
+        this.pluginWorker.addEventListener('message', (e) => this.onWorker(e.data));
 
         // First clear all existing assets and pawns
         this.clear();
@@ -78,13 +81,16 @@ export default class PluginLoader {
         this.registerGame(manifest);
         if (entries.length > 0) {
             // Register all plugin assets
-            for (let [i, entry] of entries.entries()) {
-                if (!entry.directory)
-                    await this.registerAsset(entry, i == entries.length - 1);
-            }
-            // Wait until assets are complete (send empty event)
+            await this.registerAssets([...entries.entries()].map(([i, entry]) => entry).filter(entry => !entry.directory));
+
+            // Wait until assets are complete
             console.log("Waiting until assets complete...");
-            await new Promise(r => this.manager.sendEvent("assets_complete", false, {}, r));
+            await new Promise(resolve =>
+                this.manager.addEventListener("register_assets",
+                    () => resolve(),
+                    { once: true }
+                )
+            );
             console.log("Done!");
         }
 
@@ -131,47 +137,51 @@ export default class PluginLoader {
             ...manifest
         });
     }
-    async registerAsset(entry, last = false) {
-        let extension = entry.filename.split('.')[1].toLowerCase();
+    async registerAssets(entries) {
+        let entriesWithData = await Promise.all(entries.map(async (entry) => {
+            let extension = entry.filename.split('.')[1].toLowerCase();
 
-        let mimeType = "";
-        switch (extension) {
-            case "gltf":
-                mimeType = "model/gltf+json";
-                break;
-            case "glb":
-                mimeType = "model/gltf-binary";
-                break;
-            case "bin":
-                mimeType = "application/gltf-buffer";
-                break;
+            let mimeType = "";
+            switch (extension) {
+                case "gltf":
+                    mimeType = "model/gltf+json";
+                    break;
+                case "glb":
+                    mimeType = "model/gltf-binary";
+                    break;
+                case "bin":
+                    mimeType = "application/gltf-buffer";
+                    break;
 
-            case "png":
-                mimeType = "image/png";
-                break;
-            case "jpg":
-            case "jpeg":
-                mimeType = "image/jpeg";
-                break;
-            case "svg":
-                mimeType = "image/svg+xml";
-                break;
+                case "png":
+                    mimeType = "image/png";
+                    break;
+                case "jpg":
+                case "jpeg":
+                    mimeType = "image/jpeg";
+                    break;
+                case "svg":
+                    mimeType = "image/svg+xml";
+                    break;
 
-            default:
-                return;
-        }
-        
-        let data = await entry.getData(new zip.Data64URIWriter(mimeType));
+                default:
+                    return;
+            }
+
+            let data = await entry.getData(new zip.Data64URIWriter(mimeType));
+
+            return ["/" + entry.filename, data];
+        }));
+        entriesWithData = entriesWithData.filter(x => x);
+
         this.manager.sendSocket({
-            "type":"register_asset",
-            "name": entry.filename,
-            "data": data,
-            "last": last
+            "type": "register_assets",
+            "assets": Object.fromEntries(entriesWithData)
         });
     }
     clear() {
         this.manager.sendSocket({
-            "type":"clear_assets"
+            "type": "clear_assets"
         });
         this.manager.sendClearPawns();
     }

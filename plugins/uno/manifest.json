@@ -1,0 +1,6 @@
+{
+    "name": "Uno",
+    "description": "The classic game of Uno.",
+    "author": "Built-in",
+    "script": "uno.js"
+}

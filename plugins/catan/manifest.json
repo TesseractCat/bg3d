@@ -1,0 +1,9 @@
+{
+    "name": "Catan",
+    "description": "Compete over resources on a newly discovered island.",
+    "author": "TesseractCat",
+    "script":"catan.js",
+
+    "rotationIncrement":0.52359877559
+
+}

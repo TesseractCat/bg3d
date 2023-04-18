@@ -1,6 +1,0 @@
-{
-    "name": "Cards",
-    "description": "Cards, chips, and dice.",
-    "author": "Built-in",
-    "script":"scripts/cards.js"
-}

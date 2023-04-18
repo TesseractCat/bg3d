@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 use crate::user::User;
@@ -58,7 +59,7 @@ pub enum Event<'a> {
     MergePawns { from_id: u64, into_id: u64 },
 
     RegisterGame(Cow<'a, GameInfo>),
-    RegisterAsset { name: String, data: String, last: bool },
+    RegisterAssets { assets: HashMap<String, String> },
     ClearAssets {},
 
     SendCursor { position: Vec3 },

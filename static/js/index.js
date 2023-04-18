@@ -31,10 +31,10 @@ window.onload = function() {
 
     manager.init((host) => {
         let games = [
-            ['Welcome', 'static/games/welcome.json'],
-            ['Cards', 'static/games/cards.json'],
-            ['Chess', 'static/games/chess.json'],
-            ['Go', 'static/games/go.json'],
+            ['Welcome', 'plugins/welcome'],
+            ['Cards', 'plugins/cards'],
+            ['Chess', 'plugins/chess'],
+            ['Go', 'plugins/go'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
@@ -65,8 +65,8 @@ window.onload = function() {
             let game = games[index];
             if (game) {
                 let url = game[1];
-                let manifest = await (await fetch(`${url}?v=${window.version}`)).json();
-                pluginLoader.loadManifest(manifest, {updateSelect: false});
+                let manifest = await (await fetch(`${url}/manifest.json?v=${window.version}`)).json();
+                pluginLoader.loadManifest(manifest, {updateSelect: false, path: url});
             }
         }
         document.querySelector("#games").addEventListener("change", (e) => {

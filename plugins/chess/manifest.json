@@ -1,0 +1,6 @@
+{
+    "name": "Chess",
+    "description": "The class game of Chess.",
+    "author": "Built-in",
+    "script": "chess.js"
+}

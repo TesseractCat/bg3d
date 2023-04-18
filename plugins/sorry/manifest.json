@@ -1,0 +1,6 @@
+{
+    "name": "Sorry",
+    "description": "The classic game of Sorry.",
+    "author": "Built-in",
+    "script":"sorry.js"
+}

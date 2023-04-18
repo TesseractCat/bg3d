@@ -1,0 +1,6 @@
+{
+    "name": "Go",
+    "description": "The classic game of Go.",
+    "author": "Built-in",
+    "script":"scripts/go.js"
+}

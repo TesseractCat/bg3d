@@ -1,0 +1,6 @@
+{
+    "name": "Lobby",
+    "description": "Pick a game.",
+    "author": "Built-in",
+    "script": "welcome.js"
+}
