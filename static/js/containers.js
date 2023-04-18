@@ -267,7 +267,21 @@ export class Deck extends Pawn {
         if (rhs instanceof Deck && rhs.name == this.name && rhs.flipped() == this.flipped()) {
             this.insert(this.flipped(), rhs.data.contents);
 
+            let previewMesh = rhs.getMesh().clone();
             window.manager.removePawn(rhs.id);
+
+            window.manager.scene.add(previewMesh);
+            const start = performance.now();
+            const startPosition = previewMesh.position.clone();
+            const animatePreview = (now) => {
+                if ((now - start)/250 < 1) {
+                    previewMesh.position.copy(startPosition.lerp(this.getMesh().position, (now - start)/250));
+                    requestAnimationFrame(animatePreview);
+                } else {
+                    window.manager.scene.remove(previewMesh);
+                }
+            };
+            animatePreview(start);
 
             window.manager.sendSocket({
                 type: "merge_pawns",

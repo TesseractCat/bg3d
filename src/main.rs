@@ -550,6 +550,7 @@ fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, St
     if user_id != lobby.host || lobby.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
     for (name, data) in assets.into_iter() {
+        if lobby.assets.values().fold(0, |acc, a| acc + a.data.len()) > 1024 * 1024 * 40 { return Err("Attempting to register >40 MiB of assets".into()); }
         if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
     
         let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
