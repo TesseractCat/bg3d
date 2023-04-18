@@ -82,16 +82,13 @@ export default class Chat extends HTMLElement {
             if (!this.focused)
                 clickingPanel = true;
         });
-        document.addEventListener('pointerup', (e) => {
+        document.addEventListener('mouseup', (e) => { // Event ordering issue with pointerup
             if (e.button != 0)
                 return;
 
             if (clickingPanel) {
-                // Otherwise the pointer event will cause the input to blur immediately
-                requestAnimationFrame(() => {
-                    this.focus();
-                    clickingPanel = false;
-                });
+                this.focus();
+                clickingPanel = false;
             }
         });
         this.input.addEventListener("keydown", (e) => {
