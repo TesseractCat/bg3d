@@ -10,7 +10,7 @@ self.world.addEventListener("start", async () => {
     });
 
     let deck = new Deck({
-        name: "Welcome", contents: ["generic/welcome.jpg"],
+        name: "Welcome", contents: ["generic/welcome.webp"],
         sideColor: 0x000000, cornerRadius: 0.06,
         position: new Vector3(0.9, 0, 0),
         size: new Vector2(1.25 * 8, 1 * 8),

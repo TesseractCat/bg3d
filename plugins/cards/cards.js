@@ -1,13 +1,13 @@
 function getCards() {
     let suits = ['S','D','C','H'];
     let ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-    return suits.flatMap((suit) => ranks.map((rank) => `generic/cards/${rank}${suit}.jpg`));
+    return suits.flatMap((suit) => ranks.map((rank) => `generic/cards/${rank}${suit}.webp`));
 }
 
 self.world.addEventListener("start", async () => {
     let deck = new Deck({
         name: 'Cards',
-        back: 'generic/cards/back.jpg',
+        back: 'generic/cards/back.webp',
         contents: getCards(), cornerRadius: 0.06,
         position: new Vector3(0, 1, 0),
         size: new Vector2(2.5, 3.5),

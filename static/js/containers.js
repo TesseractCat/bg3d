@@ -87,7 +87,7 @@ export class Deck extends Pawn {
         ));
         this.getMesh().add(this.#box);
 
-        this.#sideTexture = (await this.loadTexture("generic/cards/side.jpg")).clone();
+        this.#sideTexture = (await this.loadTexture("generic/cards/side.webp")).clone();
         this.#sideTexture.needsUpdate = true;
         [this.#sideTexture.wrapS, this.#sideTexture.wrapT] = [RepeatWrapping, RepeatWrapping];
         
