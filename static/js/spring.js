@@ -19,6 +19,8 @@ export class Spring {
     }
 
     animate(dt) {
+        dt = Math.min(dt, 1/20); // Limit delta time to prevent spring moving out of control
+
         let Fspring = (-this.stiffness) * (this.value - this.center);
         let Fdamping = (-this.damping) * this.#velocity;
         let acceleration = (Fspring + Fdamping)/this.mass;

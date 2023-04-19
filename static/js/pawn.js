@@ -150,7 +150,7 @@ export class Pawn {
             let grabPoint = this.selectStaticPosition;
             let snapped = false;
 
-            if (grabPoint === undefined) {
+            if (!grabPoint) {
                 // Raycast for movement
                 let raycastablePawns = Array.from(window.manager.pawns.values()).filter(x => x != this);
                 let raycastableObjects = raycastablePawns.map(x => x.getMesh());

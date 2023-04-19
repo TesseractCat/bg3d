@@ -201,15 +201,27 @@ export class Deck extends Pawn {
     grabCards(intoHand = false, count = 1) {
         if (count < 1)
             return;
-        let cards = this.spawnCards(count);
-        if (intoHand && count == 1) {
-            window.manager.removePawn(cards.id);
-            window.manager.hand.pushCard(cards);
-            window.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
-        } else {
-            if (cards)
-                cards.grab(0);
-        }
+        if (this.data.contents.length - count < 1)
+            return;
+
+        window.manager.sendSocket({
+            type: "extract_pawns",
+            from_id: this.id,
+            to_id: Pawn.nextId(),
+            count: count,
+        });
+        window.manager.addEventListener("add_pawn", (e) => {
+            let cards = window.manager.pawns.get(e.detail.pawn.id);
+
+            if (intoHand && count == 1) {
+                window.manager.removePawn(cards.id);
+                window.manager.hand.pushCard(cards);
+                window.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
+            } else {
+                if (cards)
+                    cards.grab(0);
+            }
+        }, {once: true});
     }
     split() {
         this.grabCards(false, Math.floor(this.data.contents.length/2));
@@ -227,34 +239,6 @@ export class Deck extends Pawn {
         return out;
     }
     
-    spawnCards(count = 1) {
-        if (this.data.contents.length - count < 1)
-            return;
-
-        // Create a new deck of length `count` and grab that instead
-        let range = this.flipped() ?
-            [this.data.contents.length - count, this.data.contents.length] :
-            [0, count];
-        let cardPawn = this.clone({
-            contents: this.data.contents.slice(range[0], range[1]),
-            position: new Vector3().copy(this.position).add(new Vector3(0,1,0)),
-        });
-        
-        window.manager.addPawn(cardPawn);
-        
-        this.data.contents.splice(range[0], count);
-
-        window.manager.sendSocket({
-            type: "extract_pawns",
-            from_id: this.id,
-            to_id: cardPawn.id,
-            count: count,
-        });
-        
-        this.updateDeck();
-        
-        return cardPawn;
-    }
     insert(top, contents) {
         if (!top) {
             this.data.contents = [...contents, ...this.data.contents];
@@ -365,7 +349,9 @@ export class Deck extends Pawn {
             }
         }
     }
-    processData() { this.updateDeck() }
+    processData() {
+        this.updateDeck();
+    }
     
     shuffle() {
         if (this.data.contents.length > 1) {

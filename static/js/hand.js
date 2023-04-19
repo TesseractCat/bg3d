@@ -101,7 +101,8 @@ img:not(#hidden) {
         this.#springs[1].center = this.getBoundingClientRect().top;
 
         if (this.lastTime !== undefined) {
-            let dt = Math.min(time - this.lastTime, 50)/1000;
+            let elapsed = (time - this.lastTime)/1000;
+            let dt = Math.min(elapsed, 1/20);
 
             if (!this.grabbed) {
                 let x = this.#springs[0].animate(dt).toFixed(2);
@@ -116,7 +117,7 @@ img:not(#hidden) {
 
         if (time !== undefined)
             this.lastTime = time;
-        this.animationId = window.requestAnimationFrame((t) => this.animate(t));
+        this.animationId = requestAnimationFrame((t) => this.animate(t));
     }
     reset() {
         this.#springs[0].set(this.getBoundingClientRect().left);
@@ -128,7 +129,7 @@ img:not(#hidden) {
     }
     disconnectedCallback() {
         if (this.animationId) {
-            window.cancelAnimationFrame(this.animationId);
+            cancelAnimationFrame(this.animationId);
             this.animationId = undefined;
         }
     }

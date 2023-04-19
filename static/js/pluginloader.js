@@ -102,7 +102,12 @@ export default class PluginLoader {
             this.pluginWorker.postMessage({name: "update", pawns: pawns});
         };
         this.manager.addEventListener("update_pawns", (e) => {
-            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id).serialize()));
+            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id)?.serialize()).filter(p => {
+                // FIXME: Why does this ever end up with pawns that don't exist?
+                // - Maybe something is responding to the same event and removing a pawn?
+                //if (!p) console.warn("Plugin attempting to update non-existent pawn");
+                return p;
+            }));
         });
         this.manager.addEventListener("add_pawn", (e) => {
             update([this.manager.pawns.get(e.detail.pawn.id).serialize()]);

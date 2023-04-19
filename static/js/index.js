@@ -21,7 +21,7 @@ function animate() {
 }
 
 // SETUP
-window.onload = function() {
+window.onload = () => {
     window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
 
     manager = new Manager();
@@ -123,6 +123,6 @@ window.onload = function() {
             e.preventDefault();
     });
 };
-window.onresize = function() {
+window.onresize = () => {
     manager.resize();
 };
