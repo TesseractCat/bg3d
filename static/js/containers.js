@@ -9,6 +9,8 @@ import Manager from './manager';
 import { deserializePawn, Pawn } from './pawns';
 import { Box } from './shapes.js';
 
+import { cancellablePromise } from './utils';
+
 export class Deck extends Pawn {
     static textureCache = new Map();
     static textureLoader = new TextureLoader().setPath(window.location.href + '/assets/');
@@ -290,7 +292,28 @@ export class Deck extends Pawn {
         }
     }
     
+    #updateDeckPromise = null;
     async updateDeck(fadeIn = false) {
+        if (this.#updateDeckPromise) {
+            this.#updateDeckPromise.cancel();
+        }
+        
+        // Load textures
+        let abort = false;
+        this.#updateDeckPromise = cancellablePromise(async (resolve, reject, onCancel) => {
+            onCancel = () => { abort = true; };
+
+            resolve(await Promise.all([
+                this.loadTexture(this.data.contents[0]),
+                this.data.back != null ?
+                    this.loadTexture(this.data.back) :
+                    this.loadTexture(this.data.contents[this.data.contents.length - 1])
+            ]));
+        });
+        let [faceTexture, backTexture] = await this.#updateDeckPromise;
+        if (abort) return;
+        this.#updateDeckPromise = null;
+
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.getMesh().scale.setComponent(1, thickness);
@@ -301,14 +324,6 @@ export class Deck extends Pawn {
         );
         this.dirty.add("selected");
         this.dirty.add("colliderShapes");
-        
-        // Load textures
-        let [faceTexture, backTexture] = await Promise.all([
-            this.loadTexture(this.data.contents[0]),
-            this.data.back != null ?
-                this.loadTexture(this.data.back) :
-                this.loadTexture(this.data.contents[this.data.contents.length - 1])
-        ]);
         
         // Dispose of old materials
         for (let material of [this.#backMaterial, this.#faceMaterial, this.#sideMaterial]) {
