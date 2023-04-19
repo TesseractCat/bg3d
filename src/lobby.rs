@@ -125,7 +125,6 @@ pub struct Pawn {
 
     pub collider_shapes: Vec<Shape>, // Physics properties
     pub moveable: bool,
-    pub mass: f64,
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
@@ -153,7 +152,6 @@ pub struct PawnUpdate {
 
     pub collider_shapes: Option<Vec<Shape>>,
     pub moveable: Option<bool>,
-    pub mass: Option<f64>,
     
     pub position: Option<Vec3>,
     pub rotation: Option<Vec3>,
@@ -176,7 +174,6 @@ impl Pawn {
         update.data.as_ref().map(|v| self.data = v.clone());
         update.collider_shapes.as_ref().map(|v| self.collider_shapes = v.clone());
         update.moveable.map(|v| self.moveable = v);
-        update.mass.map(|v| self.mass = v);
         if self.moveable {
             update.position.map(|v| self.position = v);
             update.rotation.map(|v| self.rotation = v);

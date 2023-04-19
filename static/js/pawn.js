@@ -393,7 +393,6 @@ export class Pawn {
     serialize() {
         let out = structuredClone(this);
         out.class = this.constructor.className();
-        out.mass = 1.0;
         out.rotation = new Vector3().setFromEuler(
             new Euler().setFromQuaternion(this.rotation, 'ZYX')
         );

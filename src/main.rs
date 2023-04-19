@@ -9,7 +9,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 
 use axum::http::StatusCode;
-use axum::response::{Response, ErrorResponse, IntoResponse};
+use axum::response::IntoResponse;
 use axum::{
     extract::{
         Path,
@@ -182,6 +182,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 
                 let mut tick: u32 = 0;
                 loop {
+                    let start = Instant::now();
                     {
                         let lobby_physics_clone = lobby_physics_clone.clone();
                         if let Err(err) = tokio::task::spawn_blocking(move || {
@@ -191,6 +192,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                             println!("Encountered error during physics step: {}", err);
                         }
                     }
+                    let elapsed = Instant::now() - start;
+                    // println!("Physics time: {}", elapsed.as_millis());
                     tick += 1;
                     interval.tick().await;
                 }
@@ -300,10 +303,11 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     
     // Deserialize collider
     // FIXME: Only enable CCD on cards/thin geometry?
-    let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic().ccd_enabled(false) } else { RigidBodyBuilder::fixed() }
+    let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic() } else { RigidBodyBuilder::fixed() }
         .translation(Vector::from(&pawn.position) * PHYSICS_SCALE)
         .rotation(Rotation::from(&pawn.rotation).scaled_axis())
         .linear_damping(1.0).angular_damping(0.5)
+        .ccd_enabled(matches!(pawn.data, PawnData::Deck { .. }) && pawn.moveable)
         .build();
     pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 

@@ -84,8 +84,13 @@ impl PhysicsWorld {
 
             integration_parameters: IntegrationParameters {
                 dt: dt,
+                min_ccd_dt: dt/100.0,
                 erp: 0.95,
                 damping_ratio: 0.5,
+                // erp: 1.0,
+                // damping_ratio: 0.8,
+                // max_stabilization_iterations: 2,
+                max_ccd_substeps: 2,
                 ..Default::default()
             },
             physics_pipeline: PhysicsPipeline::new(),
@@ -104,6 +109,10 @@ impl PhysicsWorld {
 		
         // Ground
 		w.collider_set.insert(ColliderBuilder::halfspace(Vector::y_axis()).build());
+  
+        // Ceiling
+		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::y_axis())
+                                    .translation(Vector::y_axis().into_inner() * 500. * PHYSICS_SCALE).build());
 
         // Walls
         let wall_distance = 80. * PHYSICS_SCALE;

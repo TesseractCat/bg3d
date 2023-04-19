@@ -206,15 +206,19 @@ export class Deck extends Pawn {
         if (this.data.contents.length - count < 1)
             return;
 
+        const to_id = Pawn.nextId();
         window.manager.sendSocket({
             type: "extract_pawns",
             from_id: this.id,
-            to_id: Pawn.nextId(),
+            to_id: to_id,
             count: count,
         });
-        window.manager.addEventListener("add_pawn", (e) => {
+        const handleGrabCards = (e) => {
+            if (e.detail.pawn.id != to_id)
+                return;
+    
             let cards = window.manager.pawns.get(e.detail.pawn.id);
-
+    
             if (intoHand && count == 1) {
                 window.manager.removePawn(cards.id);
                 window.manager.hand.pushCard(cards);
@@ -223,7 +227,10 @@ export class Deck extends Pawn {
                 if (cards)
                     cards.grab(0);
             }
-        }, {once: true});
+
+            window.manager.removeEventListener("add_pawn", handleGrabCards);
+        };
+        window.manager.addEventListener("add_pawn", handleGrabCards);
     }
     split() {
         this.grabCards(false, Math.floor(this.data.contents.length/2));
