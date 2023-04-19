@@ -1,38 +1,41 @@
 function getCards() {
-    return [...Array(44)].map((_, i) => `cards/cards_${i}.jpg`);
+    return [...Array(44)].map((_, i) => `cards/cards_${i}.webp`);
 }
 
-self.start = async function() {
+self.world.addEventListener("start", () => {
     // Cards
     let deck = new Deck({
         name: "Cards",
-        back: "back.jpg",
+        back: "back.webp",
         contents: getCards(), cornerRadius: 0.05,
         position: new Vector3(0, 1, 2.51),
         rotation: new Vector3(Math.PI, Math.PI/2, 0),
         size: new Vector2(1.9, 2.9),
     });
     deck.shuffle();
-    await deck.create();
 
-    new SnapPoint({
-        position: new Vector3(0,0,2.51),
-        snaps: ["Cards"],
-    }).create();
-    new SnapPoint({
-        position: new Vector3(0,0,-2.3),
-        snaps: ["Cards"],
-    }).create();
+    let cardSnapPoints = [
+        new SnapPoint({
+            position: new Vector3(0, 0, 2.51),
+            snaps: ["Cards"],
+        }),
+        new SnapPoint({
+            position: new Vector3(0, 0, -2.3),
+            snaps: ["Cards"],
+        })
+    ];
 
     // Board
-    let board = await new Deck({
+    let board = new Deck({
         name: "Board",
-        contents: ["board.jpg"],
+        contents: ["board.webp"],
         cornerRadius: 0.0,
         position: new Vector3(0, 0, 0),
         size: new Vector2(18, 18),
         moveable: false,
-    }).create();
+    });
+
+    self.world.add([deck, cardSnapPoints, board].flat());
 
     let home = new Vector2(3.8, 6.5);
     let players = [
@@ -48,8 +51,8 @@ self.start = async function() {
         new Vector2(0, -1),
     ];
     for (let [colorName, color, position] of players) {
-        for (let offset of offsets) {
-            let piece = new Pawn({
+        self.world.add(offsets.map((offset) => {
+            return new Pawn({
                 name: colorName + " Piece",
                 tint: color,
                 position: new Vector3(position.x + offset.x * 0.5, 1, position.y + offset.y * 0.5),
@@ -57,7 +60,6 @@ self.start = async function() {
                     new Cylinder(0.31, 0.715),
                 ],
             });
-            piece.create();
-        }
+        }));
     }
-}
+});

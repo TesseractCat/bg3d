@@ -158,6 +158,9 @@ export default class PluginLoader {
                     mimeType = "application/gltf-buffer";
                     break;
 
+                case "webp":
+                    mimeType = "image/webp";
+                    break;
                 case "png":
                     mimeType = "image/png";
                     break;

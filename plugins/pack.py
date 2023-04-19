@@ -1,32 +1,39 @@
 from PIL import Image
-import sys
+import glob, os, sys
+from zipfile import ZipFile
+import io
 
-cover = Image.open(sys.argv[1])
-cover = cover.convert(mode="P", colors=512)
-cover = cover.convert(mode="RGB")
+def has_ending(file, endings):
+    for ending in endings:
+        if file.endswith(ending):
+            return True
+    return False
 
-output = Image.new(mode="RGB", size=(1024, 1024))
+def main():
+    if len(sys.argv) < 2:
+        print("Please specify a folder to pack")
+        return
 
-data = open(sys.argv[2], mode="rb").read()
-i = 0
-for x in range(0,1024):
-    for y in range(0,1024):
-        r, g, b = cover.getpixel((x,y))
+    folder = sys.argv[1]
+    result = ZipFile(f'./{folder}.zip', 'w')
 
-        r = r & 0b11100000
-        g = g & 0b11100000
-        b = b & 0b11000000
+    for root, dirs, files in os.walk(f"./{folder}/"):
+        for file in files:
+            path = os.path.join(root, file)
 
-        if i >= len(data) - 2:
-            i = 0
+            if has_ending(file, [".png", ".jpg", ".jpeg"]):
+                with io.BytesIO() as output:
+                    image = Image.open(path)
+                    image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                    image.save(output, format="webp", quality=50)
 
-        r = r | (data[i] & 0b00011111)
-        g = g | (data[i] >> 5) | ((data[i + 1] << 3) & 0b00011000)
-        b = b | (data[i + 1] >> 2)
+                    original_kb = os.path.getsize(path)/1024
+                    compressed_kb = len(output.getvalue())/1024
 
-        output.putpixel((x,y), (r,g,b))
+                    result.writestr(os.path.splitext(os.path.relpath(path, f"./{folder}"))[0] + ".webp", output.getvalue())
+                    print(f"Converted {file} to webp, {original_kb:.1f} KiB -> {compressed_kb:.1f} KiB | {(compressed_kb/original_kb)*100:.1f}%")
+            elif has_ending(file, [".gltf", ".glb", ".js", ".json"]):
+                result.write(path, os.path.relpath(path, f"./{folder}"))
 
-        i += 2
-
-print(f"Packed {i/1024} KiB of data into output.png")
-output.save("output.png")
+if __name__ == "__main__":
+    main()
