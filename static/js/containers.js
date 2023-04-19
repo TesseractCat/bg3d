@@ -388,7 +388,7 @@ export class Deck extends Pawn {
             super.flip();
     }
     shake() {
-        window.manager.sendEvent("pawn", true, {id: this.id, name: "shuffle"});
+        this.shuffle();
     }
     flipped() {
         return Math.abs(this.selectRotation.x - Math.PI) < 0.01;

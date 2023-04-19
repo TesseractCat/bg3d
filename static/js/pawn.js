@@ -410,6 +410,8 @@ export class Pawn {
                 out[dirtyParam] = structuredClone(this[dirtyParam]);
             }
         }
+        if (this.dirty.has("data"))
+            out.class = this.constructor.className();
         return out;
     }
     static deserialize(serializedPawn) {
