@@ -305,7 +305,7 @@ export default class Manager extends EventTarget {
         this.userColors.set(id, color);
         
         // Create element
-        let playerElement = document.createElement("h2");
+        let playerElement = document.createElement("h3");
         playerElement.innerText = "";//id;
         playerElement.style.color = color;
         playerElement.classList.add("player");

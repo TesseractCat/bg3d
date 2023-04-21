@@ -86,7 +86,7 @@ canvas {
 #overlay h1 {
     font-size: 2.3em;
 }
-#overlay h1, h2, a, p {
+#overlay h1, h2, h3, a, p {
     margin: 0px;
 }
 #overlay hr {
@@ -153,6 +153,32 @@ canvas {
     color: var(--overlay-gray);
 }
 
+#link-panel {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+}
+#link-panel #game-link {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#link-panel .icon {
+    width: 1.5em;
+    height: 1.5em;
+}
+#link-panel button {
+    display: inline-flex;
+    cursor: pointer;
+    padding: 2px;
+}
+#link-panel #link-divider {
+    height: 10px;
+    margin: 5px;
+    border-left: 1px solid var(--overlay-gray);
+}
+
 /* SHADE */
 
 #shade {
@@ -205,12 +231,17 @@ bird-context-menu {
 #icon:hover {
     background-color: var(--icon-hover);
 }
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 600px) {
     #icon {
+        display: none;
+    }
+    #controls {
         display: none;
     }
     bird-chat {
         width: auto;
+        right:5%;
+        left:5%;
     }
     /* #stats {
         display: none;
@@ -227,6 +258,13 @@ button, select {
 }
 button {
     border: 1px solid grey;
+    background-color: rgb(240 240 240);
+}
+button:hover {
+    background-color: rgb(220 220 220);
+}
+button:active {
+    background-color: rgb(200 200 200);
 }
 
 kbd {

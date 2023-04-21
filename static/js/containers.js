@@ -340,17 +340,17 @@ export class Deck extends Pawn {
         // Apply new materials
         this.#sideTexture.repeat.y = this.data.contents.length - 1;
         this.#sideMaterial = new MeshPhongDitheredMaterial({
-            color: this.data.sideColor,
+            color: new Color(this.data.sideColor).multiply(new Color(this.tint)),
             map: this.#sideTexture,
             shininess:5,
         });
         this.#faceMaterial = new MeshPhongDitheredMaterial({
-            color: 0xffffff,
+            color: this.tint,
             map: faceTexture,
             shininess:5,
         });
         this.#backMaterial = new MeshPhongDitheredMaterial({
-            color: 0xffffff,
+            color: this.tint,
             map: backTexture,
             shininess:5,
         });

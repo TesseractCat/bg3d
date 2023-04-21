@@ -67,11 +67,6 @@ export default class Chat extends HTMLElement {
             margin-bottom: 3px;
         }
         @media only screen and (max-width: 768px) {
-            :host {
-                right:5%;
-                left:5%;
-                width:auto;
-            }
             #entries {
                 max-height:75px;
             }
