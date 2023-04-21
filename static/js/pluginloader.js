@@ -47,7 +47,7 @@ export default class PluginLoader {
         await this.loadManifest(manifest, {entries: entries});
         await reader.close();
     }
-    async loadManifest(manifest, {entries = [], path = "", updateSelect = true}) {
+    async loadManifest(manifest, {entries = [], path = ""}) {
         // Load script
         let scriptBlob;
         if (manifest.script != undefined) {
@@ -120,8 +120,6 @@ export default class PluginLoader {
         });
 
         console.log("Plugin loaded!");
-        if (updateSelect)
-            document.querySelector("#games").value = "Custom";
     }
 
     onWorker(msg) {

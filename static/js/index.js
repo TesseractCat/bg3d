@@ -35,6 +35,9 @@ window.onload = () => {
             ['Cards', 'plugins/cards'],
             ['Chess', 'plugins/chess'],
             ['Go', 'plugins/go'],
+            ['Uno', 'plugins/uno.zip'],
+            ['Sorry', 'plugins/sorry.zip'],
+            ['Carcassonne', 'plugins/carcassonne.zip'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
@@ -42,18 +45,6 @@ window.onload = () => {
             gameOption.value = name;
             gameOption.innerText = name;
             document.querySelector("#games").appendChild(gameOption);
-            
-            // if (g.templates.size > 0) {
-            //     let pieceGroup = document.createElement("optgroup");
-            //     pieceGroup.label = g.name;
-            //     for (const piece of g.templates.keys()) {
-            //         let pieceOption = document.createElement("option");
-            //         pieceOption.value = i + "/" + piece;
-            //         pieceOption.innerText = piece;
-            //         pieceGroup.appendChild(pieceOption);
-            //     }
-            //     document.querySelector("#pieces").appendChild(pieceGroup);
-            // }
         });
         let gameOption = document.createElement("option");
         gameOption.value = 'Custom';
@@ -63,25 +54,23 @@ window.onload = () => {
 
         async function loadGame(index) {
             let game = games[index];
-            if (game) {
-                let url = game[1];
+            let url = game[1];
+
+            if (url.endsWith("zip")) {
+                let blob = await ((await fetch(url)).blob());
+                let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
+                pluginLoader.loadFromFile(file);
+            } else {
                 let manifest = await (await fetch(`${url}/manifest.json?v=${window.version}`)).json();
-                pluginLoader.loadManifest(manifest, {updateSelect: false, path: url});
+                pluginLoader.loadManifest(manifest, {path: url});
             }
         }
-        document.querySelector("#games").addEventListener("change", (e) => {
-            loadGame(e.target.selectedIndex);
-            document.querySelector("#games").blur();
-        });
-        document.querySelector("#add-piece").addEventListener("click", (e) => {
-            let info = document.querySelector("#pieces").value.split("/");
-            let idx = info[0];
-            let templateName = info[1];
+        document.querySelector("#games").addEventListener("change", async (e) => {
+            e.target.blur();
             
-            let pawn = games[idx].templates.get(templateName).clone();
-            pawn.setPosition(new Vector3(0, 5, 0));
-            pawn.setRotation(new Quaternion());
-            manager.addPawn(pawn);
+            e.target.setAttribute("disabled", "");
+            await loadGame(e.target.selectedIndex);
+            e.target.removeAttribute("disabled");
         });
         
         if (host) {
@@ -106,14 +95,15 @@ window.onload = () => {
     document.body.addEventListener("dragenter", (e) => e.preventDefault());
     document.body.addEventListener("dragleave", (e) => e.preventDefault());
     document.body.addEventListener("dragover", (e) => e.preventDefault());
-    document.body.addEventListener("drop", (e) => {
+    document.body.addEventListener("drop", async (e) => {
         e.preventDefault();
 
         if (e.dataTransfer.items && e.dataTransfer.items.length == 1) {
             let item = e.dataTransfer.items[0];
             let file = item.getAsFile();
 
-            pluginLoader.loadFromFile(file);
+            await pluginLoader.loadFromFile(file);
+            document.querySelector("#games").value = "Custom";
         }
     });
 

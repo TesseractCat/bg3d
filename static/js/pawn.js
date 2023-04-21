@@ -62,7 +62,7 @@ export class Pawn {
     
     constructor({
         position = new Vector3(), rotation = new Quaternion(),
-        mesh = null, colliderShapes = [], tint,
+        mesh = null, colliderShapes = [], tint = 0xffffff,
         moveable = true, id = null, name = null
     }) {
         this.id = (id == null) ? Pawn.nextId() : id;
@@ -90,8 +90,8 @@ export class Pawn {
                     child.receiveShadow = true;
 
                     if (child instanceof Mesh) {
-                        if (this.tint !== undefined)
-                            child.material.color.multiply(new Color(this.tint));
+                        child.material.color.multiply(new Color(this.tint));
+
                         if (child.material.map !== null)
                             child.material.map.anisotropy = 4;
 
