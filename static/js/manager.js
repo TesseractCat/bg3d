@@ -411,16 +411,17 @@ export default class Manager extends EventTarget {
 
             display.style.cursor = hovered ? "pointer" : "auto";
             if (hovered != null && hovered instanceof Container) {
-                if (!this.tooltip.visible()) {
-                    this.tooltip.innerText = hovered.name;
-                    if (hovered.data.capacity !== undefined && hovered.data.capacity != null)
-                        this.tooltip.innerText += ` [${hovered.data.capacity}]`;
+                let text = hovered.name;
+                if (hovered.data.capacity !== undefined && hovered.data.capacity != null)
+                    text += ` [${hovered.data.capacity}]`;
+
+                if (this.tooltip.innerText != text)
+                    this.tooltip.innerText = text;
+                if (!this.tooltip.visible())
                     this.tooltip.show();
-                }
             } else {
-                if (this.tooltip.visible()) {
+                if (this.tooltip.visible())
                     this.tooltip.hide();
-                }
             }
             
             // Raycast for cursor plane
