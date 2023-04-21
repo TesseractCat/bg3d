@@ -38,6 +38,7 @@ window.onload = () => {
             ['Uno', 'plugins/uno.zip'],
             ['Sorry', 'plugins/sorry.zip'],
             ['Carcassonne', 'plugins/carcassonne.zip'],
+            ['Catan', 'plugins/catan.zip'],
         ];
         games.forEach((g, i) => {
             let name = g[0];

@@ -423,10 +423,15 @@ export class Pawn {
             ...serializedPawn.data,
             rotation: rotation,
         });
+        // FIXME: Why do I have to do this?
+        // - Fixes issue where sometimes a harbor piece is black in Catan.
+        //   because of invalid/weird selectRotation.
+        pawn.selectRotation.setFromEuler(new Euler().setFromVector3(serializedPawn.rotation, 'ZYX'));
+
         if (serializedPawn.selected)
             pawn.networkSelected = serializedPawn.selected;
         if (serializedPawn.selectRotation)
-            pawn.selectRotation = serializedPawn.selectRotation;
+            pawn.selectRotation.copy(serializedPawn.selectRotation);
         return pawn;
     }
     clone(parameters) {
