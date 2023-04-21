@@ -557,6 +557,7 @@ fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> 
 fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
+    println!("User <{user_id}> registering assets for lobby [{}]:", lobby.name);
     for (name, data) in assets.into_iter() {
         if lobby.assets.values().fold(0, |acc, a| acc + a.data.len()) > 1024 * 1024 * 40 { return Err("Attempting to register >40 MiB of assets".into()); }
         if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
@@ -572,8 +573,11 @@ fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, St
     
         lobby.assets.insert(name.to_string(), asset);
     
-        println!("User <{user_id}> registering asset with filename: \"{name}\" for lobby [{}]", lobby.name);
+        println!(" - \"{name}\"");
     }
+    println!(" - Asset count: {} | Total size: {} KiB",
+            lobby.assets.len(),
+            lobby.assets.values().fold(0, |acc, a| acc + a.data.len())/1024);
 
     // Alert host that the assets have been registered
     lobby.users.get(&user_id).ok_or("Failed to get host")?

@@ -60,10 +60,10 @@ window.onload = () => {
             if (url.endsWith("zip")) {
                 let blob = await ((await fetch(url)).blob());
                 let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
-                pluginLoader.loadFromFile(file);
+                await pluginLoader.loadFromFile(file);
             } else {
                 let manifest = await (await fetch(`${url}/manifest.json?v=${window.version}`)).json();
-                pluginLoader.loadManifest(manifest, {path: url});
+                await pluginLoader.loadManifest(manifest, {path: url});
             }
         }
         document.querySelector("#games").addEventListener("change", async (e) => {

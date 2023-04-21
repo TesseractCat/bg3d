@@ -179,6 +179,23 @@ canvas {
     border-left: 1px solid var(--overlay-gray);
 }
 
+#choose-game {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
+    align-items: stretch;
+    height: 2em;
+}
+#choose-game select {
+    flex-grow: 1;
+    font-size: 1.1em;
+    min-width: 0px; /* Fixes overflow */
+    text-overflow: ellipsis;
+}
+#choose-game label {
+    align-self: center;
+}
+
 /* SHADE */
 
 #shade {
