@@ -15,11 +15,15 @@
 
     --icon: #f7f5ef;
     --icon-hover: #dddbd5;
-    --overlay: #E5DEC8;
-    --chat: #DED6BA;
     --context-menu: aliceblue;
+
     --radius: 10px;
+    --half-radius: calc(var(--radius)/2);
+    --kbd-radius: 3px;
+
     --panel-width: 280px;
+
+    --shadow: rgb(0 0 0 / 10%) 0px 0px 5px;
 
     --overlay-gray: #444;
 }
@@ -70,9 +74,14 @@ canvas {
     max-height: 70%;
     padding: 20px;
 
-    background-color: var(--overlay);/*rgba(0,0,0,0.1);*/
+    /*background-color: var(--overlay);*/
+    background-image: linear-gradient(180deg, var(--bg-top), var(--bg-bottom) 200%);
+    background-color: #F8F8F8;
+    background-blend-mode: multiply;
     border-radius: var(--radius);
-    box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--overlay-gray);
+
     user-select: none;
     overflow: hidden;
     white-space: nowrap;
@@ -105,6 +114,11 @@ canvas {
 #instructions p {
     line-height:20px;
 }
+#instructions fieldset {
+    margin-top: 0.2em;
+    border: 1px solid var(--overlay-gray);
+    border-radius: var(--half-radius);
+}
 
 #host-panel {
     text-align:left;
@@ -128,11 +142,11 @@ canvas {
 }
 #pieces {
     width: 100px;
-    border-radius: 5px 0px 0px 5px;
+    border-radius: var(--half-radius) 0px 0px var(--half-radius);
     margin-right: 0px;
 }
 #add-piece {
-    border-radius: 0px 5px 5px 0px;
+    border-radius: 0px var(--half-radius) var(--half-radius) 0px;
 }
 
 #overlay-collapse {
@@ -219,7 +233,10 @@ canvas {
 /* MISC */
 
 bird-chat {
-    --background: var(--chat);
+    --background: #555 linear-gradient(0deg, var(--bg-bottom), var(--bg-bottom));
+    --blend-mode: screen;
+    --border: 1px solid var(--overlay-gray);
+    /* --shadow: var(--shadow); */
 
     position: absolute;
     bottom: 20px;
@@ -242,6 +259,7 @@ bird-context-menu {
     background-color: var(--icon);
     border-radius: var(--radius);
     border: 1px solid #777;
+    box-shadow: var(--shadow);
 
     transition: background-color 0.2s;
 }
@@ -271,7 +289,7 @@ a, a:visited {
 button, select {
     font-family: inherit;
     font-size: 0.75rem;
-    border-radius: 5px;
+    border-radius: var(--half-radius);
 }
 button {
     border: 1px solid grey;
@@ -285,8 +303,8 @@ button:active {
 }
 
 kbd {
-    background-color: #eee;
-    border-radius: 3px;
+    background-color: #fff;
+    border-radius: var(--kbd-radius);
     border: 1px solid rgba(0,0,0,0.5);
 
     color: #333;

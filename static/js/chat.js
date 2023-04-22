@@ -37,9 +37,13 @@ export default class Chat extends HTMLElement {
 
         #panel {
             padding: 20px;
-            background-color: var(--background);
+            background: var(--background);
+            background-blend-mode: var(--blend-mode);
+
             border-radius: var(--radius);
-            box-shadow: rgb(0 0 0 / 10%) 5px 5px 15px inset;
+            border: var(--border);
+
+            box-shadow: var(--shadow);
             user-select: none;
             overflow-x: hidden;
             
@@ -53,13 +57,13 @@ export default class Chat extends HTMLElement {
         }
         input {
             margin-top: 10px;
-            width:100%;
-            border-radius:5px;
-            border:1px solid grey;
-            padding:5px;
-            box-sizing:border-box;
+            width: 100%;
+            border-radius: var(--half-radius);
+            border: 1px solid grey;
+            padding: 5px;
+            box-sizing: border-box;
 
-            pointer-events:none;
+            pointer-events: none;
         }
         .entry {
             overflow-x: hidden;
