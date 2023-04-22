@@ -73,4 +73,6 @@ self.world.addEventListener("start", async () => {
         self.world.commit();
         await timeout(500);
     }*/
+
+    self.world.close();
 });

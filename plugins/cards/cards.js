@@ -47,4 +47,6 @@ self.world.addEventListener("start", async () => {
         ]
     });
     self.world.add([deck, die]);
+
+    self.world.close();
 });

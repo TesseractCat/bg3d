@@ -34,6 +34,7 @@ window.onload = () => {
             ['Welcome', 'plugins/welcome'],
             ['Cards', 'plugins/cards'],
             ['Chess', 'plugins/chess'],
+            ['Checkers', 'plugins/checkers'],
             ['Go', 'plugins/go'],
             ['Uno', 'plugins/uno.zip'],
             ['Sorry', 'plugins/sorry.zip'],

@@ -1,4 +1,4 @@
-function chessToWorldPos(chessPos, height = 3) {
+function boardToWorldPos(chessPos, height = 3) {
     return new Vector3(-7 + chessPos.x * 2, height, -7 + chessPos.y * 2);
 }
 
@@ -24,10 +24,10 @@ function addPiece(piece, positions) {
     let [white, black] = piece;
 
     let pawns = positions.flatMap((p) => {
-        black.position = chessToWorldPos(p);
+        black.position = boardToWorldPos(p);
         black.rotation.y = 0;
 
-        white.position = chessToWorldPos(new Vector2(p.x, 7 - p.y));
+        white.position = boardToWorldPos(new Vector2(p.x, 7 - p.y));
         white.rotation.y = Math.PI;
 
         return [white.clone(), black.clone()];
@@ -106,4 +106,6 @@ self.world.addEventListener("start", async () => {
     //     self.world.pawns().get(e.detail[0]).position.y += 1;
     //     self.world.commit();
     // });
+
+    self.world.close();
 });

@@ -16,6 +16,38 @@ export default class PluginLoader {
 
     constructor(manager) {
         this.manager = manager;
+
+        // Hook events
+        const update = (pawns) => {
+            if (this.pluginWorker)
+                this.pluginWorker.postMessage({name: "update", pawns: pawns});
+        };
+        this.manager.addEventListener("update_pawns", (e) => {
+            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id)?.serialize()).filter(p => {
+                // FIXME: Why does this ever end up with pawns that don't exist?
+                // - Maybe something is responding to the same event and removing a pawn?
+                //if (!p) console.warn("Plugin attempting to update non-existent pawn");
+                return p;
+            }));
+        });
+        this.manager.addEventListener("add_pawn", (e) => {
+            update([this.manager.pawns.get(e.detail.pawn.id).serialize()]);
+        });
+        this.manager.addEventListener("remove_pawns", (e) => {
+            if (this.pluginWorker)
+                this.pluginWorker.postMessage({name: "remove", pawns: e.detail.pawns});
+        });
+        this.manager.addEventListener("clear_pawns", (e) => {
+            if (this.pluginWorker)
+                this.pluginWorker.postMessage({name: "clear"});
+        });
+
+        // Warn host if plugin is running
+        window.onbeforeunload = () => {
+            if (this.pluginWorker)
+                return "A plugin is still running. Are you sure you want to quit?";
+            return;
+        };
     }
 
     createScriptBlob(blob) {
@@ -58,7 +90,7 @@ export default class PluginLoader {
                     scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
             } else {
                 // Load script from URL
-                scriptBlob = this.createScriptBlob(await (await fetch(`${path}/${manifest.script}`)).blob());
+                scriptBlob = this.createScriptBlob(await (await fetch(`${path}/${manifest.script}?v=${window.version}`)).blob());
             }
         }
 
@@ -97,28 +129,6 @@ export default class PluginLoader {
         // Start worker
         this.pluginWorker.postMessage({name: "start"});
 
-        // Hook events
-        const update = (pawns) => {
-            this.pluginWorker.postMessage({name: "update", pawns: pawns});
-        };
-        this.manager.addEventListener("update_pawns", (e) => {
-            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id)?.serialize()).filter(p => {
-                // FIXME: Why does this ever end up with pawns that don't exist?
-                // - Maybe something is responding to the same event and removing a pawn?
-                //if (!p) console.warn("Plugin attempting to update non-existent pawn");
-                return p;
-            }));
-        });
-        this.manager.addEventListener("add_pawn", (e) => {
-            update([this.manager.pawns.get(e.detail.pawn.id).serialize()]);
-        });
-        this.manager.addEventListener("remove_pawns", (e) => {
-            this.pluginWorker.postMessage({name: "remove", pawns: e.detail.pawns});
-        });
-        this.manager.addEventListener("clear_pawns", (e) => {
-            this.pluginWorker.postMessage({name: "clear"});
-        });
-
         console.log("Plugin loaded!");
     }
 
@@ -131,6 +141,9 @@ export default class PluginLoader {
                     this.manager.sendUpdatePawn(deserializePawn(pawn));
                 }
             }
+        } else if (msg.name == "close") {
+            this.pluginWorker = null;
+            console.log("Plugin closed!");
         }
     }
 

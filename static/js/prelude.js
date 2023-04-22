@@ -196,6 +196,10 @@ class World extends EventTarget {
             });
         }
     }
+    close() {
+        postMessage({name: "close"});
+        self.close();
+    }
 }
 
 self.Vector2 = Vector2;

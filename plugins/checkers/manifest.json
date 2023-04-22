@@ -1,0 +1,6 @@
+{
+    "name": "Checkers",
+    "description": "The class game of Checkers.",
+    "author": "Built-in",
+    "script": "checkers.js"
+}

@@ -62,4 +62,6 @@ self.world.addEventListener("start", () => {
             });
         }));
     }
+
+    self.world.close();
 });

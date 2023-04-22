@@ -564,7 +564,7 @@ fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, St
     
         let url = DataUrl::process(&data).ok().ok_or("Failed to process base64")?;
         let asset = Asset {
-            mime_type: url.mime_type().type_.clone() + "/" + &url.mime_type().subtype,
+            mime_type: format!("{}/{}", url.mime_type().type_, url.mime_type().subtype),
             data: url.decode_to_vec().ok().ok_or("Failed to decode base64")?.0, // Vec<u8>
         };
     

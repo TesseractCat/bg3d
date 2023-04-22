@@ -99,4 +99,6 @@ self.world.addEventListener("start", () => {
             return meepleBag;
         })
     );
+
+    self.world.close();
 });

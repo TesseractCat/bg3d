@@ -233,4 +233,6 @@ self.world.addEventListener("start", () => {
     setupBoard();
     setupPlayers();
     setupCards();
+
+    self.world.close();
 });

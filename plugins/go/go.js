@@ -47,4 +47,6 @@ self.world.addEventListener("start", async () => {
                                          -whiteStoneBag.position.z);
 
     self.world.add([whiteStoneBag, blackStoneBag]);
+
+    self.world.close();
 });

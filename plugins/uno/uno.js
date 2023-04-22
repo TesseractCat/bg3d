@@ -26,4 +26,6 @@ self.world.addEventListener("start", () => {
     });
 
     self.world.add([deck, mat]);
+
+    self.world.close();
 });
