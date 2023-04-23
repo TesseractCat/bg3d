@@ -4,7 +4,7 @@
 
 This is a board game engine created in Three.js and Rust, designed to make it as easy as possible to start playing a boardgame online.
 
-[Try it now!](https://birdga.me/)
+[Try it now!](https://birdga.me/), also check out the [itch.io page](https://tesseractcat.itch.io/birdgame).
 
 ## Building
 
