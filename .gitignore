@@ -1,5 +1,6 @@
 *.vim
 meta.json
+itch.zip
 
 # Logs
 logs

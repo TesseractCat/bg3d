@@ -12,9 +12,10 @@ body, html {
 }
 body {
     margin: 0px;
-    background: linear-gradient(0deg, var(--bg-bottom), var(--bg-top));
-    
     font-family: Lora;
+
+    background-image: radial-gradient(var(--bg-bottom) 1.3px, var(--bg-top) 1.3px);
+    background-size: 26px 26px;
 }
 * {
     box-sizing: border-box;
@@ -27,13 +28,15 @@ body {
 
 #main {
     margin: auto;
-    padding: 50px;
-    padding-top: 10vh;
+    padding: 100px;
+    padding-bottom: 150px;
     width: 100%;
-    max-width: 500px;
+    height: 100%;
+    max-width: 600px;
 
     display: flex;
     flex-direction: column;
+    justify-content: center;
 }
 #main header {
     display: flex;

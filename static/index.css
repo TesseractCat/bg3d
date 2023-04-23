@@ -38,10 +38,18 @@ body {
     
     font-family: Lora;
 }
+body.iframe {
+    border-radius: var(--half-radius);
+}
 
 canvas {
     image-rendering: pixelated;
     outline: none;
+    box-sizing: border-box;
+}
+.iframe canvas {
+    border: 1px solid gray;
+    border-radius: var(--half-radius);
 }
 
 /* MAIN PANEL */

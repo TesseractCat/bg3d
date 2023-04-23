@@ -24,6 +24,10 @@ function animate() {
 window.onload = () => {
     window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
 
+    if (window !== window.parent) { // Are we in an iFrame (i.e. on itch.io)
+        document.body.classList.add("iframe");
+    }
+
     manager = new Manager();
     window.manager = manager;
 

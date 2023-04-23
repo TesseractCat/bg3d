@@ -35,7 +35,7 @@ Then just drag your zip file onto the game window.
 You can register up to 40MiB of assets (each under 2 MiB), which will be stored and distributed on the server
 until the lobby closes.
 
-**Warning**: Since your game code runs in a web worker, that means that any state or logic can't be transferred.
+**Warning**: Your game code runs in a web worker, which means that any state or logic can't be transferred.
 If the host leaves, all other users will be kicked out to prevent broken games.
 If you don't want this to happen, call `self.world.close()` to indicate that your plugin is done.
 
