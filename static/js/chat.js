@@ -70,10 +70,18 @@ export default class Chat extends HTMLElement {
             margin: 0px;
             margin-bottom: 3px;
         }
+        .entry span:first-child {
+            margin-right: 0.25em;
+        }
         @media only screen and (max-width: 768px) {
             #entries {
                 max-height:75px;
             }
+        }
+
+        .entry .system {
+            background-color: black;
+            border-radius: 3px;
         }
         `;
         this.shadowRoot.appendChild(style);
@@ -140,29 +148,38 @@ export default class Chat extends HTMLElement {
         }));
     }
 
-    chatFadeTimeout;
-    addChatEntry(id, content, color) {
+    #fadeTimeout;
+    #addEntry(name, color, content, className = null) {
         let entry = document.createElement("p");
         entry.classList.add("entry");
         
-        let name = document.createElement("span");
-        name.style.color = color;
-        name.innerText = "⬤: ";
+        let prefix = document.createElement("span");
+        prefix.style.color = color;
+        if (className)
+            prefix.classList.add(className);
+        prefix.innerText = `${name}:`;
         let text = document.createElement("span");
         text.innerText = content;
         
-        entry.appendChild(name);
+        entry.appendChild(prefix);
         entry.appendChild(text);
         this.entries.appendChild(entry);
         this.entries.scrollTop = this.entries.scrollHeight;
         
         this.panel.style.opacity = "1";
-        if (this.chatFadeTimeout !== undefined)
-            clearTimeout(this.chatFadeTimeout);
-        this.chatFadeTimeout = setTimeout(() => {
+        if (this.#fadeTimeout !== undefined)
+            clearTimeout(this.#fadeTimeout);
+        this.#fadeTimeout = setTimeout(() => {
             if (this.input != this.shadowRoot.activeElement)
                 this.panel.style.opacity = "0.2";
         }, 4000);
+
+    }
+    addChatEntry(content, color) {
+        this.#addEntry("⬤", color, content);
+    }
+    addSystemEntry(content) {
+        this.#addEntry("SYS", "white", content, "system");
     }
 }
 

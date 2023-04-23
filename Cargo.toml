@@ -24,5 +24,8 @@ tower-http = { version = "0.4.0", features = ["fs", "compression-gzip"] }
 rapier3d = { version = "0.17", features = [ "simd-stable" ] }
 data-url = "0.1.1"
 
+[profile.release]
+codegen-units = 1
+
 [profile.dev.package.rapier3d]
 opt-level = 3

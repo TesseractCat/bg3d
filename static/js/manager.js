@@ -706,7 +706,7 @@ export default class Manager extends EventTarget {
             }
 
             if (type == "chat") {
-                this.chat.addChatEntry(msg.id, msg.content, this.userColors.get(msg.id));
+                this.chat.addChatEntry(msg.content, this.userColors.get(msg.id));
             }
             
             if (type == "relay_cursors") {

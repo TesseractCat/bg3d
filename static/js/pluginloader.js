@@ -73,6 +73,7 @@ export default class PluginLoader {
             manifest = JSON.parse(await manifestEntry.getData(new zip.TextWriter()));
         } catch (error) {
             console.error(error);
+            this.manager.chat.addSystemEntry("Failed to load plugin: Bad manifest");
             return;
         }
 
@@ -96,6 +97,7 @@ export default class PluginLoader {
 
         if (!scriptBlob) {
             console.error("Failed to load script!");
+            this.manager.chat.addSystemEntry("Failed to load plugin: Bad script");
             return;
         }
 
