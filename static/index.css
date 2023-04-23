@@ -47,9 +47,12 @@ canvas {
     outline: none;
     box-sizing: border-box;
 }
-.iframe canvas {
+.iframe #display {
     border: 1px solid gray;
     border-radius: var(--half-radius);
+}
+.iframe #stats {
+    display: none;
 }
 
 /* MAIN PANEL */
