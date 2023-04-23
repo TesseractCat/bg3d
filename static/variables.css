@@ -1,0 +1,18 @@
+:root {
+    --bg-top: #F9F8F4;
+    --bg-bottom: #E5DEC8;
+
+    --icon: #f7f5ef;
+    --icon-hover: #dddbd5;
+    --context-menu: aliceblue;
+
+    --radius: 10px;
+    --half-radius: calc(var(--radius)/2);
+    --kbd-radius: 3px;
+
+    --panel-width: 280px;
+
+    --shadow: rgb(0 0 0 / 10%) 0px 0px 5px;
+
+    --overlay-gray: #444;
+}

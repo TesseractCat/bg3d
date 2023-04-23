@@ -1,0 +1,79 @@
+@import url('variables.css');
+
+@font-face {
+    font-family: 'Lora';
+    src: url('fonts/Lora/Lora-Regular.ttf') format('truetype');
+    font-display: fallback;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+}
+body {
+    margin: 0px;
+    background: linear-gradient(0deg, var(--bg-bottom), var(--bg-top));
+    
+    font-family: Lora;
+}
+* {
+    box-sizing: border-box;
+}
+
+::selection {
+    color: #FFF;
+    background: rgba(0,0,0,0.8);
+}
+
+#main {
+    margin: auto;
+    padding: 50px;
+    padding-top: 10vh;
+    width: 100%;
+    max-width: 500px;
+
+    display: flex;
+    flex-direction: column;
+}
+#main header {
+    display: flex;
+    justify-content: center;
+}
+#main header h1 {
+    border-bottom: 1px dashed black;
+}
+
+#main #game-input {
+    display: flex;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+#main #game-input input {
+    min-width: 0px;
+    height: 50px;
+    flex-grow: 1;
+    border: 1px solid black;
+    border-right: none;
+    border-radius: var(--radius) 0px 0px var(--radius);
+
+    padding: 5px 10px;
+    font-size: 1.5em;
+    font-family: Lora;
+}
+#main #game-input button {
+    width: 100px;
+    border: 1px solid black;
+    border-left: 1px dashed black;
+    border-radius: 0px var(--radius) var(--radius) 0px;
+    
+    font-size: 1.1em;
+    font-family: Lora;
+    font-style: italic;
+    cursor: pointer;
+    
+    background-color: hsl(0 70% 94% / 1);
+    transition: background-color 0.1s;
+}
+#main #game-input button:hover {
+    background-color: hsl(0 100% 84% / 1);
+}
