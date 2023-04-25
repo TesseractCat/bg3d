@@ -21,6 +21,10 @@ body {
     box-sizing: border-box;
 }
 
+p {
+    background-color: var(--bg-top);
+}
+
 ::selection {
     color: #FFF;
     background: rgba(0,0,0,0.8);
@@ -44,6 +48,9 @@ body {
 }
 #main header h1 {
     border-bottom: 1px dashed black;
+}
+#main header h1 span {
+    color: #777;
 }
 
 #main #game-input {
