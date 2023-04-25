@@ -25,7 +25,7 @@ class Card extends HTMLElement {
 }
 img {
     display: inherit;
-    width: inherit;
+    aspect-ratio: inherit;
     height: inherit;
 }
 img#hidden {
@@ -41,9 +41,11 @@ img:not(#hidden) {
     box-shadow: -10px 10px 20px rgb(0 0 0 / 30%);
 
     transition: opacity 0.2s;
+
+    background: url(static/games/generic/alpha.png);
 }
 :host([grabbed]) img:not(#hidden) {
-    opacity:0.5;
+    opacity: 0.5;
 }
 `;
     }
@@ -100,19 +102,20 @@ img:not(#hidden) {
         this.#springs[0].center = this.getBoundingClientRect().left;
         this.#springs[1].center = this.getBoundingClientRect().top;
 
-        if (this.lastTime !== undefined) {
-            let elapsed = (time - this.lastTime)/1000;
-            let dt = Math.min(elapsed, 1/20);
+        if (!this.lastTime)
+            this.lastTime = time;
 
-            if (!this.grabbed) {
-                let x = this.#springs[0].animate(dt).toFixed(2);
-                let y = this.#springs[1].animate(dt).toFixed(2);
-                this.image.style.transform = `translate(${x}px, ${y}px)`;
-            } else {
-                let x = this.#springs[0].get();
-                let y = this.#springs[1].get();
-                this.image.style.transform = `translate(${x}px, ${y}px)`;
-            }
+        let elapsed = (time - this.lastTime)/1000;
+        let dt = Math.min(elapsed, 1/20);
+
+        if (!this.grabbed) {
+            let x = this.#springs[0].animate(dt).toFixed(2);
+            let y = this.#springs[1].animate(dt).toFixed(2);
+            this.image.style.transform = `translate(${x}px, ${y}px)`;
+        } else {
+            let x = this.#springs[0].get();
+            let y = this.#springs[1].get();
+            this.image.style.transform = `translate(${x}px, ${y}px)`;
         }
 
         if (time !== undefined)
@@ -125,7 +128,8 @@ img:not(#hidden) {
     }
 
     connectedCallback() {
-        this.animate();
+        this.reset();
+        this.animate(performance.now());
     }
     disconnectedCallback() {
         if (this.animationId) {
@@ -158,7 +162,7 @@ export default class Hand extends HTMLElement {
         }
         bird-card {
             cursor:pointer;
-            height:200px;
+            height: 200px;
 
             display:inline-block;
 
@@ -199,6 +203,7 @@ export default class Hand extends HTMLElement {
         imageElement.dataset.id = card.id;
         imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
         imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+        imageElement.style.aspectRatio = `${deck.data.size.x}/${deck.data.size.y}`;
 
         imageElement.addEventListener('pointerdown', (e) => {
             let offset = [imageElement.getBoundingClientRect().x - e.clientX,
@@ -215,7 +220,7 @@ export default class Hand extends HTMLElement {
                 imageElement.grabbed = false;
             }
             const cardMove = (e) => {
-                if (e.clientY < window.innerHeight * 0.75) {
+                if (e.clientY < (window.innerHeight - 200)) {
                     cardDrop();
                     this.takeCard(card.id);
                     return;

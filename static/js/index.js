@@ -88,8 +88,28 @@ window.onload = () => {
     });
     
     // Show link
-    document.getElementById("game-link").innerText = window.location.host + window.location.pathname;
+    const linkText = window.location.host + window.location.pathname;
+    document.getElementById("game-link").innerText = linkText;
     document.getElementById("game-link").href = window.location.href;
+
+    let linkTimeout;
+    document.getElementById("game-link").addEventListener("click", (e) => {
+        e.preventDefault();
+        if (linkTimeout)
+            return;
+
+        navigator.clipboard.writeText(window.location.href);
+        e.target.innerText = "Link copied!";
+        e.target.style.textDecoration = "auto";
+        e.target.style.cursor = "default";
+
+        linkTimeout = setTimeout(() => {
+            e.target.innerText = linkText;
+            e.target.style.textDecoration = null;
+            e.target.style.cursor = null;
+            linkTimeout = null;
+        }, 500);
+    });
     
     // Overlay functionality
     document.getElementById("overlay-collapse").addEventListener("click", (e) => {
