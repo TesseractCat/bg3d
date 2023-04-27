@@ -591,8 +591,6 @@ export default class Manager extends EventTarget {
             this.renderer.shadowMap.type = PCFSoftShadowMap;
         }
 
-        this.renderer.outputEncoding = sRGBEncoding; // FIXME: Not needed in r152
-        ColorManagement.enabled = true;              // - Also not needed
         // this.renderer.toneMapping = LinearToneMapping;
         
         // this.composer = new EffectComposer(this.renderer);

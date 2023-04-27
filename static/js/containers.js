@@ -1,4 +1,4 @@
-import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding } from 'three';
+import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding, SRGBColorSpace } from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
@@ -172,7 +172,7 @@ export class Deck extends Pawn {
             return Deck.textureCache.get(texture);
 
         let t = await Deck.textureLoader.loadAsync(texture);
-        t.encoding = sRGBEncoding;
+        t.colorSpace = SRGBColorSpace;
         t.anisotropy = 4;
 
         Deck.textureCache.set(texture, t);

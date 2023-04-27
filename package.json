@@ -4,7 +4,7 @@
   "description": "An open source THREE.js based multiplayer board game simulator",
   "dependencies": {
     "@zip.js/zip.js": "2.4.12",
-    "three": "^0.151.0"
+    "three": "^0.152.0"
   },
   "devDependencies": {
     "esbuild": "^0.17.6",
