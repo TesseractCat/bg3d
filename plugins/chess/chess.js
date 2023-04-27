@@ -13,7 +13,7 @@ function getPiece(name, radius, height) {
     let black = new Pawn({
         name: name,
         mesh: 'chess/' + name + '.glb',
-        tint: 0x0A0A0A,
+        tint: 0x303030,
         colliderShapes: [
             new Cylinder(radius, height)
         ]

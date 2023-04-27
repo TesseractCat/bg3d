@@ -34,7 +34,7 @@ export class Deck extends Pawn {
     #sideMaterial;
     #sideTexture;
     
-    constructor({contents = [], back = null, sideColor = 0xcccccc,
+    constructor({contents = [], back = null, sideColor = 0xffffff,
                  size = new Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
                  ...rest}) {
         rest.colliderShapes = [

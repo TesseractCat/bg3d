@@ -1,7 +1,7 @@
 import {
     SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Raycaster, AudioListener,
     Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
-    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color
+    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color, ColorManagement, LinearEncoding, PMREMGenerator, BoxGeometry, LinearToneMapping
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
@@ -10,6 +10,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from './OrbitControls.js';
 
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
@@ -78,8 +79,8 @@ export default class Manager extends EventTarget {
     }
 
     async init(callback) {
-        this.buildScene();
         this.buildRenderer();
+        this.buildScene();
         this.buildControls();
         
         this.resize();
@@ -512,8 +513,14 @@ export default class Manager extends EventTarget {
         directionalLight2.position.x = -20;
         this.scene.add(directionalLight2);
 
-        const ambientLight = new AmbientLight(0x404040, 1.5);
+        const ambientLight = new AmbientLight(0x808080, 1.5);
         this.scene.add(ambientLight);
+
+        // Setup environment
+        // const pmremGenerator = new PMREMGenerator(this.renderer);
+        // let environment = new Scene();
+        // environment.add(new Mesh(new BoxGeometry(), new MeshBasicMaterial()));
+        // this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
         
         // Setup ground plane
         const geom = new PlaneGeometry(160, 160);
@@ -583,7 +590,10 @@ export default class Manager extends EventTarget {
         } else {
             this.renderer.shadowMap.type = PCFSoftShadowMap;
         }
-        this.renderer.outputEncoding = sRGBEncoding;
+
+        this.renderer.outputEncoding = sRGBEncoding; // FIXME: Not needed in r152
+        ColorManagement.enabled = true;              // - Also not needed
+        // this.renderer.toneMapping = LinearToneMapping;
         
         // this.composer = new EffectComposer(this.renderer);
         // const renderPass = new RenderPass(this.scene, this.camera);

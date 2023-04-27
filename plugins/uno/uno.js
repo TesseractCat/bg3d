@@ -19,7 +19,7 @@ self.world.addEventListener("start", () => {
     let mat = new Deck({
         name: 'Mat', moveable: false,
         contents: ['generic/white.png'],
-        tint: 0x080808,
+        tint: 0x333333,
         cornerRadius: 0.05, cardThickness: 0.05,
         position: new Vector3(0, 0.025, 0),
         size: new Vector2(5, 5)
