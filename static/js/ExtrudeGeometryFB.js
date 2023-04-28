@@ -1,3 +1,4 @@
+// Modified to add seperate front/back materials
 /**
  * Creates extruded geometry from a path shape.
  *

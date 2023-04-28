@@ -1,6 +1,5 @@
 import { Vector3 } from 'three';
 import { Spring } from './spring';
-import { Pawn } from './pawn';
 
 class Card extends HTMLElement {
     image;

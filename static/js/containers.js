@@ -1,11 +1,10 @@
-import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, sRGBEncoding, SRGBColorSpace } from 'three';
+import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, SRGBColorSpace } from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
+import { MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
-import Manager from './manager';
 import { deserializePawn, Pawn } from './pawns';
 import { Box } from './shapes.js';
 
@@ -51,25 +50,35 @@ export class Deck extends Pawn {
         this.data.cardThickness = cardThickness;
         this.data.size.copy(size);
     }
+    static #shapeGeometryCache = new Map();
     async init() {
         super.init();
-        
-        let shape = this.#roundedSquare(this.data.cornerRadius);
-        if (this.data.border) {
-            let data = await Deck.svgLoader.loadAsync(this.data.border);
-            if (data.paths.length > 0)
-                shape = SVGLoader.createShapes(data.paths[0])[0];
+
+        let geometry = null;
+        let key = this.data.border ? this.data.border : this.data.cornerRadius;
+        if (this.constructor.#shapeGeometryCache.has(key)) {
+            geometry = this.constructor.#shapeGeometryCache.get(key);
+        } else {
+            let shape = this.#roundedSquare(this.data.cornerRadius);
+            if (this.data.border) {
+                let data = await Deck.svgLoader.loadAsync(this.data.border);
+                if (data.paths.length > 0)
+                    shape = SVGLoader.createShapes(data.paths[0])[0];
+            }
+            const extrudeSettings = {
+                steps: 1,
+                depth: 1,
+                bevelEnabled: false,
+            };
+            
+            geometry = new ExtrudeGeometry(shape, extrudeSettings);
+            geometry.deleteAttribute('normal');
+            geometry = BufferGeometryUtils.mergeVertices(geometry);
+            geometry = BufferGeometryUtils.toCreasedNormals(geometry); // geometry.computeVertexNormals();
+
+            this.constructor.#shapeGeometryCache.set(key, geometry);
         }
-        const extrudeSettings = {
-            steps: 1,
-            depth: 1,
-            bevelEnabled: false,
-        };
         
-        let geometry = new ExtrudeGeometry(shape, extrudeSettings);
-        geometry.deleteAttribute('normal');
-        geometry = BufferGeometryUtils.mergeVertices(geometry);
-        geometry.computeVertexNormals();
         let material = new MeshBasicMaterial({alphaTest:0.5, opacity:0});
         
         this.#box = new Mesh(geometry, material);

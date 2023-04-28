@@ -3,7 +3,6 @@ import { Vector3, Quaternion } from 'three';
 import mouseShake from './mouse-shake.js'
 
 import Manager from './manager';
-import {Pawn, Deck, Dice} from './pawns';
 
 import PluginLoader from './pluginloader'
 
