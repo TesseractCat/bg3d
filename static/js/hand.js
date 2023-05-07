@@ -2,38 +2,50 @@ import { Vector3 } from 'three';
 import { Spring } from './spring';
 
 class Card extends HTMLElement {
-    image;
-    hiddenImage;
+    #image;
+    #imageContainer;
+    #hiddenImage;
+    #flippedIndicator;
 
     constructor() {
         super();
         this.attachShadow({mode: 'open'});
 
-        this.image = document.createElement('img');
-        this.image.draggable = false;
-        this.hiddenImage = this.image.cloneNode();
-        this.hiddenImage.id = 'hidden';
+        this.#imageContainer = document.createElement('div');
+        this.#image = document.createElement('img');
+        this.#image.draggable = false;
+        this.#imageContainer.appendChild(this.#image);
+
+        this.#flippedIndicator = document.createElement("p");
+        this.#flippedIndicator.id = "flipped";
+        this.#flippedIndicator.innerText = "↺";
+        this.#flippedIndicator.style.display = "none";
+        this.#imageContainer.appendChild(this.#flippedIndicator);
+
+        this.#hiddenImage = document.createElement('div');
+        this.#hiddenImage.id = 'hidden';
 
         let style = document.createElement('style');
         this.shadowRoot.append(style,
-                               this.image, this.hiddenImage);
+                               this.#imageContainer, this.#hiddenImage);
 
         style.textContent = `
 :host {
     display: inline-block;
 }
-img {
+img, div {
     display: inherit;
     aspect-ratio: inherit;
     height: inherit;
 }
-img#hidden {
+#hidden {
     visibility: hidden;
 }
-img:not(#hidden) {
+div:not(#hidden) {
     position: fixed;
     top: 0px;
     left: 0px;
+    overflow: hidden;
 
     border-radius: inherit;
 
@@ -43,38 +55,65 @@ img:not(#hidden) {
 
     background: url(static/games/generic/alpha.png);
 }
-:host([grabbed]) img:not(#hidden) {
+:host([grabbed]) div {
     opacity: 0.5;
+}
+#flipped {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    margin: 0px;
+
+    color:white;
+    background-color: black;
+
+    width: 1.5em;
+    height: 1.5em;
+    line-height: 1.5em;
+
+    border-radius: 0 0 0 2px;
+
+    transition: opacity 0.1s;
+}
+#flipped:hover {
+    opacity: 0.2;
 }
 `;
     }
 
-    get src() { this.image.src; }
+    get src() { this.#image.src; }
     set src(newSrc) {
         // Defer loading image
-        let newImage = this.image.cloneNode();
-        newImage.src = newSrc;
+        // - Don't remember why I did this, probably should remove this code...
+        /*let newImage = this.#imageContainer.cloneNode(true);
+        newImage.firstChild.src = newSrc;
 
-        newImage.addEventListener('load', () => {
-            this.image.replaceWith(newImage);
-            this.image = newImage;
-            let newHiddenImage = newImage.cloneNode();
-            this.hiddenImage.replaceWith(newHiddenImage);
-            this.hiddenImage = newHiddenImage;
-            this.hiddenImage.id = 'hidden';
+        newImage.firstChild.addEventListener('load', () => {
+            this.#imageContainer.replaceWith(newImage);
+            this.#imageContainer = newImage;
+            this.#image = newImage.firstChild;
+
+            let newHiddenImage = this.#image.cloneNode();
+            newHiddenImage.id = 'hidden';
+            this.#hiddenImage.replaceWith(newHiddenImage);
+            this.#hiddenImage = newHiddenImage;
 
             // Hack to update grabbed
             this.grabbed = this.grabbed;
-        });
+        });*/
+        this.#image.src = newSrc;
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === 'src') {
             this.src = newValue;
         }
+        if (name === 'flipped') {
+            this.#flippedIndicator.style.display = "block";
+        }
     }
     static get observedAttributes() {
-        return ['src', 'grabbed'];
+        return ['src', 'grabbed', 'flipped'];
     }
 
     #springs = [new Spring(0, 200, 20), new Spring(0, 200, 20)];
@@ -91,8 +130,8 @@ img:not(#hidden) {
         } else {
             this.removeAttribute('grabbed');
         }
-        this.image.style.zIndex = g ? 1 : 0;
-        this.image.style.pointerEvents = g ? 'none' : 'auto';
+        this.#imageContainer.style.zIndex = g ? 1 : 0;
+        this.#imageContainer.style.pointerEvents = g ? 'none' : 'auto';
     }
 
     lastTime;
@@ -110,11 +149,11 @@ img:not(#hidden) {
         if (!this.grabbed) {
             let x = this.#springs[0].animate(dt).toFixed(2);
             let y = this.#springs[1].animate(dt).toFixed(2);
-            this.image.style.transform = `translate(${x}px, ${y}px)`;
+            this.#imageContainer.style.transform = `translate(${x}px, ${y}px)`;
         } else {
             let x = this.#springs[0].get();
             let y = this.#springs[1].get();
-            this.image.style.transform = `translate(${x}px, ${y}px)`;
+            this.#imageContainer.style.transform = `translate(${x}px, ${y}px)`;
         }
 
         if (time !== undefined)
@@ -158,6 +197,8 @@ export default class Hand extends HTMLElement {
             left:0px;
             right:0px;
             pointer-events:none;
+
+            --offset: 40px;
         }
         bird-card {
             cursor:pointer;
@@ -165,20 +206,22 @@ export default class Hand extends HTMLElement {
 
             display:inline-block;
 
-            margin-left:-40px;
+            margin-left: calc(-1 * var(--offset));
             pointer-events:auto;
             user-select:none;
         }
         bird-card:first-child {
-            margin-left:0px;
+            margin-left: 0px;
         }
         bird-card:hover {
-            margin-bottom:40px;
+            margin-bottom: var(--offset);
+            margin-right: var(--offset);
+            margin-left: 0px;
         }
 
         div {
             height: 200px;
-            margin-bottom: -80px;
+            margin-bottom: calc(-2 * var(--offset));
 
             display:flex;
             justify-content:center;
@@ -188,7 +231,7 @@ export default class Hand extends HTMLElement {
             transition: background 0.2s;
         }
         div.minimized {
-            margin-bottom: -120px;
+            margin-bottom: calc(-3 * var(--offset));
             pointer-events: none;
         }
         `;
@@ -203,6 +246,8 @@ export default class Hand extends HTMLElement {
         
         let imageElement = document.createElement('bird-card');
         imageElement.dataset.id = card.id;
+        if (deck.flipped())
+            imageElement.setAttribute("flipped", "");
         imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
         imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
         imageElement.style.aspectRatio = `${deck.data.size.x}/${deck.data.size.y}`;

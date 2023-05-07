@@ -41,7 +41,7 @@ self.world.addEventListener("start", async () => {
 
     let postIt = new Pawn({
         name: "Post-it", tint: 0xFFFF99,
-        position: new Vector3(1, 2.8, 0),
+        position: new Vector3(2, 2.8, 0),
         mesh: 'generic/post-it.gltf',
     });
     self.world.add(postIt);
