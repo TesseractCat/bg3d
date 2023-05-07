@@ -177,8 +177,13 @@ export class Pawn {
             }
             if (grabPoint) {
                 // Lerp
+                // FIXME: Rotate around center of bounding box?
                 let newPosition = this.position.clone();
-                let bottomOffset = new Box3().setFromObject(this.getMesh()).min.y - this.getMesh().position.y;
+                let bottomOffset = 0;
+                if (this.getMesh().children.length != 0) {
+                    // Insert this check because if the mesh hasn't loaded, the bounding box min is Infinity
+                    bottomOffset = new Box3().setFromObject(this.getMesh()).min.y - this.getMesh().position.y;
+                }
                 let height = -bottomOffset + (snapped ? 0.5 : 1);
                 
                 newPosition.lerp(grabPoint.clone().add(

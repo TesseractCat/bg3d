@@ -84,17 +84,13 @@ self.world.addEventListener("start", () => {
             let meeple = new Pawn({
                 name: colorName + " Meeple",
                 tint: color,
-                mesh: 'generic/meeple.gltf', colliderShapes: [
-                    new Box(new Vector3(0.31, 0.31, 0.2)),
-                ],
+                mesh: 'generic/meeple.gltf'
             });
             let meepleBag = new Container({
                 name: colorName + " Meeple",
                 holds: meeple, capacity: 8,
                 position: position,
-                mesh: 'generic/bag.gltf', colliderShapes: [
-                    new Cylinder(1.5, 2.5)
-                ],
+                mesh: 'generic/bag.gltf'
             })
             return meepleBag;
         })

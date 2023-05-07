@@ -10,6 +10,15 @@
 	"scene":0,
 	"scenes":[
 		{
+			"extras":{
+				"sprytile_data":{
+					"auto_reload":0,
+					"world_pixels":32
+				},
+				"batch_export":{
+					"gltf_preset":"GLTF_Preset"
+				}
+			},
 			"name":"Scene",
 			"nodes":[
 				0
@@ -18,6 +27,9 @@
 	],
 	"nodes":[
 		{
+			"extras":{
+				"collider":"cylinder"
+			},
 			"mesh":0,
 			"name":"rook",
 			"scale":[

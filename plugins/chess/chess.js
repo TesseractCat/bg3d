@@ -2,21 +2,15 @@ function boardToWorldPos(chessPos, height = 3) {
     return new Vector3(-7 + chessPos.x * 2, height, -7 + chessPos.y * 2);
 }
 
-function getPiece(name, radius, height) {
+function getPiece(name) {
     let white = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '.glb',
-        colliderShapes: [
-            new Cylinder(radius, height)
-        ]
+        mesh: 'chess/' + name + '.gltf'
     });
     let black = new Pawn({
         name: name,
-        mesh: 'chess/' + name + '.glb',
-        tint: 0x303030,
-        colliderShapes: [
-            new Cylinder(radius, height)
-        ]
+        mesh: 'chess/' + name + '.gltf',
+        tint: 0x303030
     });
     return [white, black];
 }
@@ -39,11 +33,8 @@ self.world.addEventListener("start", async () => {
     // Spawn board
     self.world.add(new Pawn({
         name: 'Board',
-        position: new Vector3(0,0.5,0),
+        position: new Vector3(0,0,0),
         mesh: 'checkers/checkerboard.glb',
-        colliderShapes: [
-            new Box(new Vector3(8.0,0.5,8.0))
-        ],
         moveable: false
     }));
 
@@ -56,12 +47,12 @@ self.world.addEventListener("start", async () => {
     }));
 
     // Define pieces
-    let queen = getPiece('queen', 0.7, 2.81);
-    let king = getPiece('king', 0.7, 3.18);
-    let rook = getPiece('rook', 0.625, 1.9);
-    let knight = getPiece('knight', 0.625, 2.09);
-    let bishop = getPiece('bishop', 0.625, 2.67);
-    let pawn = getPiece('pawn', 0.625, 1.78);
+    let queen = getPiece('queen');
+    let king = getPiece('king');
+    let rook = getPiece('rook');
+    let knight = getPiece('knight');
+    let bishop = getPiece('bishop');
+    let pawn = getPiece('pawn');
 
     // Spawn pieces
     let rookPositions = [

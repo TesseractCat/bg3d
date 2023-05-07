@@ -56,9 +56,7 @@ self.world.addEventListener("start", () => {
                 name: colorName + " Piece",
                 tint: color,
                 position: new Vector3(position.x + offset.x * 0.5, 1, position.y + offset.y * 0.5),
-                mesh: 'generic/piece.gltf', colliderShapes: [
-                    new Cylinder(0.31, 0.715),
-                ],
+                mesh: 'generic/piece.gltf'
             });
         }));
     }

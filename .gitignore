@@ -1,6 +1,7 @@
 *.vim
 meta.json
 itch.zip
+*.blend1
 
 # Logs
 logs

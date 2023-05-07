@@ -6,11 +6,8 @@ self.world.addEventListener("start", async () => {
     // Spawn board
     self.world.add(new Pawn({
         name: 'Board',
-        position: new Vector3(0,0.5,0),
+        position: new Vector3(0,0,0),
         mesh: 'checkers/checkerboard.glb',
-        colliderShapes: [
-            new Box(new Vector3(8.0,0.5,8.0))
-        ],
         moveable: false
     }));
 
@@ -25,13 +22,13 @@ self.world.addEventListener("start", async () => {
     // Define pieces
     let black = new Pawn({
         name: 'Black',
-        mesh: 'checkers/checker_black.gltf',
-        colliderShapes: [ new Cylinder(0.8, 0.4) ]
+        mesh: 'checkers/checker.gltf',
+        tint: 0x303030
     });
     let red = new Pawn({
         name: 'Red',
-        mesh: 'checkers/checker_red.gltf',
-        colliderShapes: [ new Cylinder(0.8, 0.4) ]
+        mesh: 'checkers/checker.gltf',
+        tint: 0xee3030
     });
 
     for (let x = 0; x < 8; x++) {
