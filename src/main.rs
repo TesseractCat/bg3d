@@ -319,7 +319,7 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
         PawnData::Deck { contents, card_thickness, size, .. } => {
             Box::new(std::iter::once(
                 ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.) as f32 * PHYSICS_SCALE,
+                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
                                     (size.y/2.) as f32 * PHYSICS_SCALE)
                     .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
             ))
@@ -430,7 +430,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
             }
 
             let collider = ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                ((card_thickness * contents.len() as f64 * 1.15)/2.) as f32 * PHYSICS_SCALE,
+                                ((card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
                                 (size.y/2.) as f32 * PHYSICS_SCALE)
                 .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build();
 
@@ -520,7 +520,7 @@ fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, c
                     }
     
                     let collider = ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                        ((*card_thickness * from_contents.len() as f64 * 1.15)/2.) as f32 * PHYSICS_SCALE,
+                                        ((*card_thickness * from_contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
                                         (size.y/2.) as f32 * PHYSICS_SCALE)
                         .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build();
     
