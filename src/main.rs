@@ -21,8 +21,6 @@ use axum::{
     Router,
     http::Uri
 };
-use gltf::mesh::Bounds;
-use rapier3d::na::{Quaternion, Matrix4, Vector4};
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
@@ -328,8 +326,16 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
         },
         _ => {
             if let Some(mesh) = pawn.mesh.as_ref() {
-                // FIXME: Path concerns
-                if let Ok(gltf) = Gltf::open(Path::new("./static/games").join(Path::new(mesh))) {
+                let static_path = Path::new("./static/games").canonicalize()?;
+                let path = static_path.join(Path::new(mesh)).canonicalize();
+
+                let gltf: Option<Gltf> = if let Ok(path) = path {
+                    if path.starts_with(static_path) { Gltf::open(path).ok() } else { None }
+                } else if let Some(asset) = lobby.assets.get(&format!("/{}", mesh)) {
+                    Gltf::from_slice(asset.data.as_slice()).ok()
+                } else { None };
+
+                if let Some(gltf) = gltf {
                     Box::new(gltf.colliders().map(|collider| {
                         collider.friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
                     }))
