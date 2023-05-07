@@ -17,6 +17,8 @@ def main():
     folder = sys.argv[1]
     result = ZipFile(f'./{folder}.zip', 'w')
 
+    print(f"Packing {folder}...")
+
     for root, dirs, files in os.walk(f"./{folder}/"):
         for file in files:
             path = os.path.join(root, file)
@@ -31,7 +33,7 @@ def main():
                     compressed_kb = len(output.getvalue())/1024
 
                     result.writestr(os.path.splitext(os.path.relpath(path, f"./{folder}"))[0] + ".webp", output.getvalue())
-                    print(f"Converted {file} to webp, {original_kb:.1f} KiB -> {compressed_kb:.1f} KiB | {(compressed_kb/original_kb)*100:.1f}%")
+                    print(f" - {file} => webp, {original_kb:.1f} KiB -> {compressed_kb:.1f} KiB | {(compressed_kb/original_kb)*100:.1f}%")
             elif has_ending(file, [".gltf", ".glb", ".js", ".json", ".svg"]):
                 result.write(path, os.path.relpath(path, f"./{folder}"))
 
