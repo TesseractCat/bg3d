@@ -47,7 +47,6 @@ export class Pawn {
     #meshObject = new Object3D();
     getMesh() { return this.#meshObject }
 
-    #size = new Vector3();
     hovered = false;
     selectStaticPosition;
     
@@ -117,13 +116,8 @@ export class Pawn {
                     }
                 });
 
-                let boundingBox = new Box3().setFromObject(gltf.scene);
-                let height = boundingBox.max.y - boundingBox.min.y;
-                gltf.scene.translateY(-boundingBox.min.y - 0.5 * height);
-
                 this.getMesh().add(gltf.scene);
                 this.updateMeshTransform();
-                this.updateBoundingBox();
             });
         } else { // Don't load GLTF
             this.updateMeshTransform();
@@ -184,7 +178,8 @@ export class Pawn {
             if (grabPoint) {
                 // Lerp
                 let newPosition = this.position.clone();
-                let height = this.#size.y/2 + (snapped ? 0.5 : 1);
+                let bottomOffset = new Box3().setFromObject(this.getMesh()).min.y - this.getMesh().position.y;
+                let height = -bottomOffset + (snapped ? 0.5 : 1);
                 
                 newPosition.lerp(grabPoint.clone().add(
                     new Vector3(0, this.grabSpring.animateTo(height, dt), 0)
@@ -322,7 +317,9 @@ export class Pawn {
             this.selectAndRunTimeout = undefined;
         } else {
             this.selected = true;
-            this.selectStaticPosition = this.position.clone();
+            this.selectStaticPosition = this.position.clone().setComponent(1,
+                new Box3().setFromObject(this.getMesh()).min.y
+            );
             this.dirty.add("selected");
 
             await new Promise(r => setTimeout(r, firstDelay));
@@ -375,18 +372,6 @@ export class Pawn {
             this.getMesh().position.copy(this.position);
             this.getMesh().quaternion.copy(this.rotation);
         }
-    }
-    updateBoundingBox() {
-        let p = this.getMesh().position.clone();
-        let r = this.getMesh().quaternion.clone();
-        this.getMesh().position.set(0,0,0);
-        this.getMesh().quaternion.identity();
-
-        let boundingBox = new Box3().setFromObject(this.getMesh());
-        this.#size = boundingBox.getSize(new Vector3());
-
-        this.getMesh().position.copy(p);
-        this.getMesh().quaternion.copy(r);
     }
     
     static className() { return "Pawn"; };

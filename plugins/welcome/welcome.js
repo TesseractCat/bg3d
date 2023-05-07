@@ -51,12 +51,12 @@ self.world.addEventListener("start", async () => {
         name: "Post-it", tint: 0xFFFF99,
         position: new Vector3(1, 2.8, 0),
         mesh: 'generic/post-it.gltf', colliderShapes: [
-            new Box(new Vector3(1, 0.12, 1))
+            new Box(new Vector3(1.5, 0.2, 1.5))
         ],
     });
     self.world.add(postIt);
 
-    self.world.add([bird, deck, birdSnap]);
+    self.world.add([bird, deck, birdSnap, die]);
 
     /*for (let i = 0; i < 5; i++) {
         let birdHeight = 4.3;

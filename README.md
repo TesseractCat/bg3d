@@ -40,3 +40,4 @@ If the host leaves, all other users will be kicked out to prevent broken games.
 If you don't want this to happen, call `self.world.close()` to indicate that your plugin is done.
 
 There isn't any documentation yet, but take a look at `static/js/prelude.js` and `plugins/*/` for guidance.
+Add colliders to GLTF files by adding a custom `collider` property set to either `box` or `cylinder`.

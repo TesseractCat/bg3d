@@ -20,9 +20,10 @@ serde_json = "1.0"
 
 axum = { version = "0.6.15", features = ["ws"] }
 tower-http = { version = "0.4.0", features = ["fs", "compression-gzip"] }
+data-url = "0.1.1"
 
 rapier3d = { version = "0.17", features = [ "simd-stable" ] }
-data-url = "0.1.1"
+gltf = { version = "1.1.0", features = [ "extras" ] }
 
 [profile.release]
 codegen-units = 1

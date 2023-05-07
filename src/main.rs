@@ -7,12 +7,13 @@ use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
+use std::path::Path;
 
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{
     extract::{
-        Path,
+        Path as AxumPath,
         ws::{Message, WebSocket, WebSocketUpgrade}
     },
     response::Redirect,
@@ -20,6 +21,8 @@ use axum::{
     Router,
     http::Uri
 };
+use gltf::mesh::Bounds;
+use rapier3d::na::{Quaternion, Matrix4, Vector4};
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
@@ -32,11 +35,14 @@ use data_url::DataUrl;
 use names::Generator;
 use random_color::Color;
 use rapier3d::prelude::*;
+use gltf::Gltf;
+use crate::gltf_ext::GltfExt;
 
 mod lobby;
 mod user;
 mod physics;
 mod events;
+mod gltf_ext;
 
 use lobby::*;
 use user::*;
@@ -68,7 +74,7 @@ async fn main() {
     let lobby_routes = Router::new()
         .route_service("/", ServeFile::new("static/index.html"))
         .nest_service("/assets", ServeDir::new("static/games").fallback(get(
-            move |Path(lobby): Path<String>, uri: Uri| {
+            move |AxumPath(lobby): AxumPath<String>, uri: Uri| {
                 let lobbies = lobbies_assets_clone.clone();
                 println!("Someone requested asset path \"{}\" for lobby [{lobby}]", uri.path());
 
@@ -76,7 +82,7 @@ async fn main() {
             }
         )))
         .route("/ws", get(
-            |Path(lobby): Path<String>, ws: WebSocketUpgrade| async move {
+            |AxumPath(lobby): AxumPath<String>, ws: WebSocketUpgrade| async move {
                 let lobbies = lobbies_ws_clone.clone();
                 ws.on_upgrade(move |socket| async {
                     if let Err(err) = user_connected(socket, lobby, lobbies).await {
@@ -311,11 +317,32 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
         .build();
     pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
-    for shape in &pawn.collider_shapes {
-        let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
-            .active_events(ActiveEvents::COLLISION_EVENTS)
-            .mass(0.01);
-        lobby.world.insert_with_parent(collider.build(), pawn.rigid_body.ok_or("Pawn missing rigibody")?);
+    let colliders: Box<dyn Iterator<Item = Collider>> = match &pawn.data {
+        PawnData::Deck { contents, card_thickness, size, .. } => {
+            Box::new(std::iter::once(
+                ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
+                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.) as f32 * PHYSICS_SCALE,
+                                    (size.y/2.) as f32 * PHYSICS_SCALE)
+                    .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
+            ))
+        },
+        _ => {
+            if let Some(mesh) = pawn.mesh.as_ref() {
+                // FIXME: Path concerns
+                if let Ok(gltf) = Gltf::open(Path::new("./static/games").join(Path::new(mesh))) {
+                    Box::new(gltf.colliders().map(|collider| {
+                        collider.friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
+                    }))
+                } else {
+                    Box::new(std::iter::empty())
+                }
+            } else {
+                Box::new(std::iter::empty())
+            }
+        }
+    };
+    for collider in colliders {
+        lobby.world.insert_with_parent(collider, pawn.rigid_body.ok_or("Pawn missing rigidbody")?);
     }
 
     // Tell other users that this was added
@@ -386,23 +413,23 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         };
         
         // Update physics
-        if update.collider_shapes.is_some() {
-            let collider_handles: Vec<ColliderHandle> = {
-                let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
-                rb.colliders().iter().map(|h| *h).collect()
-            };
-            for handle in collider_handles {
-                lobby.world.remove_collider(handle);
-            }
-            for shape in &pawn.collider_shapes {
-                let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
-                    .active_events(ActiveEvents::COLLISION_EVENTS)
-                    .mass(0.01);
-                lobby.world.insert_with_parent(collider.build(),
-                                               pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
-            }
-        }
+        // if update.collider_shapes.is_some() {
+        //     let collider_handles: Vec<ColliderHandle> = {
+        //         let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
+        //         let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+        //         rb.colliders().iter().map(|h| *h).collect()
+        //     };
+        //     for handle in collider_handles {
+        //         lobby.world.remove_collider(handle);
+        //     }
+        //     for shape in &pawn.collider_shapes {
+        //         let collider: ColliderBuilder = ColliderBuilder::from(shape * PHYSICS_SCALE as f64).friction(0.7)
+        //             .active_events(ActiveEvents::COLLISION_EVENTS)
+        //             .mass(0.01);
+        //         lobby.world.insert_with_parent(collider.build(),
+        //                                        pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+        //     }
+        // }
         if pawn.moveable {
             let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
             let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();

@@ -56,49 +56,6 @@ pub struct Vec2 {
         pub y: f64,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
-#[serde(tag = "class")]
-pub enum Shape {
-    #[serde(rename_all = "camelCase")]
-    Box { half_extents: Vec3 },
-    #[serde(rename_all = "camelCase")]
-    Cylinder { radius: f64, height: f64 },
-}
-impl Mul<f64> for &Shape {
-    type Output = Shape;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        match self {
-            Shape::Box { half_extents } => Shape::Box {
-                half_extents: Vec3 { x: half_extents.x * rhs,
-                                     y: half_extents.y * rhs,
-                                     z: half_extents.z * rhs }
-            },
-            Shape::Cylinder { radius, height } => Shape::Cylinder {
-                radius: radius * rhs,
-                height: height * rhs
-            }
-        }
-    }
-}
-impl From<&Shape> for ColliderBuilder {
-    fn from(shape: &Shape) -> ColliderBuilder {
-        match shape {
-            Shape::Box { half_extents } => {
-                ColliderBuilder::cuboid(half_extents.x as f32,
-                    half_extents.y as f32,
-                    half_extents.z as f32)
-            },
-            Shape::Cylinder { radius, height } => {
-                ColliderBuilder::cylinder((*height as f32)/(2 as f32), *radius as f32)
-            },
-        }
-    }
-}
-impl From<Shape> for ColliderBuilder {
-    fn from(shape: Shape) -> ColliderBuilder { (&shape).into() }
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "class", content = "data")]
 pub enum PawnData {
@@ -123,8 +80,7 @@ pub struct Pawn {
     pub mesh: Option<String>,
     pub tint: Option<u64>,
 
-    pub collider_shapes: Vec<Shape>, // Physics properties
-    pub moveable: bool,
+    pub moveable: bool, // Physics properties
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
@@ -150,7 +106,6 @@ pub struct PawnUpdate {
     pub mesh: Option<String>,
     pub tint: Option<u64>,
 
-    pub collider_shapes: Option<Vec<Shape>>,
     pub moveable: Option<bool>,
     
     pub position: Option<Vec3>,
@@ -172,7 +127,6 @@ impl Pawn {
     }
     pub fn patch(&mut self, update: &PawnUpdate) {
         update.data.as_ref().map(|v| self.data = v.clone());
-        update.collider_shapes.as_ref().map(|v| self.collider_shapes = v.clone());
         update.moveable.map(|v| self.moveable = v);
         if self.moveable {
             update.position.map(|v| self.position = v);

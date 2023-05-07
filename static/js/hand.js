@@ -177,12 +177,15 @@ export default class Hand extends HTMLElement {
         }
 
         div {
+            height: 200px;
             margin-bottom: -80px;
 
             display:flex;
             justify-content:center;
             align-items:flex-end;
             text-align:center;
+            
+            transition: background 0.2s;
         }
         div.minimized {
             margin-bottom: -120px;

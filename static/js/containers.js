@@ -370,7 +370,6 @@ export class Deck extends Pawn {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.getMesh().scale.setComponent(1, thickness);
-        this.updateBoundingBox();
 
         this.colliderShapes[0].halfExtents.setComponent(
             1, Math.max(thickness/2, 0.03),
