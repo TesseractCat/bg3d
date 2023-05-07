@@ -28,25 +28,29 @@ impl GltfExt for Gltf {
                 }, |acc, b| merge_bounding_boxes(acc, b));
                 let transform = node.transform().decomposed();
 
+                let min = Vector::new(bounds.min[0], bounds.min[1], bounds.min[2]) * PHYSICS_SCALE;
+                let max = Vector::new(bounds.max[0], bounds.max[1], bounds.max[2]) * PHYSICS_SCALE;
+                let scale = Vector::new(transform.2[0], transform.2[1], transform.2[2]);
+                let half = ((max - min)/2.).component_mul(&scale);
+                let center = ((max + min)/2.).component_mul(&scale);
+                
+                // First translate center (of bounds) -> then rotation -> then translate node
+                // FIXME: This whole thing probably doesn't support nested transformations!
+                let rotation = Rotation::from_quaternion(
+                    Quaternion::new(transform.1[3], transform.1[0], transform.1[1], transform.1[2])
+                );
+                let translation = Translation::from(
+                    Vector::new(transform.0[0], transform.0[1], transform.0[2]) * PHYSICS_SCALE
+                );
+                let isometry = Isometry::from_parts(translation, rotation) * Isometry::from(center);
+
                 let collider = match collider {
+                    "cylinder" => {
+                        ColliderBuilder::cylinder(half.y, half.x).position(isometry)
+                    },
                     _ => {
-                        let min = Vector::new(bounds.min[0], bounds.min[1], bounds.min[2]) * PHYSICS_SCALE;
-                        let max = Vector::new(bounds.max[0], bounds.max[1], bounds.max[2]) * PHYSICS_SCALE;
-                        let scale = Vector::new(transform.2[0], transform.2[1], transform.2[2]);
-                        let half = ((max - min)/2.).component_mul(&scale);
-                        let center = ((max + min)/2.).component_mul(&scale);
-                        
-                        // First translate center (of bounds) -> then rotation -> then translate node
-                        // FIXME: This whole thing probably doesn't support nested transformations!
-                        let rotation = Rotation::from_quaternion(
-                            Quaternion::new(transform.1[3], transform.1[0], transform.1[1], transform.1[2])
-                        );
-                        let translation = Translation::from(
-                            Vector::new(transform.0[0], transform.0[1], transform.0[2]) * PHYSICS_SCALE
-                        );
-                        let isometry = Isometry::from_parts(translation, rotation) * Isometry::from(center);
                         ColliderBuilder::cuboid(half.x, half.y, half.z).position(isometry)
-                    }
+                    },
                 };
 
                 Some(collider)
