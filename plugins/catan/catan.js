@@ -48,9 +48,7 @@ function getTiles() {
     toppers.splice(desertIndex, 0, new Pawn({
         name: 'Robber',
         tint: 0xfafafa,
-        mesh: 'pieces/robber.gltf', colliderShapes: [
-            new Cylinder(0.477/2, 0.698),
-        ],
+        mesh: 'pieces/robber.gltf',
     }));
     return zip(tiles, toppers);
 }
@@ -132,30 +130,22 @@ function setupPlayers() {
         // Define pieces
         let settlement = new Pawn({
             name: `${colorName} Settlement`,
-            mesh: 'pieces/house.gltf', colliderShapes: [
-                new Box(new Vector3(0.39/2, 0.542/2, 0.47/2))
-            ], tint: colorHex,
+            mesh: 'pieces/house.gltf', tint: colorHex,
         });
         let city = new Pawn({
             name: `${colorName} City`,
-            mesh: 'pieces/city.gltf', colliderShapes: [
-                new Box(new Vector3(0.39/2, 0.74/2, 0.74/2))
-            ], tint: colorHex,
+            mesh: 'pieces/city.gltf', tint: colorHex,
         });
         let road = new Pawn({
             name: `${colorName} Road`,
             rotation: new Vector3(0,Math.PI/2,0),
-            mesh: 'pieces/road.gltf', colliderShapes: [
-                new Box(new Vector3(1/2, 0.2/2, 0.2/2))
-            ], tint: colorHex,
+            mesh: 'pieces/road.gltf', tint: colorHex,
         });
 
         // Create bags
         let bag = new Container({
             position: toVector3(playerPosition,  1),
-            mesh: 'generic/bag.gltf', colliderShapes: [
-                new Cylinder(1.5, 2.5)
-            ],
+            mesh: 'generic/bag.gltf',
         });
         let cityBag = bag.clone({name: `${colorName} Cities`,
                                  position: bag.position.clone().add(new Vector3(-4, 0, 0)),
@@ -218,9 +208,6 @@ function setupCards() {
             new Vector3(-Math.PI/2, 0, 0),
             new Vector3(0, 0, Math.PI/2),
             new Vector3(0, 0, -Math.PI/2),
-        ],
-        colliderShapes: [
-            new Box(new Vector3(1/3,1/3,1/3))
         ]
     });
     self.world.add([

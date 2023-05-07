@@ -41,9 +41,6 @@ self.world.addEventListener("start", async () => {
             new Vector3(-Math.PI/2, 0, 0),
             new Vector3(0, 0, Math.PI/2),
             new Vector3(0, 0, -Math.PI/2),
-        ],
-        colliderShapes: [
-            new Box(new Vector3(1/3,1/3,1/3))
         ]
     });
     self.world.add([deck, die]);

@@ -1,12 +1,9 @@
 self.world.addEventListener("start", async () => {
-    let birdHeight = 4.3;
     let bird = new Pawn({
         name: "Bird Statue",
         position: new Vector3(-1.9,2.8,-1.35),
         rotation: new Vector3(0, Math.PI/6, 0),
-        mesh: 'generic/bird.glb', colliderShapes: [
-            new Cylinder(1.5, birdHeight)
-        ],
+        mesh: 'generic/bird.glb',
     });
 
     let deck = new Deck({
@@ -31,9 +28,6 @@ self.world.addEventListener("start", async () => {
             new Vector3(-Math.PI/2, 0, 0),
             new Vector3(0, 0, Math.PI/2),
             new Vector3(0, 0, -Math.PI/2),
-        ],
-        colliderShapes: [
-            new Box(new Vector3(1/3,1/3,1/3))
         ]
     });
 
@@ -41,18 +35,14 @@ self.world.addEventListener("start", async () => {
         name: "Bird Bag", holds: bird, capacity: 5,
         position: new Vector3(1.9,1.25,-1.35),
         rotation: new Vector3(0, -Math.PI/6, 0),
-        mesh: 'generic/bag.gltf', colliderShapes: [
-            new Cylinder(1.5, 2.5)
-        ],
+        mesh: 'generic/bag.gltf',
     })
     //self.world.add(bag);
 
     let postIt = new Pawn({
         name: "Post-it", tint: 0xFFFF99,
         position: new Vector3(1, 2.8, 0),
-        mesh: 'generic/post-it.gltf', colliderShapes: [
-            new Box(new Vector3(1.5, 0.2, 1.5))
-        ],
+        mesh: 'generic/post-it.gltf',
     });
     self.world.add(postIt);
 
@@ -64,9 +54,7 @@ self.world.addEventListener("start", async () => {
             name: "Bird Statue",
             position: new Vector3(-1.9,2.8,-1.35),
             rotation: new Vector3(0, Math.PI/6, 0),
-            mesh: 'generic/bird.gltf', colliderShapes: [
-                new Cylinder(1.5, birdHeight)
-            ],
+            mesh: 'generic/bird.gltf'
         });
         self.world.add(bird);
 

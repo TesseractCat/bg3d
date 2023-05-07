@@ -17,10 +17,9 @@ class Pawn {
 
     moveable;
     name;
-    colliderShapes;
 
     constructor({id = null, position = new Vector3(), rotation = new Vector3(),
-                 mesh, tint, moveable = true, name = null, colliderShapes = []}) {
+                 mesh, tint, moveable = true, name = null}) {
         this.id = (id == null) ? Pawn.nextId() : id;
 
         this.position = new Vector3().copy(position);
@@ -31,7 +30,6 @@ class Pawn {
 
         this.moveable = moveable;
         this.name = name;
-        this.colliderShapes = colliderShapes.map(shape => shape.clone());
     }
 
     static nextId() {

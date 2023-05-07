@@ -36,9 +36,6 @@ export class Deck extends Pawn {
     constructor({contents = [], back = null, sideColor = 0xffffff,
                  size = new Vector2(), border = null, cornerRadius = 0.02, cardThickness = 0.01,
                  ...rest}) {
-        rest.colliderShapes = [
-            new Box(new Vector3(size.x/2, (cardThickness * contents.length * 1.15)/2, size.y/2))
-        ];
         super(rest);
         
         this.data.contents = contents;
@@ -371,11 +368,7 @@ export class Deck extends Pawn {
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.getMesh().scale.setComponent(1, thickness);
 
-        this.colliderShapes[0].halfExtents.setComponent(
-            1, Math.max(thickness/2, 0.03),
-        );
         this.dirty.add("selected");
-        this.dirty.add("colliderShapes");
         
         // Dispose of old materials
         this.#updateMaterials(faceTexture, backTexture);

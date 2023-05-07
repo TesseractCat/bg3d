@@ -34,7 +34,6 @@ export class Pawn {
     tint;
     
     moveable = true;
-    colliderShapes;
     
     // Non-Serialized
     #lastPosition = new Vector3();
@@ -61,7 +60,7 @@ export class Pawn {
     
     constructor({
         position = new Vector3(), rotation = new Quaternion(),
-        mesh = null, colliderShapes = [], tint = 0xffffff,
+        mesh = null, tint = 0xffffff,
         moveable = true, id = null, name = null
     }) {
         this.id = (id == null) ? Pawn.nextId() : id;
@@ -74,7 +73,6 @@ export class Pawn {
         this.moveable = moveable;
         this.mesh = mesh;
         this.tint = tint;
-        this.colliderShapes = colliderShapes;
         
         // Create new NetworkedTransform
         this.networkTransform = new NetworkedTransform(position, rotation);
@@ -444,7 +442,6 @@ export class SnapPoint extends Pawn {
 
     constructor({radius=1, size=new Vector2(1,1), scale=1, snaps=[], ...rest}) {
         rest.moveable = false;
-        rest.colliderShapes = [];
         super(rest);
         this.data.radius = radius;
         this.data.size = size;
