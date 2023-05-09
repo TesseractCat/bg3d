@@ -196,7 +196,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                             println!("Encountered error during physics step: {}", err);
                         }
                     }
-                    let elapsed = Instant::now() - start;
+                    let _elapsed = Instant::now() - start;
                     // println!("Physics time: {}", elapsed.as_millis());
                     tick += 1;
                     interval.tick().await;
@@ -316,13 +316,8 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     pawn.to_mut().rigid_body = Some(lobby.world.rigid_body_set.insert(rigid_body));
 
     let colliders: Box<dyn Iterator<Item = Collider>> = match &pawn.data {
-        PawnData::Deck { contents, card_thickness, size, .. } => {
-            Box::new(std::iter::once(
-                ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
-                                    (size.y/2.) as f32 * PHYSICS_SCALE)
-                    .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
-            ))
+        PawnData::Deck { .. } => {
+            Box::new(std::iter::once((&pawn.data).try_into().unwrap()))
         },
         _ => {
             if let Some(mesh) = pawn.mesh.as_ref() {
@@ -419,7 +414,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         };
         
         // Update physics
-        if let Some(PawnData::Deck { contents, card_thickness, size, .. }) = &update.data {
+        if let Some(PawnData::Deck { .. }) = &update.data {
             let collider_handles: Vec<ColliderHandle> = {
                 let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
                 let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
@@ -429,12 +424,8 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
                 lobby.world.remove_collider(handle);
             }
 
-            let collider = ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                ((card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
-                                (size.y/2.) as f32 * PHYSICS_SCALE)
-                .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build();
-
-            lobby.world.insert_with_parent(collider, pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+            lobby.world.insert_with_parent((update.data.as_ref().unwrap()).try_into().unwrap(),
+                                           pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
         }
         if pawn.moveable {
             let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
@@ -497,7 +488,7 @@ fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, c
                 Ok(to)
             }
         },
-        PawnData::Deck { contents: from_contents, size, card_thickness, .. } => {
+        PawnData::Deck { contents: from_contents, .. } => {
             let count = count.map(|x| x.max(1)).unwrap_or(1) as usize;
             if from_contents.len() <= count {
                 Err("Trying to extract too many cards from deck".into())
@@ -519,12 +510,8 @@ fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, c
                         lobby.world.remove_collider(handle);
                     }
     
-                    let collider = ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                        ((*card_thickness * from_contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
-                                        (size.y/2.) as f32 * PHYSICS_SCALE)
-                        .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build();
-    
-                    lobby.world.insert_with_parent(collider, from.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+                    lobby.world.insert_with_parent((&from.data).try_into().unwrap(),
+                                                   from.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
                 }
 
                 let mut to = from.clone();
@@ -573,6 +560,21 @@ fn merge_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -
                 } else {
                     from_contents.append(into_contents);
                     *into_contents = from_contents;
+                }
+
+                // Update into's collider
+                {
+                    let collider_handles: Vec<ColliderHandle> = {
+                        let rb_handle = into.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
+                        let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+                        rb.colliders().iter().map(|h| *h).collect()
+                    };
+                    for handle in collider_handles {
+                        lobby.world.remove_collider(handle);
+                    }
+    
+                    lobby.world.insert_with_parent((&into.data).try_into().unwrap(),
+                                                   into.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
                 }
             }
             Ok(())

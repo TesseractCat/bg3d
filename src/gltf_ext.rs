@@ -1,5 +1,5 @@
 use gltf::{Gltf, mesh::BoundingBox};
-use rapier3d::{prelude::{Collider, Vector, Rotation, Translation, Isometry, ColliderBuilder, ActiveEvents}, na::Quaternion};
+use rapier3d::{prelude::{Vector, Rotation, Translation, Isometry, ColliderBuilder}, na::Quaternion};
 use std::vec::IntoIter;
 
 use crate::PHYSICS_SCALE;

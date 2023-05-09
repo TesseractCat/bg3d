@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::error::Error;
-use std::ops::Mul;
 
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
@@ -69,6 +68,21 @@ pub enum PawnData {
     #[serde(rename_all = "camelCase")]
     Dice { roll_rotations: Vec<Vec3> },
     Pawn {},
+}
+impl TryInto<Collider> for &PawnData {
+    type Error = ();
+
+    fn try_into(self) -> Result<Collider, Self::Error> {
+        match &self {
+            PawnData::Deck { contents, card_thickness, size, .. } => {
+                Ok(ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
+                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
+                                    (size.y/2.) as f32 * PHYSICS_SCALE)
+                    .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build())
+            },
+            _ => Err(())
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
