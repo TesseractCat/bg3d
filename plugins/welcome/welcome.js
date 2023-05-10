@@ -24,10 +24,10 @@ self.world.addEventListener("start", () => {
         moveable: false
     });
 
-    let standardDeck = new Deck({
+    let deck = new Deck({
         name: 'Cards',
         back: 'generic/cards/back.webp',
-        contents: getCards(), cornerRadius: 0.06,
+        contents: standardDeck(), cornerRadius: 0.06,
         position: new Vector3(bird.position.x + 3.25, 1, bird.position.z),
         rotation: new Vector3(0, -Math.PI/2 - Math.PI/32, 0),
         size: new Vector2(2.5, 3.5),
@@ -37,10 +37,15 @@ self.world.addEventListener("start", () => {
         position: bird.position.setComponent(1, 1),
     });
 
+    let meeple = new Pawn({
+        name: "Meeple",
+        tint: 0xdd2222,
+        mesh: 'generic/meeple.gltf'
+    });
     let bag = new Container({
-        name: "Bird Bag", holds: bird, capacity: 5,
-        position: new Vector3(1.9,1.25,-1.35),
-        rotation: new Vector3(0, -Math.PI/6, 0),
+        name: "Mystery Bag", holds: meeple, capacity: 5,
+        position: new Vector3(-6.5, 0, 0),
+        rotation: new Vector3(0, Math.PI/16, 0),
         mesh: 'generic/bag.gltf',
     })
 
@@ -56,7 +61,7 @@ self.world.addEventListener("start", () => {
             name: "Post-it", tint: 0xFF99FF,
             position: new Vector3(1.0, 2.8, 2.8),
             rotation: new Vector3(0, Math.PI/22, 0),
-            texture: 'notes/cards.webp',
+            texture: 'notes/info.webp',
             mesh: 'notes/post-it.gltf',
         }),
         new Pawn({
@@ -68,7 +73,7 @@ self.world.addEventListener("start", () => {
         }),
     ];
 
-    self.world.add([stand, bird, birdSnap, standardDeck, mat]);
+    self.world.add([stand, bird, birdSnap, deck, mat, bag]);
     self.world.add(postIts);
 
     let queen = new Pawn({

@@ -62,7 +62,7 @@ window.onload = () => {
             let url = game[1];
 
             if (url.endsWith("zip")) {
-                let blob = await ((await fetch(url)).blob());
+                let blob = await ((await fetch(`${url}?v=${window.version}`)).blob());
                 let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
                 await pluginLoader.loadFromFile(file);
             } else {

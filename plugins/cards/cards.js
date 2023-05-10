@@ -2,7 +2,7 @@ self.world.addEventListener("start", async () => {
     let deck = new Deck({
         name: 'Cards',
         back: 'generic/cards/back.webp',
-        contents: getCards(), cornerRadius: 0.06,
+        contents: standardDeck(), cornerRadius: 0.06,
         position: new Vector3(0, 1, 0),
         size: new Vector2(2.5, 3.5),
     });
