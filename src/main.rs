@@ -301,7 +301,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 // --- PAWN EVENTS ---
 
 fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
-    if user_id != lobby.host || lobby.pawns.len() >= 1024 { return Err("Failed to add pawn".into()); }
+    if /*user_id != lobby.host || */lobby.pawns.len() >= 1024 { return Err("Failed to add pawn".into()); }
 
     if lobby.pawns.get(&pawn.id).is_some() { return Err("Pawn ID collision".into()); }
     
