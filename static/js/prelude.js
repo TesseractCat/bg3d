@@ -14,12 +14,13 @@ class Pawn {
 
     mesh;
     tint;
+    texture;
 
     moveable;
     name;
 
     constructor({id = null, position = new Vector3(), rotation = new Vector3(),
-                 mesh, tint, moveable = true, name = null}) {
+                 mesh, tint, texture, moveable = true, name = null}) {
         this.id = (id == null) ? Pawn.nextId() : id;
 
         this.position = new Vector3().copy(position);
@@ -27,6 +28,7 @@ class Pawn {
 
         this.mesh = mesh;
         this.tint = tint;
+        this.texture = texture;
 
         this.moveable = moveable;
         this.name = name;
@@ -214,5 +216,11 @@ self.SnapPoint = SnapPoint;
 
 self.world = new World();
 self.timeout = timeout;
+
+self.getCards = () => {
+    let suits = ['S','D','C','H'];
+    let ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    return suits.flatMap((suit) => ranks.map((rank) => `generic/cards/${rank}${suit}.webp`));
+};
 
 // TODO: https://stackoverflow.com/questions/10653809/making-webworkers-a-safe-environment

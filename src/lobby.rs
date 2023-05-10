@@ -93,6 +93,7 @@ pub struct Pawn {
     pub name: Option<String>, // Immutable Properties
     pub mesh: Option<String>,
     pub tint: Option<u64>,
+    pub texture: Option<String>,
 
     pub moveable: bool, // Physics properties
     

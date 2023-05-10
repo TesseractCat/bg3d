@@ -1,4 +1,4 @@
-import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color } from 'three';
+import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color, TextureLoader } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import Manager from './manager';
@@ -18,6 +18,7 @@ Math.clamp01 = function(x) {
 export class Pawn {
     static gltfLoader = new GLTFLoader()
         .setPath(window.location.href + '/assets/');
+    static textureLoader = new TextureLoader().setPath(window.location.href + '/assets/');
     static audioLoader = new AudioLoader().setPath(window.location.href + '/assets/');
 
     // Serialized
@@ -32,6 +33,7 @@ export class Pawn {
     name;
     mesh;
     tint;
+    texture;
     
     moveable = true;
     
@@ -60,7 +62,7 @@ export class Pawn {
     
     constructor({
         position = new Vector3(), rotation = new Quaternion(),
-        mesh = null, tint = 0xffffff,
+        mesh = null, tint = 0xffffff, texture = null,
         moveable = true, id = null, name = null
     }) {
         this.id = (id == null) ? Pawn.nextId() : id;
@@ -73,6 +75,7 @@ export class Pawn {
         this.moveable = moveable;
         this.mesh = mesh;
         this.tint = tint;
+        this.texture = texture;
         
         // Create new NetworkedTransform
         this.networkTransform = new NetworkedTransform(position, rotation);
@@ -89,8 +92,15 @@ export class Pawn {
                     if (child instanceof Mesh) {
                         child.material.color.multiply(new Color(this.tint));
 
-                        if (child.material.map !== null)
+                        if (child.material.map !== null) {
                             child.material.map.anisotropy = 4;
+                            if (this.texture) {
+                                Pawn.textureLoader.load(this.texture, (texture) => {
+                                    texture.flipY = false;
+                                    child.material.map = texture;
+                                });
+                            }
+                        }
 
                         let oldMaterial = child.material;
                         if (window.isMobile) {

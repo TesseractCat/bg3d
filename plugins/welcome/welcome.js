@@ -1,25 +1,85 @@
-self.world.addEventListener("start", async () => {
+self.world.addEventListener("start", () => {
     let bird = new Pawn({
         name: "Bird Statue",
-        position: new Vector3(-1.9,2.8,-1.35),
+        position: new Vector3(-1.6,2.8,-1.8),
         rotation: new Vector3(0, Math.PI/6, 0),
         mesh: 'generic/bird.glb',
     });
 
-    let deck = new Deck({
-        name: "Welcome", contents: ["generic/welcome.webp"],
-        sideColor: 0x000000, cornerRadius: 0.06,
-        position: new Vector3(0.9, 0, 0),
-        size: new Vector2(1.25 * 8, 1 * 8),
+    let stand = new Pawn({
+        name: "Stand",
+        tint: 0xf1ede1,
+        position: bird.position.setComponent(1, 0),
+        mesh: 'generic/stand.gltf',
         moveable: false
     });
 
-    let birdSnap = new SnapPoint({
-        position: new Vector3(-1.9,0,-1.35),
+    let mat = new Deck({
+        name: "Mat", contents: ["notes/cork.webp"],
+        border: "notes/mat.svg",
+        sideColor: 0x000000, cornerRadius: 0.03,
+        position: new Vector3(0, 0, 0.5),
+        rotation: new Vector3(0, 0, 0),
+        size: new Vector2(10, 9),
+        moveable: false
     });
 
+    let standardDeck = new Deck({
+        name: 'Cards',
+        back: 'generic/cards/back.webp',
+        contents: getCards(), cornerRadius: 0.06,
+        position: new Vector3(bird.position.x + 3.25, 1, bird.position.z),
+        rotation: new Vector3(0, -Math.PI/2 - Math.PI/32, 0),
+        size: new Vector2(2.5, 3.5),
+    });
+
+    let birdSnap = new SnapPoint({
+        position: bird.position.setComponent(1, 1),
+    });
+
+    let bag = new Container({
+        name: "Bird Bag", holds: bird, capacity: 5,
+        position: new Vector3(1.9,1.25,-1.35),
+        rotation: new Vector3(0, -Math.PI/6, 0),
+        mesh: 'generic/bag.gltf',
+    })
+
+    let postIts = [
+        new Pawn({
+            name: "Post-it", tint: 0xFFFF99,
+            position: new Vector3(-2.8, 2.8, 3),
+            rotation: new Vector3(0, -Math.PI/32, 0),
+            texture: 'notes/welcome.webp',
+            mesh: 'notes/post-it.gltf',
+        }),
+        new Pawn({
+            name: "Post-it", tint: 0xFF99FF,
+            position: new Vector3(1.0, 2.8, 2.8),
+            rotation: new Vector3(0, Math.PI/22, 0),
+            texture: 'notes/cards.webp',
+            mesh: 'notes/post-it.gltf',
+        }),
+        new Pawn({
+            name: "Post-it", tint: 0xBBFFFF,
+            position: new Vector3(6.0, 2.8, -1.6),
+            rotation: new Vector3(0, Math.PI/2 - Math.PI/64, 0),
+            texture: 'notes/cards.webp',
+            mesh: 'notes/post-it.gltf',
+        }),
+    ];
+
+    self.world.add([stand, bird, birdSnap, standardDeck, mat]);
+    self.world.add(postIts);
+
+    let queen = new Pawn({
+        name: "Queen",
+        mesh: 'chess/queen.gltf',
+        position: new Vector3(3.5,1,1),
+        tint: 0x303030
+    });
     let die = new Dice({
-        name: 'Die', position: new Vector3(0,1,0),
+        name: 'Die',
+        position: new Vector3(4,1,3),
         mesh: 'generic/die.gltf',
         rollRotations: [
             new Vector3(0, 0, 0),
@@ -30,23 +90,7 @@ self.world.addEventListener("start", async () => {
             new Vector3(0, 0, -Math.PI/2),
         ]
     });
-
-    let bag = new Container({
-        name: "Bird Bag", holds: bird, capacity: 5,
-        position: new Vector3(1.9,1.25,-1.35),
-        rotation: new Vector3(0, -Math.PI/6, 0),
-        mesh: 'generic/bag.gltf',
-    })
-    //self.world.add(bag);
-
-    let postIt = new Pawn({
-        name: "Post-it", tint: 0xFFFF99,
-        position: new Vector3(2, 2.8, 0),
-        mesh: 'generic/post-it.gltf',
-    });
-    self.world.add(postIt);
-
-    self.world.add([bird, deck, birdSnap, die]);
+    self.world.add([queen, die]);
 
     /*for (let i = 0; i < 5; i++) {
         let birdHeight = 4.3;
