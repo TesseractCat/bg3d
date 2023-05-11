@@ -167,7 +167,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
     });
     
     // Track user
-    let user_id: usize = {
+    let user_id = {
         let mut host: bool = false;
 
         // Create lobby if it doesn't exist
@@ -213,7 +213,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
-        let color: Color = match (user_id + 1) % 7 {
+        let color: Color = match (user_id.0 + 1) % 7 {
             1 => Color::Red,
             2 => Color::Blue,
             3 => Color::Purple,
@@ -236,18 +236,18 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
             Ok(Some(r)) => match r {
                 Ok(m) => m,
                 Err(e) => {
-                    println!("Websocket connection error, user <{user_id}> disconnected: {}", e);
+                    println!("Websocket connection error, user <{user_id:?}> disconnected: {}", e);
                     break;
                 }
             },
             Ok(None) => {continue;},
             Err(_) => {
-                println!("Websocket connection closed, user <{user_id}> timed-out");
+                println!("Websocket connection closed, user <{user_id:?}> timed-out");
                 break;
             },
         };
         if matches!(message, Message::Close(_)) {
-            println!("Websocket connection closed, user <{user_id}> left");
+            println!("Websocket connection closed, user <{user_id:?}> left");
             break;
         }
         if !matches!(message, Message::Text(_)) {
@@ -290,7 +290,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                 }
             },
             Err(err) => {
-                println!("User <{user_id}> sent malformed message: {:?}", err);
+                println!("User <{user_id:?}> sent malformed message: {:?}", err);
             }
         };
     }
@@ -300,7 +300,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 
 // --- PAWN EVENTS ---
 
-fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
+fn add_pawn(_user_id: UserId, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
     if /*user_id != lobby.host || */lobby.pawns.len() >= 1024 { return Err("Failed to add pawn".into()); }
 
     if lobby.pawns.get(&pawn.id).is_some() { return Err("Pawn ID collision".into()); }
@@ -353,7 +353,7 @@ fn add_pawn(user_id: usize, lobby: &mut Lobby, mut pawn: Cow<'_, Pawn>) -> Resul
     lobby.pawns.insert(pawn.id, pawn.into_owned());
     Ok(())
 }
-fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Result<(), Box<dyn Error>> {
+fn remove_pawns(_user_id: UserId, lobby: &mut Lobby, pawn_ids: Vec<PawnId>) -> Result<(), Box<dyn Error>> {
     // if user_id != lobby.host { return Err("Failed to remove pawn".into()); }
     
     // Remove pawn from lobby
@@ -363,7 +363,7 @@ fn remove_pawns(_user_id: usize, lobby: &mut Lobby, pawn_ids: Vec<u64>) -> Resul
     
     lobby.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })
 }
-fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn clear_pawns(user_id: UserId, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { return Err("Failed to clear pawns".into()); }
 
     // Remove pawn rigidbodies from lobby
@@ -377,23 +377,23 @@ fn clear_pawns(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> 
     
     lobby.users.values().send_event(&Event::ClearPawns {})
 }
-fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
+fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
     // Iterate through and update pawns, sanitize updates when relaying:
     //  - Discard updates updating invalid pawns, non-owned pawns
     //  - Discard position and rotation changes on updates to immovable pawns
     updates.retain_mut(|update| {
-        let pawn_id: u64 = update.id;
+        let pawn_id = update.id;
         let pawn: &mut Pawn = match lobby.pawns.get_mut(&pawn_id) {
             Some(p) => p,
             None => {
-                println!("User <{user_id}> trying to update invalid pawn");
+                println!("User <{user_id:?}> trying to update invalid pawn");
                 return false;
             },
         };
 
         match pawn.selected_user {
             Some(selected_user_id) if selected_user_id != user_id => {
-                println!("User <{user_id}> trying to update non-owned pawn");
+                println!("User <{user_id:?}> trying to update non-owned pawn");
                 return false;
             },
             _ => {},
@@ -469,7 +469,7 @@ fn update_pawns(user_id: usize, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>)
         .send_event(&Event::UpdatePawns { updates, collisions: None })
 }
 
-fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: PawnId, count: Option<u64>) -> Result<(), Box<dyn Error>> {
     let from = lobby.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
 
     let flipped = from.flipped();
@@ -537,7 +537,7 @@ fn extract_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, to_id: u64, c
     })?;
     add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
-fn merge_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -> Result<(), Box<dyn Error>> {
+fn merge_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnId) -> Result<(), Box<dyn Error>> {
     if !lobby.pawns.contains_key(&from_id) || !lobby.pawns.contains_key(&into_id) {
         // Bail out early
         return Err("From/into pawn missing when merging".into());
@@ -595,10 +595,10 @@ fn merge_pawns(_user_id: usize, lobby: &mut Lobby, from_id: u64, into_id: u64) -
 
 // --- GAME REGISTRATION EVENTS ---
 
-fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> Result<(), Box<dyn Error>> {
+fn register_game(user_id: UserId, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { return Err("Failed to register game".into()); }
 
-    println!("User <{user_id}> registering game \"{}\" for lobby [{}]",
+    println!("User <{user_id:?}> registering game \"{}\" for lobby [{}]",
              info.name, lobby.name);
 
     lobby.info = Some(info.into_owned());
@@ -608,10 +608,10 @@ fn register_game(user_id: usize, lobby: &mut Lobby, info: Cow<'_, GameInfo>) -> 
             Cow::Borrowed(lobby.info.as_ref().ok_or("Lobby missing GameInfo")?)
         ))
 }
-fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
+fn register_assets(user_id: UserId, lobby: &mut Lobby, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host || lobby.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
-    println!("User <{user_id}> registering assets for lobby [{}]:", lobby.name);
+    println!("User <{user_id:?}> registering assets for lobby [{}]:", lobby.name);
     for (name, data) in assets.into_iter() {
         if lobby.assets.values().fold(0, |acc, a| acc + a.data.len()) > 1024 * 1024 * 40 { return Err("Attempting to register >40 MiB of assets".into()); }
         if lobby.assets.get(&name).is_some() { return Err("Attempting to overwrite asset".into()); }
@@ -638,22 +638,22 @@ fn register_assets(user_id: usize, lobby: &mut Lobby, assets: HashMap<String, St
          .send_event(&Event::RegisterAssets { assets: HashMap::default() })?;
     Ok(())
 }
-fn clear_assets(user_id: usize, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
+fn clear_assets(user_id: UserId, lobby: &mut Lobby) -> Result<(), Box<dyn Error>> {
     if user_id != lobby.host { return Err("Failed to clear assets".into()); }
 
     lobby.assets = HashMap::new();
 
-    println!("User <{user_id}> clearing assets for lobby [{}]", lobby.name);
+    println!("User <{user_id:?}> clearing assets for lobby [{}]", lobby.name);
     Ok(())
 }
 
 // --- USER EVENTS ---
 
-fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
+fn user_joined(user_id: UserId, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
     // Get user
     let user = lobby.users.get(&user_id).ok_or("Invalid user id")?;
     
-    println!("User <{}> joined lobby [{}] with {} users and {} pawns",
+    println!("User <{:?}> joined lobby [{}] with {} users and {} pawns",
         user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
     
     user.send_event(&Event::Start {
@@ -674,7 +674,7 @@ fn user_joined(user_id: usize, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
         })
 }
 
-async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) -> Result<(), Box<dyn Error>> {
+async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies) -> Result<(), Box<dyn Error>> {
     let lobbies_rl = lobbies.read().await;
     let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.write().await;
     
@@ -725,7 +725,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
             // Tell the new host
             lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost {})?;
 
-            println!("Host of lobby [{lobby_name}] left, reassigning <{user_id}> -> <{}>", lobby.host);
+            println!("Host of lobby [{lobby_name}] left, reassigning <{user_id:?}> -> <{:?}>", lobby.host);
         }
     } else { // Otherwise, delete lobby if last user
         lobby.physics_handle.as_ref().ok_or("Attempting to remove lobby without physics handle")?.abort();
@@ -740,7 +740,7 @@ async fn user_disconnected(user_id: usize, lobby_name: &str, lobbies: &Lobbies) 
     Ok(())
 }
 
-fn ping(user_id: usize, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
+fn ping(user_id: UserId, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
     // Pong
     lobby.users.get(&user_id).ok_or("Invalid user id")?.send_event(&Event::Pong { idx })?;
     Ok(())
@@ -748,7 +748,7 @@ fn ping(user_id: usize, lobby: &Lobby, idx: u64) -> Result<(), Box<dyn Error>> {
 
 // -- CURSOR EVENTS --
 
-fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<(), Box<dyn Error>> {
+fn update_cursor(user_id: UserId, lobby: &mut Lobby, position: Vec3) -> Result<(), Box<dyn Error>> {
     let mut user = lobby.users.get_mut(&user_id).ok_or("Invalid user id")?;
 
     user.cursor_position = position;
@@ -757,7 +757,7 @@ fn update_cursor(user_id: usize, lobby: &mut Lobby, position: Vec3) -> Result<()
 
 // -- CHAT EVENTS --
 
-fn chat(user_id: usize, lobby: &Lobby, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
+fn chat(user_id: UserId, lobby: &Lobby, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
     lobby.users.values().send_event(&Event::Chat {
         id: Some(user_id),
         content: Cow::Borrowed(&content)

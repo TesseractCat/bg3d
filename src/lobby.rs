@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
 
 use serde::{Serialize, Deserialize};
@@ -85,10 +85,12 @@ impl TryInto<Collider> for &PawnData {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Hash)]
+pub struct PawnId(u64);
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Pawn {
-    pub id: u64, // Identifiers
+    pub id: PawnId, // Identifiers
     
     pub name: Option<String>, // Immutable Properties
     pub mesh: Option<String>,
@@ -100,7 +102,7 @@ pub struct Pawn {
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
 	#[serde(skip)]
-    pub selected_user: Option<usize>,
+    pub selected_user: Option<UserId>,
     pub select_rotation: Vec3,
     
     #[serde(flatten)]
@@ -115,7 +117,7 @@ pub struct Pawn {
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PawnUpdate {
-    pub id: u64,
+    pub id: PawnId,
     
     pub name: Option<String>,
     pub mesh: Option<String>,
@@ -170,23 +172,23 @@ pub struct GameInfo {
 }
 pub struct Lobby {
     pub name: String,
-    pub host: usize,
+    pub host: UserId,
     pub info: Option<GameInfo>,
 
-    pub users: HashMap<usize, User>, // FIXME: Make these both u16
-    pub pawns: HashMap<u64, Pawn>,
+    pub users: HashMap<UserId, User>, // FIXME: Make these both u16
+    pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
     pub assets: HashMap<String, Asset>,
 
     pub world: PhysicsWorld,
     pub physics_handle: Option<JoinHandle<()>>,
 
-    next_user_id: AtomicUsize,
+    next_user_id: AtomicU64,
 }
 impl Lobby {
     pub fn new() -> Lobby {
         Lobby {
             name: "".to_string(),
-            host: 0,
+            host: UserId(0),
             info: None,
 
             users: HashMap::new(),
@@ -196,18 +198,18 @@ impl Lobby {
             world: PhysicsWorld::new(PHYSICS_RATE),
             physics_handle: None,
 
-            next_user_id: AtomicUsize::new(0),
+            next_user_id: AtomicU64::new(0),
         }
     }
 
-    pub fn remove_pawn(&mut self, id: u64) -> Option<Pawn> {
+    pub fn remove_pawn(&mut self, id: PawnId) -> Option<Pawn> {
         // Remove rigidbody first
         let rb_handle = self.pawns.get(&id)?.rigid_body?;
         self.world.remove_rigidbody(rb_handle);
         self.pawns.remove(&id)
     }
-    pub fn next_user_id(&self) -> usize {
-        self.next_user_id.fetch_add(1, Ordering::Relaxed)
+    pub fn next_user_id(&self) -> UserId {
+        UserId(self.next_user_id.fetch_add(1, Ordering::Relaxed))
     }
 
     pub fn step(&mut self, send_update_pawns: bool) -> Result<(), Box<dyn Error>> {

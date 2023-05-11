@@ -2,13 +2,13 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-use crate::user::User;
-use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo};
+use crate::user::{User, UserId};
+use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo, PawnId};
 use crate::physics::CollisionAudioInfo;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CursorUpdate {
-    pub id: usize,
+    pub id: UserId,
     pub position: Vec3,
 }
 
@@ -31,13 +31,13 @@ pub enum Event<'a> {
     Join {},
     #[serde(skip_deserializing)]
     Start {
-        id: usize, host: bool, color: &'a str, info: &'a Option<GameInfo>,
+        id: UserId, host: bool, color: &'a str, info: &'a Option<GameInfo>,
         users: Vec<&'a User>, pawns: Vec<&'a Pawn>
     },
     AssignHost {},
     #[serde(skip_deserializing)]
-    Connect { id: usize, color: &'a str },
-    Disconnect { id: usize },
+    Connect { id: UserId, color: &'a str },
+    Disconnect { id: UserId },
 
     Ping { idx: u64 },
     Pong { idx: u64 },
@@ -45,7 +45,7 @@ pub enum Event<'a> {
     AddPawn { pawn: Cow<'a, Pawn> }, // Serde always deserializes Cows as Owned
     RemovePawns {
         #[serde(rename = "pawns")]
-        ids: Vec<u64>
+        ids: Vec<PawnId>
     },
     ClearPawns {},
     UpdatePawns {
@@ -55,8 +55,8 @@ pub enum Event<'a> {
         collisions: Option<Vec<CollisionAudioInfo>>,
     },
 
-    ExtractPawns { from_id: u64, to_id: u64, count: Option<u64> },
-    MergePawns { from_id: u64, into_id: u64 },
+    ExtractPawns { from_id: PawnId, to_id: PawnId, count: Option<u64> },
+    MergePawns { from_id: PawnId, into_id: PawnId },
 
     RegisterGame(Cow<'a, GameInfo>),
     RegisterAssets { assets: HashMap<String, String> },
@@ -65,7 +65,7 @@ pub enum Event<'a> {
     SendCursor { position: Vec3 },
     RelayCursors { cursors: Vec<CursorUpdate> },
 
-    Chat { id: Option<usize>, content: Cow<'a, String> },
+    Chat { id: Option<UserId>, content: Cow<'a, String> },
 
-    PawnEvent { id: u64, target_host: bool, data: PawnEvent },
+    PawnEvent { id: PawnId, target_host: bool, data: PawnEvent },
 }

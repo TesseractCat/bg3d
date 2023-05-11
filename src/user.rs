@@ -1,11 +1,12 @@
+use std::collections::HashMap;
 use std::error::Error;
 use tokio::sync::{mpsc, mpsc::error::SendError};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor};
 
 use crate::events::Event;
-use crate::lobby::Vec3;
+use crate::lobby::{Vec3, Pawn, PawnId};
 
 pub trait Sender {
     fn send_event(&mut self, content: &Event) -> Result<(), Box<dyn Error>>;
@@ -24,11 +25,15 @@ impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Hash)]
+pub struct UserId(pub u64);
 #[derive(Clone, Serialize, Debug)]
 pub struct User {
-    pub id: usize,
+    pub id: UserId,
     pub color: String,
 
+    #[serde(skip)]
+    pub hand: HashMap<PawnId, Pawn>,
     #[serde(skip)]
     pub tx: mpsc::UnboundedSender<Message>,
     #[serde(skip)]
@@ -36,10 +41,11 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(id: usize, tx: mpsc::UnboundedSender<Message>, color: Color) -> User {
+    pub fn new(id: UserId, tx: mpsc::UnboundedSender<Message>, color: Color) -> User {
         User {
             id,
             tx,
+            hand: HashMap::new(),
             color: RandomColor::new().hue(color).luminosity(Luminosity::Dark).to_hex(),
             cursor_position: Vec3 {x:0.0,y:0.0,z:0.0}
         }
