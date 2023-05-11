@@ -13,16 +13,10 @@ pub struct CursorUpdate {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum PawnEvent {
-    InsertItem,
-    GrabItem,
-    Remove,
-
-    Insert { top: bool, contents: Vec<String> },
-    GrabCards { count: Option<usize> },
-    Deal,
-    Shuffle,
+#[serde(tag = "type", content = "id", rename_all = "snake_case")]
+pub enum PawnOrUser {
+    Pawn(PawnId),
+    User(UserId)
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -55,8 +49,11 @@ pub enum Event<'a> {
         collisions: Option<Vec<CollisionAudioInfo>>,
     },
 
+    // 'Extracting' a pawn and 'taking' a pawn are different
+    // because extracting creates a new pawn with a new ID
     ExtractPawns { from_id: PawnId, to_id: PawnId, count: Option<u64> },
-    MergePawns { from_id: PawnId, into_id: PawnId },
+    StorePawn { from_id: PawnId, into_id: PawnOrUser },
+    TakePawn { from_id: UserId, target_id: PawnId, position_hint: Option<Vec3> },
 
     RegisterGame(Cow<'a, GameInfo>),
     RegisterAssets { assets: HashMap<String, String> },
@@ -66,6 +63,4 @@ pub enum Event<'a> {
     RelayCursors { cursors: Vec<CursorUpdate> },
 
     Chat { id: Option<UserId>, content: Cow<'a, String> },
-
-    PawnEvent { id: PawnId, target_host: bool, data: PawnEvent },
 }

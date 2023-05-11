@@ -272,7 +272,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                     Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
                     Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
-                    Event::MergePawns { from_id, into_id } => merge_pawns(user_id, lobby.write().await.deref_mut(), from_id, into_id),
+                    Event::StorePawn { from_id, into_id } => store_pawn(user_id, lobby.write().await.deref_mut(), from_id, into_id),
+                    Event::TakePawn { from_id, target_id, position_hint } => take_pawn(user_id, lobby.write().await.deref_mut(), from_id, target_id, position_hint),
 
                     Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
                     Event::RegisterAssets { assets } => register_assets(user_id, lobby.write().await.deref_mut(), assets),
@@ -537,60 +538,93 @@ fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: Pa
     })?;
     add_pawn(lobby.host, lobby, Cow::Owned(to))
 }
-fn merge_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnId) -> Result<(), Box<dyn Error>> {
-    if !lobby.pawns.contains_key(&from_id) || !lobby.pawns.contains_key(&into_id) {
+fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
+    if !match into_id {
+        PawnOrUser::User(id) => lobby.pawns.contains_key(&from_id) && lobby.users.contains_key(&id),
+        PawnOrUser::Pawn(id) => lobby.pawns.contains_key(&from_id) && lobby.pawns.contains_key(&id),
+    } {
         // Bail out early
         return Err("From/into pawn missing when merging".into());
     }
+
     let from = lobby.remove_pawn(from_id).unwrap();
-    let into = lobby.pawns.get_mut(&into_id).unwrap();
+    match into_id {
+        PawnOrUser::Pawn(into_id) => {
+            let into = lobby.pawns.get_mut(&into_id).unwrap();
 
-    let flipped = into.flipped();
-    match &mut into.data {
-        PawnData::Container { capacity, .. } => {
-            if let Some(c) = *capacity {
-                capacity.replace(c + 1);
-            }
-            Ok::<(), Box<dyn Error>>(())
-        },
-        PawnData::Deck { contents: into_contents, .. } => {
-            if let PawnData::Deck { contents: mut from_contents, ..} = from.data {
-                if flipped {
-                    into_contents.append(&mut from_contents);
-                } else {
-                    from_contents.append(into_contents);
-                    *into_contents = from_contents;
-                }
-
-                // Update into's collider
-                {
-                    let collider_handles: Vec<ColliderHandle> = {
-                        let rb_handle = into.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-                        let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
-                        rb.colliders().iter().map(|h| *h).collect()
-                    };
-                    for handle in collider_handles {
-                        lobby.world.remove_collider(handle);
+            let flipped = into.flipped();
+            match &mut into.data {
+                PawnData::Container { capacity, .. } => {
+                    if let Some(c) = *capacity {
+                        capacity.replace(c + 1);
                     }
-    
-                    lobby.world.insert_with_parent((&into.data).try_into().unwrap(),
-                                                   into.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
-                }
-            }
-            Ok(())
-        },
-        _ => Err("Trying to merge into non-container pawn".into()),
-    }?;
+                    Ok::<(), Box<dyn Error>>(())
+                },
+                PawnData::Deck { contents: into_contents, .. } => {
+                    if let PawnData::Deck { contents: mut from_contents, ..} = from.data {
+                        if flipped {
+                            into_contents.append(&mut from_contents);
+                        } else {
+                            from_contents.append(into_contents);
+                            *into_contents = from_contents;
+                        }
 
-    lobby.users.values().send_event(&Event::UpdatePawns {
-        updates: vec![PawnUpdate {
-            id: into.id,
-            data: Some(into.data.clone()),
-            ..Default::default()
-        }],
-        collisions: None
-    })?;
-    lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from.id] })
+                        // Update into's collider
+                        {
+                            let collider_handles: Vec<ColliderHandle> = {
+                                let rb_handle = into.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
+                                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+                                rb.colliders().iter().map(|h| *h).collect()
+                            };
+                            for handle in collider_handles {
+                                lobby.world.remove_collider(handle);
+                            }
+            
+                            lobby.world.insert_with_parent((&into.data).try_into().unwrap(),
+                                                        into.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+                        }
+                    }
+                    Ok(())
+                },
+                _ => Err("Trying to merge into non-container pawn".into()),
+            }?;
+
+            lobby.users.values().send_event(&Event::UpdatePawns {
+                updates: vec![PawnUpdate {
+                    id: into.id,
+                    data: Some(into.data.clone()),
+                    ..Default::default()
+                }],
+                collisions: None
+            })?;
+        },
+        PawnOrUser::User(into_id) => {
+            let into = lobby.users.get_mut(&into_id).unwrap();
+            into.hand.insert(from.id, from);
+
+            if user_id != into_id {
+                // Another player has inserted a card into a hand
+                // i.e. 'dealt' a card
+                // TODO: Send some event here
+                unimplemented!();
+            }
+        }
+    }
+    lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })
+}
+fn take_pawn(user_id: UserId, lobby: &mut Lobby, from_id: UserId, target_id: PawnId, position_hint: Option<Vec3>) -> Result<(), Box<dyn Error>> {
+    if user_id != from_id { return Err("Attempting to take pawn from non-self user".into()); }
+
+    let mut taken_pawn = lobby.users
+                          .get_mut(&from_id)
+                          .ok_or("Lobby missing user")?.hand
+                          .remove(&target_id).ok_or("User doesn't have request pawn")?;
+    
+    if let Some(position_hint) = position_hint {
+        taken_pawn.position = position_hint;
+    }
+
+    add_pawn(lobby.host, lobby, Cow::Owned(taken_pawn))
 }
 
 // --- GAME REGISTRATION EVENTS ---

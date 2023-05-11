@@ -109,17 +109,21 @@ export default class Manager extends EventTarget {
             
             if (hits.length >= 1) {
                 let hitPoint = hits[0].point.clone();
-                card.position = hitPoint.add(new Vector3(0, 2, 0));
+                let hint = hitPoint.add(new Vector3(0, 2, 0));
                 
-                let cardPawn = deserializePawn(card);
                 const grabHandler = (e) => {
-                    if (e.detail.pawn.id == cardPawn.id) {
-                        this.pawns.get(cardPawn.id).grab(0);
+                    if (e.detail.pawn.id == card.id) {
+                        this.pawns.get(card.id).grab(0);
                         this.removeEventListener("add_pawn", grabHandler);
                     }
                 };
                 this.addEventListener("add_pawn", grabHandler);
-                this.sendAddPawn(cardPawn);
+                this.sendSocket({
+                    type: "take_pawn",
+                    from_id: this.id,
+                    target_id: card.id,
+                    position_hint: hint
+                });
             }
         });
 

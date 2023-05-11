@@ -161,7 +161,11 @@ export class Deck extends Pawn {
 
             window.manager.removePawn(this.id);
             window.manager.hand.pushCard(this, true);
-            window.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
+            window.manager.sendSocket({
+                type: "store_pawn",
+                from_id: this.id,
+                into_id: {type: "user", id: window.manager.id},
+            });
 
             // 'Release' pointer on OrbitControls
             // Note, call this after super.release(false) to prevent merging
@@ -195,8 +199,12 @@ export class Deck extends Pawn {
             super.release(false);
 
             window.manager.removePawn(this.id);
-            window.manager.hand.pushCard(this);
-            window.manager.sendRemovePawn(this.id); // FIXME: Callback on failure
+            window.manager.hand.pushCard(this, true);
+            window.manager.sendSocket({
+                type: "store_pawn",
+                from_id: this.id,
+                into_id: {type: "user", id: window.manager.id},
+            });
         }
         if (!this.selected && e.key == 't') {
             this.grabCards();
@@ -204,9 +212,9 @@ export class Deck extends Pawn {
     }
 
     deal() {
-        window.manager.sendEvent("pawn", false, {id: this.id, name: "deal"});
+        console.error("Unimplemented!");
     }
-    grabCards(intoHand = false, count = 1) {
+    grabCards(count = 1) {
         if (count < 1)
             return;
         if (this.data.contents.length - count < 1)
@@ -225,33 +233,15 @@ export class Deck extends Pawn {
     
             let cards = window.manager.pawns.get(e.detail.pawn.id);
     
-            if (intoHand && count == 1) {
-                window.manager.removePawn(cards.id);
-                window.manager.hand.pushCard(cards);
-                window.manager.sendRemovePawn(cards.id); // FIXME: Callback on failure
-            } else {
-                if (cards)
-                    cards.grab(0);
-            }
+            if (cards)
+                cards.grab(0);
 
             window.manager.removeEventListener("add_pawn", handleGrabCards);
         };
         window.manager.addEventListener("add_pawn", handleGrabCards);
     }
     split() {
-        this.grabCards(false, Math.floor(this.data.contents.length/2));
-    }
-    handleEvent(data) {
-        let out = super.handleEvent(data);
-        switch (data.name) {
-            case "deal":
-                this.grabCards(true);
-                break;
-            case "shuffle":
-                this.shuffle();
-                break;
-        }
-        return out;
+        this.grabCards(Math.floor(this.data.contents.length/2));
     }
     
     insert(top, contents) {
@@ -288,9 +278,9 @@ export class Deck extends Pawn {
             animatePreview(start);
 
             window.manager.sendSocket({
-                type: "merge_pawns",
-                into_id: this.id,
+                type: "store_pawn",
                 from_id: rhs.id,
+                into_id: {type: "pawn", id: this.id},
             });
         }
     }
@@ -498,9 +488,9 @@ export class Container extends Pawn {
         }
 
         window.manager.sendSocket({
-            type: "merge_pawns",
-            into_id: this.id,
+            type: "store_pawn",
             from_id: rhs.id,
+            into_id: {type: "pawn", id: this.id},
         });
     }
 

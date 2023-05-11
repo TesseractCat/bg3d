@@ -101,13 +101,13 @@ pub struct Pawn {
     
     pub position: Vec3, // Mutable Properties
     pub rotation: Vec3,
-	#[serde(skip)]
-    pub selected_user: Option<UserId>,
     pub select_rotation: Vec3,
     
     #[serde(flatten)]
     pub data: PawnData, // Misc
 
+	#[serde(skip)]
+    pub selected_user: Option<UserId>,
 	#[serde(skip)]
 	pub rigid_body: Option<RigidBodyHandle>,
 	#[serde(skip, default = "Instant::now")]
