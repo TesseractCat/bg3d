@@ -708,6 +708,11 @@ export default class Manager extends EventTarget {
             } else if (type == "clear_pawns") {
                 this.clearPawns();
             }
+
+            if (type == "add_pawn_to_hand") {
+                if (!this.hand.cards.has(msg.pawn.id))
+                    this.hand.pushCard(deserializePawn(msg.pawn), false);
+            }
             
             if (type == "connect") {
                 // Add the connected player to the player list

@@ -48,10 +48,11 @@ pub enum Event<'a> {
         #[serde(skip_serializing_if = "Option::is_none")]
         collisions: Option<Vec<CollisionAudioInfo>>,
     },
+    AddPawnToHand { pawn: Cow<'a, Pawn> },
 
     // 'Extracting' a pawn and 'taking' a pawn are different
     // because extracting creates a new pawn with a new ID
-    ExtractPawns { from_id: PawnId, to_id: PawnId, count: Option<u64> },
+    ExtractPawns { from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64> },
     StorePawn { from_id: PawnId, into_id: PawnOrUser },
     TakePawn { from_id: UserId, target_id: PawnId, position_hint: Option<Vec3> },
 

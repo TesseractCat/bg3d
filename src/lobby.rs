@@ -204,9 +204,13 @@ impl Lobby {
 
     pub fn remove_pawn(&mut self, id: PawnId) -> Option<Pawn> {
         // Remove rigidbody first
-        let rb_handle = self.pawns.get(&id)?.rigid_body?;
-        self.world.remove_rigidbody(rb_handle);
-        self.pawns.remove(&id)
+        if let Some(rb_handle) = self.pawns.get(&id)?.rigid_body {
+            self.world.remove_rigidbody(rb_handle);
+        }
+
+        let mut pawn = self.pawns.remove(&id)?;
+        pawn.rigid_body = None;
+        Some(pawn)
     }
     pub fn next_user_id(&self) -> UserId {
         UserId(self.next_user_id.fetch_add(1, Ordering::Relaxed))

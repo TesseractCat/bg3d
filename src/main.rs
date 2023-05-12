@@ -271,7 +271,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                     Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
                     Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
 
-                    Event::ExtractPawns { from_id, to_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, to_id, count),
+                    Event::ExtractPawns { from_id, new_id, into_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, new_id, into_id, count),
                     Event::StorePawn { from_id, into_id } => store_pawn(user_id, lobby.write().await.deref_mut(), from_id, into_id),
                     Event::TakePawn { from_id, target_id, position_hint } => take_pawn(user_id, lobby.write().await.deref_mut(), from_id, target_id, position_hint),
 
@@ -287,7 +287,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                 };
 
                 if let Err(err) = event_result {
-                    println!("Error encountered while handling event: {:?}", err);
+                    println!("Error encountered while handling event:");
+                    println!(" - Event: {:?}", serde_json::from_str::<Event>(message.to_text()?)?);
+                    println!(" - Error: {:?}", err);
                 }
             },
             Err(err) => {
@@ -382,20 +384,13 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
     // Iterate through and update pawns, sanitize updates when relaying:
     //  - Discard updates updating invalid pawns, non-owned pawns
     //  - Discard position and rotation changes on updates to immovable pawns
-    updates.retain_mut(|update| {
+    updates = updates.into_iter().map(|mut update| {
         let pawn_id = update.id;
-        let pawn: &mut Pawn = match lobby.pawns.get_mut(&pawn_id) {
-            Some(p) => p,
-            None => {
-                println!("User <{user_id:?}> trying to update invalid pawn");
-                return false;
-            },
-        };
+        let pawn: &mut Pawn = lobby.pawns.get_mut(&pawn_id).ok_or("Trying to update invalid pawn")?;
 
         match pawn.selected_user {
             Some(selected_user_id) if selected_user_id != user_id => {
-                println!("User <{user_id:?}> trying to update non-owned pawn");
-                return false;
+                return Err("User trying to update non-owned pawn".into());
             },
             _ => {},
         };
@@ -417,8 +412,8 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
         // Update physics
         if let Some(PawnData::Deck { .. }) = &update.data {
             let collider_handles: Vec<ColliderHandle> = {
-                let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+                let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody")?;
+                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid")?;
                 rb.colliders().iter().map(|h| *h).collect()
             };
             for handle in collider_handles {
@@ -426,11 +421,11 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
             }
 
             lobby.world.insert_with_parent((update.data.as_ref().unwrap()).try_into().unwrap(),
-                                           pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+                                           pawn.rigid_body.ok_or("Pawn missing rigidbody")?);
         }
         if pawn.moveable {
-            let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-            let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+            let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody")?;
+            let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid")?;
             // Don't simulate selected pawns
             rb.set_body_type(if pawn.selected_user.is_none() {
                 RigidBodyType::Dynamic
@@ -438,7 +433,7 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
                 RigidBodyType::KinematicPositionBased
             }, true);
             for collider_handle in rb.colliders().iter() {
-                let collider = lobby.world.collider_set.get_mut(*collider_handle).ok_or("Invalid collider handle").unwrap();
+                let collider = lobby.world.collider_set.get_mut(*collider_handle).ok_or("Invalid collider handle")?;
                 collider.set_sensor(pawn.selected_user.is_some());
             }
             // Update position and velocity
@@ -461,8 +456,8 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
         // Refresh last updated
         pawn.last_updated = Instant::now();
 
-        true
-    });
+        Ok(update)
+    }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
     
     // Relay to other users that these pawns were changed
     lobby.users.values()
@@ -470,7 +465,9 @@ fn update_pawns(user_id: UserId, lobby: &mut Lobby, mut updates: Vec<PawnUpdate>
         .send_event(&Event::UpdatePawns { updates, collisions: None })
 }
 
-fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: PawnId, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+fn extract_pawns(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+    if lobby.pawns.contains_key(&new_id) { return Err("Attempting to extract with existing ID".into()); }
+
     let from = lobby.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
 
     let flipped = from.flipped();
@@ -483,7 +480,8 @@ fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: Pa
                     capacity.replace(c - 1);
                 }
                 let mut to = *holds.clone();
-                to.id = to_id;
+                to.rigid_body = None;
+                to.id = new_id;
                 to.position = from.position.clone();
                 to.position.y += 2.0;
                 Ok(to)
@@ -503,8 +501,8 @@ fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: Pa
                 // Update from's collider
                 {
                     let collider_handles: Vec<ColliderHandle> = {
-                        let rb_handle = from.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-                        let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+                        let rb_handle = from.rigid_body.ok_or("Pawn missing rigidbody")?;
+                        let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid")?;
                         rb.colliders().iter().map(|h| *h).collect()
                     };
                     for handle in collider_handles {
@@ -512,11 +510,12 @@ fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: Pa
                     }
     
                     lobby.world.insert_with_parent((&from.data).try_into().unwrap(),
-                                                   from.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+                                                   from.rigid_body.ok_or("Pawn missing rigidbody")?);
                 }
 
                 let mut to = from.clone();
-                to.id = to_id;
+                to.rigid_body = None;
+                to.id = new_id;
                 to.position = from.position.clone();
                 to.position.y += 1.0;
                 if let PawnData::Deck { contents: to_contents, .. } = &mut to.data {
@@ -536,7 +535,14 @@ fn extract_pawns(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, to_id: Pa
         }],
         collisions: None
     })?;
-    add_pawn(lobby.host, lobby, Cow::Owned(to))
+
+    match into_id {
+        Some(into_id) => {
+            lobby.pawns.insert(new_id, to);
+            store_pawn(user_id, lobby, new_id, PawnOrUser::User(into_id))
+        },
+        None => add_pawn(lobby.host, lobby, Cow::Owned(to)),
+    }
 }
 fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
     if !match into_id {
@@ -572,8 +578,8 @@ fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: Pawn
                         // Update into's collider
                         {
                             let collider_handles: Vec<ColliderHandle> = {
-                                let rb_handle = into.rigid_body.ok_or("Pawn missing rigidbody").unwrap();
-                                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid").unwrap();
+                                let rb_handle = into.rigid_body.ok_or("Pawn missing rigidbody")?;
+                                let rb = lobby.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid")?;
                                 rb.colliders().iter().map(|h| *h).collect()
                             };
                             for handle in collider_handles {
@@ -581,7 +587,7 @@ fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: Pawn
                             }
             
                             lobby.world.insert_with_parent((&into.data).try_into().unwrap(),
-                                                        into.rigid_body.ok_or("Pawn missing rigidbody").unwrap());
+                                                        into.rigid_body.ok_or("Pawn missing rigidbody")?);
                         }
                     }
                     Ok(())
@@ -600,14 +606,11 @@ fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: Pawn
         },
         PawnOrUser::User(into_id) => {
             let into = lobby.users.get_mut(&into_id).unwrap();
-            into.hand.insert(from.id, from);
+            into.hand.insert(from_id, from);
 
-            if user_id != into_id {
-                // Another player has inserted a card into a hand
-                // i.e. 'dealt' a card
-                // TODO: Send some event here
-                unimplemented!();
-            }
+            into.send_event(&Event::AddPawnToHand {
+                pawn: Cow::Borrowed(into.hand.get(&from_id).unwrap())
+            })?;
         }
     }
     lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })

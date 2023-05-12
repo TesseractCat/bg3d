@@ -211,8 +211,17 @@ export class Deck extends Pawn {
         }
     }
 
-    deal() {
-        console.error("Unimplemented!");
+    deal(count = 1) {
+        for (let user of window.manager.userColors.keys()) {
+            const to_id = Pawn.nextId();
+            window.manager.sendSocket({
+                type: "extract_pawns",
+                from_id: this.id,
+                new_id: to_id,
+                into_id: user,
+                count: count,
+            });
+        }
     }
     grabCards(count = 1) {
         if (count < 1)
@@ -224,7 +233,7 @@ export class Deck extends Pawn {
         window.manager.sendSocket({
             type: "extract_pawns",
             from_id: this.id,
-            to_id: to_id,
+            new_id: to_id,
             count: count,
         });
         const handleGrabCards = (e) => {
@@ -454,7 +463,7 @@ export class Container extends Pawn {
         window.manager.sendSocket({
             type: "extract_pawns",
             from_id: this.id,
-            to_id: to_id
+            new_id: to_id
         });
         const handleGrabItem = (e) => {
             if (e.detail.pawn.id != to_id)
