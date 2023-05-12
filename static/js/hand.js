@@ -249,7 +249,7 @@ export default class Hand extends HTMLElement {
         if (deck.flipped())
             imageElement.setAttribute("flipped", "");
         imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
-        imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+        imageElement.style.borderRadius = `${deck.data.cornerRadius}in`;
         imageElement.style.aspectRatio = `${deck.data.size.x}/${deck.data.size.y}`;
 
         imageElement.addEventListener('pointerdown', (e) => {

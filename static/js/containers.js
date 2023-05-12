@@ -199,7 +199,7 @@ export class Deck extends Pawn {
             super.release(false);
 
             window.manager.removePawn(this.id);
-            window.manager.hand.pushCard(this, true);
+            window.manager.hand.pushCard(this, false);
             window.manager.sendSocket({
                 type: "store_pawn",
                 from_id: this.id,
