@@ -483,7 +483,7 @@ fn extract_pawns(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, new_id: Pa
                 to.rigid_body = None;
                 to.id = new_id;
                 to.position = from.position.clone();
-                to.position.y += 2.0;
+                to.position.y += 3.0;
                 Ok(to)
             }
         },

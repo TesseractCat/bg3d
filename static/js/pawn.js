@@ -246,7 +246,11 @@ export class Pawn {
         ];
         let hostEntries = [
             ["Clone", () => {
-                window.manager.sendAddPawn(this.clone());
+                let tempClone = this.clone();
+                tempClone.position.add(new Vector3(
+                    0, new Box3().setFromObject(this.getMesh()).getSize(new Vector3()).y + 0.5, 0
+                ));
+                window.manager.sendAddPawn(tempClone);
             }],
             ["Delete", () => {
                 window.manager.sendRemovePawn(this.id);
