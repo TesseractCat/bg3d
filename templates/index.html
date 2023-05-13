@@ -29,6 +29,11 @@
                     <label for="games">Game:</label>
                     <select name="games" id="games"></select>
                 </div>
+                <form id="add-pawn" autocomplete="off">
+                    <datalist id="pawn-list"></datalist>
+                    <input placeholder="Search for a piece..." list="pawn-list" name="pawn"></input>
+                    <button>Spawn</button>
+                </form>
             </div>
             <div id="controls">
                 <hr>
@@ -53,9 +58,6 @@
                     </div>
                 </details>
             </div>
-            <!-- <details>
-                <summary><b>Add a piece</b></summary>
-            </details> -->
             <hr>
             <h2>Players</h2>
             <div id="player-entries"></div>

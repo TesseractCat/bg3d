@@ -11,6 +11,8 @@ import Tooltip from './tooltip.js';
 import Chat from './chat.js';
 import Hand from './hand.js';
 
+import { Pawn } from './pawns.js';
+
 let manager;
 let pluginLoader;
 
@@ -84,6 +86,33 @@ window.onload = () => {
         }
         
         animate();
+    });
+
+    // Spawn menu
+    let spawnables = [
+        new Pawn({
+            name: "Bird Statue", mesh: 'generic/bird.glb'
+        })
+    ];
+    
+    const createOption = (name) => {
+        let elem = document.createElement("option");
+        elem.setAttribute("value", name);
+        return elem;
+    };
+    let pawnList = document.getElementById("pawn-list");
+    spawnables.map((p) => createOption(p.name)).forEach(e => pawnList.appendChild(e));
+    document.getElementById("add-pawn").addEventListener("submit", (e) => {
+        e.preventDefault();
+        let form = e.target;
+        let name = form.elements["pawn"].value;
+        let pawn = spawnables.filter(p => p.name == name)[0];
+        if (pawn) {
+            form.elements["pawn"].value = "";
+            window.manager.sendAddPawn(pawn.clone({
+                position: new Vector3(0, 5, 0),
+            }));
+        }
     });
     
     // Show link

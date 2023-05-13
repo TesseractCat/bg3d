@@ -204,6 +204,26 @@ canvas {
     align-self: center;
 }
 
+#add-pawn {
+    display: flex;
+    margin-top: 0.5em;
+}
+#add-pawn input {
+    flex-grow: 1;
+    border-radius: var(--half-radius) 0 0 var(--half-radius);
+    border: 1px solid gray;
+    border-right: none;
+    font-family: inherit;
+    padding: 0.3em;
+}
+/* https://stackoverflow.com/a/20941546 */
+#add-pawn input::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
+#add-pawn button {
+    border-radius: 0 var(--half-radius) var(--half-radius) 0;
+}
+
 /* SHADE */
 
 #shade {
