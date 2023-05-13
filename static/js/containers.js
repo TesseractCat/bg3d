@@ -136,6 +136,7 @@ export class Deck extends Pawn {
             ];
             if (window.manager.host) {
                 deckEntries.push(["Deal", () => this.deal()]);
+                deckEntries.push(["Deal N cards", () => this.deal(parseInt(prompt("How many cards to deal?", "1"), 10))]);
             }
             entries.splice(1, 0, deckEntries);
         }
@@ -212,15 +213,17 @@ export class Deck extends Pawn {
     }
 
     deal(count = 1) {
-        for (let user of window.manager.userColors.keys()) {
-            const to_id = Pawn.nextId();
-            window.manager.sendSocket({
-                type: "extract_pawns",
-                from_id: this.id,
-                new_id: to_id,
-                into_id: user,
-                count: count,
-            });
+        for (let i = 0; i < count; i++) {
+            for (let user of window.manager.userColors.keys()) {
+                const to_id = Pawn.nextId();
+                window.manager.sendSocket({
+                    type: "extract_pawns",
+                    from_id: this.id,
+                    new_id: to_id,
+                    into_id: user,
+                    count: 1,
+                });
+            }
         }
     }
     grabCards(count = 1) {

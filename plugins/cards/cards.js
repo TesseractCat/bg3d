@@ -1,11 +1,11 @@
 self.world.addEventListener("start", async () => {
-    let deck = new Deck({
-        name: 'Cards',
-        back: 'generic/cards/back.webp',
-        contents: standardDeck(), cornerRadius: 0.06,
-        position: new Vector3(0, 1, 0),
-        size: new Vector2(2.5, 3.5),
+    let mat = new Deck({
+        name: "Mat", contents: ["notes/cork.webp"],
+        sideColor: 0x000000, cornerRadius: 0.1,
+        size: new Vector2(10, 10),
+        moveable: false
     });
+    self.world.add(mat);
 
     let chipColors = [
         ['Red', 0xff0000, 10],
@@ -24,6 +24,13 @@ self.world.addEventListener("start", async () => {
         self.world.add(chips);
     }
 
+    let deck = new Deck({
+        name: 'Cards',
+        back: 'generic/cards/back.webp',
+        contents: standardDeck(), cornerRadius: 0.06,
+        position: new Vector3(0, 1, 0),
+        size: new Vector2(2.5, 3.5),
+    });
     let die = new Dice({
         name: 'Die',
         position: new Vector3(3,1,0),

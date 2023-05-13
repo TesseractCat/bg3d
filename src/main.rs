@@ -377,6 +377,10 @@ fn clear_pawns(user_id: UserId, lobby: &mut Lobby) -> Result<(), Box<dyn Error>>
         lobby.world.remove_rigidbody(rb_handle);
     }
     lobby.pawns = HashMap::new();
+
+    for user in lobby.users.values_mut() {
+        user.hand = HashMap::new();
+    }
     
     lobby.users.values().send_event(&Event::ClearPawns {})
 }

@@ -226,6 +226,20 @@ canvas {
 
 /* MISC */
 
+bird-hand {
+    position:absolute;
+    bottom:0px;
+    left:0px;
+    right:0px;
+
+    --offset: 40px;
+
+    border-bottom: 5px dashed transparent;
+    transition: 0.1s border-bottom;
+}
+bird-hand[indicate] {
+    border-bottom: 5px dashed rgba(0,0,0,0.5);
+}
 bird-chat {
     --background: #555 linear-gradient(0deg, var(--bg-bottom), var(--bg-bottom));
     --blend-mode: screen;

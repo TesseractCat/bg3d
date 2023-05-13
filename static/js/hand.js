@@ -192,13 +192,7 @@ export default class Hand extends HTMLElement {
         const style = document.createElement('style');
         style.textContent = `
         :host {
-            position:absolute;
-            bottom:0px;
-            left:0px;
-            right:0px;
             pointer-events:none;
-
-            --offset: 40px;
         }
         bird-card {
             cursor:pointer;
@@ -230,7 +224,7 @@ export default class Hand extends HTMLElement {
             
             transition: background 0.2s;
         }
-        div.minimized {
+        :host([minimized]) div {
             margin-bottom: calc(-3 * var(--offset));
             pointer-events: none;
         }
@@ -337,11 +331,14 @@ export default class Hand extends HTMLElement {
         this.cards.clear();
     }
 
-    minimize(state) {
+    minimize(state, indicate) {
         if (state) {
-            this.element.classList.add("minimized");
+            this.setAttribute("minimized", "");
+            if (indicate)
+                this.setAttribute("indicate", "");
         } else {
-            this.element.classList.remove("minimized");
+            this.removeAttribute("minimized");
+            this.removeAttribute("indicate");
         }
     }
 }

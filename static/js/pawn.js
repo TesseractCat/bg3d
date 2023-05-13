@@ -283,7 +283,7 @@ export class Pawn {
         
         this.selected = true;
         this.dirty.add("selected");
-        window.manager.hand.minimize(true);
+        window.manager.hand.minimize(true, this.constructor.className() == "Deck");
 
         this.grabSpring.set(this.position.y);
     }
@@ -297,7 +297,7 @@ export class Pawn {
         this.dirty.add("rotation");
         this.dirty.add("selected");
         
-        window.manager.hand.minimize(false);
+        window.manager.hand.minimize(false, this.constructor.className() == "Deck");
 
         // Fire merge event if applicable
         if (tryMerge) {
