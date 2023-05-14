@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Html};
 use axum::{
     extract::{
         Path as AxumPath,
@@ -66,6 +66,7 @@ async fn main() {
 
     let lobbies_assets_clone = lobbies.clone();
     let lobbies_ws_clone = lobbies.clone();
+    let lobbies_dashboard_clone = lobbies.clone();
 
     // Routing
     // FIXME: Re-add cache headers
@@ -97,6 +98,10 @@ async fn main() {
         .route("/index.html", get(|| async { Redirect::to("/") }));
 
     let app = redirect_routes
+        .route("/dashboard", get(move || {
+            let lobbies = lobbies_dashboard_clone.clone();
+            dashboard(lobbies)
+        }))
         .nest_service("/static",
                       ServeDir::new("static").append_index_html_on_directories(false))
         .nest_service("/plugins",
@@ -126,6 +131,13 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+async fn dashboard(lobbies: Lobbies) -> String {
+    let lobbies = lobbies.read().await;
+    format!(
+        include_str!("../static/dashboard.html"),
+        lobby_count = lobbies.len()
+    )
 }
 async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::response::Result<impl IntoResponse> {
     let lobbies_rl = lobbies.read().await;

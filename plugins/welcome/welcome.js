@@ -37,13 +37,13 @@ self.world.addEventListener("start", () => {
         position: bird.position.setComponent(1, 1),
     });
 
-    let meeple = new Pawn({
-        name: "Meeple",
+    let mini = new Pawn({
+        name: "Mini Bird",
         tint: 0xdd2222,
-        mesh: 'generic/meeple.gltf'
+        mesh: 'generic/minibird.gltf'
     });
     let bag = new Container({
-        name: "Mystery Bag", holds: meeple, capacity: 5,
+        name: "Mystery Bag", holds: mini, capacity: 5,
         position: new Vector3(-6.5, 0, 0),
         rotation: new Vector3(0, Math.PI/16, 0),
         mesh: 'generic/bag.gltf',
