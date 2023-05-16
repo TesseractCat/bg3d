@@ -23,9 +23,9 @@
                 <!-- <div id="link-divider"></div>
                 <button><img src="static/qr-code.svg" class="icon" draggable="false"></img></button> -->
             </div>
-            <div id="host-panel" style="display:none;">
+            <div id="control-panel" data-hidden>
                 <hr>
-                <div id="choose-game">
+                <div id="choose-game" data-host-only data-hidden>
                     <label for="games">Game:</label>
                     <select name="games" id="games"></select>
                 </div>
@@ -58,9 +58,26 @@
                     </div>
                 </details>
             </div>
+            <div>
+                <details>
+                    <summary><b>Settings</b></summary>
+                    <form id="settings">
+                        <fieldset disabled>
+                            <div>
+                                <input type="checkbox" value="true" name="spawnPermission" id="spawnPermission">
+                                <label for="spawnPermission">Allow users to spawn pieces</label>
+                            </div>
+                            <div>
+                                <input type="checkbox" value="true" name="showCardCounts" id="showCardCounts">
+                                <label for="showCardCounts">Show card counts</label>
+                            </div>
+                        </fieldset>
+                    </form>
+                </details>
+            </div>
             <hr>
             <h2>Players</h2>
-            <div id="player-entries"></div>
+            <div id="player-entries" data-hide-card-counts></div>
         </div>
 
         <bird-chat></bird-chat>

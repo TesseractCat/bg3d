@@ -290,6 +290,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
                     Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
                     Event::RegisterAssets { assets } => register_assets(user_id, lobby.write().await.deref_mut(), assets),
                     Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
+                    Event::Settings(s) => settings(user_id, lobby.write().await.deref_mut(), s),
 
                     Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
 
@@ -699,6 +700,13 @@ fn clear_assets(user_id: UserId, lobby: &mut Lobby) -> Result<(), Box<dyn Error>
     println!("User <{user_id:?}> clearing assets for lobby [{}]", lobby.name);
     Ok(())
 }
+fn settings(user_id: UserId, lobby: &mut Lobby, settings: LobbySettings) -> Result<(), Box<dyn Error>> {
+    if user_id != lobby.host { return Err("Non-host user attempting to change settings".into()); }
+
+    lobby.settings = settings.clone();
+
+    lobby.users.values().send_event(&Event::Settings(settings))
+}
 
 // --- USER EVENTS ---
 
@@ -717,6 +725,7 @@ fn user_joined(user_id: UserId, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
         users: lobby.users.values().collect(),
         pawns: lobby.pawns.values().collect(),
     })?;
+    user.send_event(&Event::Settings(lobby.settings.clone()))?;
     
     // Tell all other users that this user has joined
     lobby.users.values()
@@ -773,7 +782,12 @@ async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies)
     if lobby.users.len() != 0 { // If the user id is the host, let's reassign the host to the next user
         if lobby.host == user_id {
             // Reassign host
-            lobby.host = *lobby.users.keys().next().unwrap();
+            let sorted_users = {
+                let mut v = lobby.users.keys().cloned().collect::<Vec<UserId>>();
+                v.sort();
+                v
+            };
+            lobby.host = *sorted_users.first().unwrap();
 
             // Tell the new host
             lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost {})?;

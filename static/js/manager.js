@@ -310,14 +310,21 @@ export default class Manager extends EventTarget {
         this.userColors.set(id, color);
         
         // Create element
-        let playerElement = document.createElement("h3");
-        playerElement.innerText = "";//id;
-        playerElement.style.color = color;
+        let playerElement = document.createElement("div");
         playerElement.classList.add("player");
         playerElement.dataset.id = id;
+        playerElement.style.color = color;
+        let playerText = document.createElement("h3");
+        playerText.classList.add("text");
+        playerText.innerText = "";//id;
+        playerElement.appendChild(playerText);
+        let cardText = document.createElement("h3");
+        cardText.classList.add("cards");
+        cardText.innerText = "[0 cards]";
+        playerElement.appendChild(cardText);
         
         if (id == this.id)
-            playerElement.innerText += " (You)";
+            playerText.innerText += " (You)";
         
         let playerList = document.querySelector("#player-entries");
         for (let entryNode of playerList.children) {
@@ -683,13 +690,37 @@ export default class Manager extends EventTarget {
                     this.addUser(u.id, u.color)
                 });
             } else if (type == "assign_host") {
-                document.querySelector("#host-panel").style.display = "block";
+                delete document.querySelector("#control-panel").dataset.hidden;
+                delete document.querySelector("[data-host-only]").dataset.hidden;
+                document.querySelector("#settings fieldset").removeAttribute("disabled");
                 this.host = true;
             }
 
             if (type == "register_game") {
                 this.info = msg;
                 delete this.info.type;
+            }
+            if (type == "settings") {
+                let settingsForm = document.querySelector("#settings");
+                for (let elem of settingsForm.elements) {
+                    if (elem.type == "checkbox") {
+                        elem.checked = msg[elem.id];
+                    } else {
+                        elem.value = msg[elem.id];
+                    }
+                }
+                if (!this.host) {
+                    if (msg.spawnPermission) {
+                        delete document.querySelector("#control-panel").dataset.hidden;
+                    } else {
+                        document.querySelector("#control-panel").dataset.hidden = '';
+                    }
+                }
+                if (msg.showCardCounts) {
+                    delete document.querySelector("#player-entries").dataset.hideCardCounts;
+                } else {
+                    document.querySelector("#player-entries").dataset.hideCardCounts = '';
+                }
             }
             
             if (type == "pong") {

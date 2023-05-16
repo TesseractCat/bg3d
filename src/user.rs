@@ -25,7 +25,7 @@ impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     }
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct UserId(pub u64);
 #[derive(Clone, Serialize, Debug)]
 pub struct User {

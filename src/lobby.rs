@@ -170,10 +170,19 @@ pub struct GameInfo {
 
     pub rotation_increment: Option<f64>,
 }
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LobbySettings {
+    #[serde(default)]
+    pub spawn_permission: bool,
+    #[serde(default)]
+    pub show_card_counts: bool
+}
 pub struct Lobby {
     pub name: String,
     pub host: UserId,
     pub info: Option<GameInfo>,
+    pub settings: LobbySettings,
 
     pub users: HashMap<UserId, User>, // FIXME: Make these both u16
     pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
@@ -190,6 +199,7 @@ impl Lobby {
             name: "".to_string(),
             host: UserId(0),
             info: None,
+            settings: Default::default(),
 
             users: HashMap::new(),
             pawns: HashMap::new(),

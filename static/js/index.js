@@ -79,9 +79,23 @@ window.onload = () => {
             await loadGame(e.target.selectedIndex);
             e.target.removeAttribute("disabled");
         });
+
+        if (host)
+            document.querySelector("#settings fieldset").removeAttribute("disabled");
+        document.querySelector("#settings").addEventListener("change", (e) => {
+            window.manager.sendSocket({
+                "type": "settings",
+                ...Object.fromEntries([...new FormData(e.target.form).entries()].map(([k, v]) => {
+                    if (v == "true")
+                        v = true;
+                    return [k, v];
+                }))
+            });
+        });
         
         if (host) {
-            document.querySelector("#host-panel").style.display = "block";
+            delete document.querySelector("#control-panel").dataset.hidden;
+            delete document.querySelector("[data-host-only]").dataset.hidden;
             loadGame(0);
         }
         
@@ -92,6 +106,9 @@ window.onload = () => {
     let spawnables = [
         new Pawn({
             name: "Bird Statue", mesh: 'generic/bird.glb'
+        }),
+        new Pawn({
+            name: "Mini Bird", mesh: 'generic/minibird.gltf', tint: 0xdd2222
         })
     ];
     
@@ -102,6 +119,14 @@ window.onload = () => {
     };
     let pawnList = document.getElementById("pawn-list");
     spawnables.map((p) => createOption(p.name)).forEach(e => pawnList.appendChild(e));
+    document.querySelector("#add-pawn input").setAttribute("pattern", spawnables.map(p => p.name).join("|"));
+    document.querySelector("#add-pawn input").addEventListener("input", (e) => {
+        if (e.target.validity.patternMismatch) {
+            e.target.setCustomValidity("Please pick a valid piece.");
+        } else {
+            e.target.setCustomValidity("");
+        }
+    });
     document.getElementById("add-pawn").addEventListener("submit", (e) => {
         e.preventDefault();
         let form = e.target;

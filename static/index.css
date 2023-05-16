@@ -55,6 +55,14 @@ canvas {
     display: none;
 }
 
+fieldset {
+    all: unset;
+}
+
+[data-hidden] {
+    display: none !important;
+}
+
 /* MAIN PANEL */
 
 #overlay {
@@ -66,7 +74,6 @@ canvas {
 
     text-align: center;
     width: var(--panel-width);
-    max-height: 70%;
     padding: 20px;
 
     background-image: linear-gradient(180deg, var(--bg-top), var(--bg-bottom) 200%);
@@ -109,23 +116,36 @@ canvas {
     line-height:20px;
 }
 #instructions fieldset {
+    display: block;
     margin-top: 0.2em;
+    padding: 0.5em;
+
     border: 1px solid var(--overlay-gray);
     border-radius: var(--half-radius);
 }
 
-#host-panel {
-    text-align:left;
+#control-panel {
+    text-align: left;
 }
 #player-entries {
-    max-height:200px;
-    overflow-y:auto;
+    max-height: 100px;
+    overflow-y: auto;
 }
-#player-entries .player:before {
+#player-entries .player h3 {
+    display: inline-block;
+}
+#player-entries .player .text:before {
     content:"⬤";
 }
-#player-entries .player:first-child:before {
+#player-entries .player:first-child .text:before {
     content:"♛";
+}
+#player-entries .player .cards:before {
+    content: "|";
+    margin: 0.5em;
+}
+#player-entries[data-hide-card-counts] .player .cards {
+    display: none;
 }
 #piece-combo {
     font-size:0px;

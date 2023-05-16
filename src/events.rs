@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 use crate::user::{User, UserId};
-use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo, PawnId};
+use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo, PawnId, LobbySettings};
 use crate::physics::CollisionAudioInfo;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -32,6 +32,7 @@ pub enum Event<'a> {
     #[serde(skip_deserializing)]
     Connect { id: UserId, color: &'a str },
     Disconnect { id: UserId },
+    Settings(LobbySettings),
 
     Ping { idx: u64 },
     Pong { idx: u64 },
