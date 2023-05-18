@@ -50,6 +50,7 @@ pub enum Event<'a> {
         collisions: Option<Vec<CollisionAudioInfo>>,
     },
     AddPawnToHand { pawn: Cow<'a, Pawn> },
+    HandCount { id: UserId, count: u64 },
 
     // 'Extracting' a pawn and 'taking' a pawn are different
     // because extracting creates a new pawn with a new ID

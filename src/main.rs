@@ -394,6 +394,9 @@ fn clear_pawns(user_id: UserId, lobby: &mut Lobby) -> Result<(), Box<dyn Error>>
     for user in lobby.users.values_mut() {
         user.hand = HashMap::new();
     }
+    for &id in lobby.users.keys() {
+        lobby.users.values().send_event(&Event::HandCount { id, count: 0 })?;
+    }
     
     lobby.users.values().send_event(&Event::ClearPawns {})
 }
@@ -628,6 +631,13 @@ fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: Pawn
             into.send_event(&Event::AddPawnToHand {
                 pawn: Cow::Borrowed(into.hand.get(&from_id).unwrap())
             })?;
+
+            if lobby.settings.show_card_counts {
+                let count = into.hand.len() as u64;
+                lobby.users.values().send_event(&Event::HandCount {
+                    id: into_id, count
+                })?;
+            }
         }
     }
     lobby.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })
@@ -638,7 +648,14 @@ fn take_pawn(user_id: UserId, lobby: &mut Lobby, from_id: UserId, target_id: Paw
     let mut taken_pawn = lobby.users
                           .get_mut(&from_id)
                           .ok_or("Lobby missing user")?.hand
-                          .remove(&target_id).ok_or("User doesn't have request pawn")?;
+                          .remove(&target_id).ok_or("User doesn't have requested pawn")?;
+
+    if lobby.settings.show_card_counts {
+        let count = lobby.users.get_mut(&from_id).unwrap().hand.len() as u64;
+        lobby.users.values().send_event(&Event::HandCount {
+            id: from_id, count
+        })?;
+    }
     
     if let Some(position_hint) = position_hint {
         taken_pawn.position = position_hint;
@@ -705,6 +722,13 @@ fn settings(user_id: UserId, lobby: &mut Lobby, settings: LobbySettings) -> Resu
 
     lobby.settings = settings.clone();
 
+    if lobby.settings.show_card_counts {
+        for (&id, other) in lobby.users.iter() {
+            let count = other.hand.len() as u64;
+            lobby.users.values().send_event(&Event::HandCount { id, count })?;
+        }
+    }
+
     lobby.users.values().send_event(&Event::Settings(settings))
 }
 
@@ -726,6 +750,13 @@ fn user_joined(user_id: UserId, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
         pawns: lobby.pawns.values().collect(),
     })?;
     user.send_event(&Event::Settings(lobby.settings.clone()))?;
+
+    if lobby.settings.show_card_counts {
+        for (&id, other) in lobby.users.iter() {
+            let count = other.hand.len() as u64;
+            lobby.users.values().send_event(&Event::HandCount { id, count })?;
+        }
+    }
     
     // Tell all other users that this user has joined
     lobby.users.values()

@@ -13,7 +13,7 @@
         <link rel="stylesheet" href="static/index.css?v={{version}}">
     </head>
     <body>
-        <canvas id="display" tabindex='1'></canvas>
+        <canvas id="display" tabindex='0'></canvas>
 
         <div id="overlay">
             <div id="overlay-collapse">-</div>
@@ -70,6 +70,10 @@
                             <div>
                                 <input type="checkbox" value="true" name="showCardCounts" id="showCardCounts">
                                 <label for="showCardCounts">Show card counts</label>
+                            </div>
+                            <div>
+                                <input type="checkbox" value="true" name="hideChat" id="hideChat">
+                                <label for="hideChat">Hide chat</label>
                             </div>
                         </fieldset>
                     </form>

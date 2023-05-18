@@ -259,6 +259,7 @@ export default class Hand extends HTMLElement {
                 });
 
                 imageElement.grabbed = false;
+                display.focus(); // Otherwise focus goes to <body> for some reason...
             }
             const cardMove = (e) => {
                 if (e.clientY < (window.innerHeight - 200)) {

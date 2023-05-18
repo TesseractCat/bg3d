@@ -176,7 +176,9 @@ pub struct LobbySettings {
     #[serde(default)]
     pub spawn_permission: bool,
     #[serde(default)]
-    pub show_card_counts: bool
+    pub show_card_counts: bool,
+    #[serde(default)]
+    pub hide_chat: bool,
 }
 pub struct Lobby {
     pub name: String,

@@ -214,7 +214,7 @@ export class Deck extends Pawn {
 
     deal(count = 1) {
         for (let i = 0; i < count; i++) {
-            for (let user of window.manager.userColors.keys()) {
+            for (let user of window.manager.users.keys()) {
                 const to_id = Pawn.nextId();
                 window.manager.sendSocket({
                     type: "extract_pawns",

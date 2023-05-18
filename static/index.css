@@ -248,6 +248,7 @@ fieldset {
 
 #shade {
     position:fixed;
+    z-index: 2;
     top:0;
     left:0;
     width:100%;
@@ -290,9 +291,14 @@ bird-chat {
     bottom: 20px;
     right: 20px;
     width: var(--panel-width);
+    z-index: 1;
 }
 bird-context-menu {
     --background: var(--context-menu);
+}
+
+#settings {
+    text-align: left;
 }
 
 #icon {
@@ -371,4 +377,8 @@ kbd {
     width: 1em;
     height: 1em;
     vertical-align: -0.15em;
+}
+
+fieldset:disabled {
+    color: gray;
 }

@@ -66,7 +66,7 @@ export default class Manager extends EventTarget {
     pawns = new Map();
     host = false;
     id;
-    userColors = new Map();
+    users = new Map();
     info;
     
     static networkTimestep = 1000/20; // Milliseconds
@@ -195,9 +195,8 @@ export default class Manager extends EventTarget {
         
         // Chat
         display.addEventListener('keydown', (e) => {
-            if (e.key == "Enter") {
+            if (e.key == "Enter")
                 this.chat.focus();
-            }
         });
         
         // Route events to active pawns
@@ -307,8 +306,6 @@ export default class Manager extends EventTarget {
     }
     
     addUser(id, color) {
-        this.userColors.set(id, color);
-        
         // Create element
         let playerElement = document.createElement("div");
         playerElement.classList.add("player");
@@ -322,6 +319,11 @@ export default class Manager extends EventTarget {
         cardText.classList.add("cards");
         cardText.innerText = "[0 cards]";
         playerElement.appendChild(cardText);
+
+        this.users.set(id, {
+            color: color,
+            cardText: cardText
+        });
         
         if (id == this.id)
             playerText.innerText += " (You)";
@@ -347,7 +349,7 @@ export default class Manager extends EventTarget {
         document.querySelector(`.player[data-id="${id}"]`).remove();
         this.scene.remove(this.lobbyCursors.get(id).mesh);
         this.lobbyCursors.delete(id);
-        this.userColors.delete(id);
+        this.users.delete(id);
     }
     
     sendCursor() {
@@ -710,17 +712,14 @@ export default class Manager extends EventTarget {
                     }
                 }
                 if (!this.host) {
-                    if (msg.spawnPermission) {
-                        delete document.querySelector("#control-panel").dataset.hidden;
-                    } else {
-                        document.querySelector("#control-panel").dataset.hidden = '';
-                    }
+                    let controlPanelElem = document.querySelector("#control-panel");
+                    msg.spawnPermission ? delete controlPanelElem.dataset.hidden : controlPanelElem.dataset.hidden = '';
                 }
-                if (msg.showCardCounts) {
-                    delete document.querySelector("#player-entries").dataset.hideCardCounts;
-                } else {
-                    document.querySelector("#player-entries").dataset.hideCardCounts = '';
-                }
+                let playerEntriesElem = document.querySelector("#player-entries");
+                msg.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
+
+                let chatElem = document.querySelector("bird-chat");
+                !msg.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
             }
             
             if (type == "pong") {
@@ -743,6 +742,8 @@ export default class Manager extends EventTarget {
             if (type == "add_pawn_to_hand") {
                 if (!this.hand.cards.has(msg.pawn.id))
                     this.hand.pushCard(deserializePawn(msg.pawn), false);
+            } else if (type == "hand_count") {
+                this.users.get(msg.id).cardText.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
             }
             
             if (type == "connect") {
@@ -754,7 +755,7 @@ export default class Manager extends EventTarget {
             }
 
             if (type == "chat") {
-                this.chat.addChatEntry(msg.content, this.userColors.get(msg.id));
+                this.chat.addChatEntry(msg.content, this.users.get(msg.id).color);
             }
             
             if (type == "relay_cursors") {
