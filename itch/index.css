@@ -16,6 +16,8 @@ body {
 
     background-image: radial-gradient(var(--bg-bottom) 1.3px, var(--bg-top) 1.3px);
     background-size: 26px 26px;
+    border: 1px dashed gray;
+    border-radius: var(--half-radius);
 }
 * {
     box-sizing: border-box;

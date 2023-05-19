@@ -12,6 +12,14 @@
         <script type="module">
             import { randomPair } from "./words.js";
 
+            // Get referrer (Itch link) and redirect if there is a ?lobby query parameter
+            let referrer = document.referrer;
+            let found = referrer.match(/\?lobby=(.+)/);
+            if (found) {
+                let lobby = found[1];
+                window.location.href = `https://birdga.me/${lobby}`;
+            }
+
             window.addEventListener("load", () => {
                 document.querySelector("#lobby").value = randomPair();
                 document.querySelector("#new-game").addEventListener("submit", (e) => {

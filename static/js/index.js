@@ -25,7 +25,8 @@ function animate() {
 window.onload = () => {
     window.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|BB|PlayBook|IEMobile|Windows Phone|Kindle|Silk|Opera Mini/i.test(navigator.userAgent);
 
-    if (window !== window.parent) { // Are we in an iFrame (i.e. on itch.io)
+    let onItch = (window !== window.parent); // Are we in an iFrame (i.e. on itch.io)
+    if (onItch) { 
         document.body.classList.add("iframe");
     }
 
@@ -141,28 +142,37 @@ window.onload = () => {
     });
     
     // Show link
-    const linkText = window.location.host + window.location.pathname;
-    document.getElementById("game-link").innerText = linkText;
-    document.getElementById("game-link").href = window.location.href;
+    // - Itch doesn't support clipboard
+    let gameLinkElem = document.querySelector("#game-link");
+    if (!onItch) {
+        let linkText = window.location.host + window.location.pathname;
+        gameLinkElem.innerText = linkText;
+        gameLinkElem.href = window.location.href;
 
-    let linkTimeout;
-    document.getElementById("game-link").addEventListener("click", (e) => {
-        e.preventDefault();
-        if (linkTimeout)
-            return;
+        let linkTimeout;
+        gameLinkElem.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (linkTimeout)
+                return;
 
-        navigator.clipboard.writeText(window.location.href);
-        e.target.innerText = "Link copied!";
-        e.target.style.textDecoration = "auto";
-        e.target.style.cursor = "default";
+            navigator.clipboard.writeText(window.location.href);
+            e.target.innerText = "Link copied!";
+            e.target.style.textDecoration = "auto";
+            e.target.style.cursor = "default";
 
-        linkTimeout = setTimeout(() => {
-            e.target.innerText = linkText;
-            e.target.style.textDecoration = null;
-            e.target.style.cursor = null;
-            linkTimeout = null;
-        }, 500);
-    });
+            linkTimeout = setTimeout(() => {
+                e.target.innerText = linkText;
+                e.target.style.textDecoration = null;
+                e.target.style.cursor = null;
+                linkTimeout = null;
+            }, 500);
+        });
+    } else {
+        let lobby = window.location.pathname.slice(1);
+        gameLinkElem.innerText = ".../?lobby=" + lobby;
+        gameLinkElem.href = "https://tesseractcat.itch.io/birdgame?lobby=" + lobby;
+        gameLinkElem.target = "_blank";
+    }
     
     // Overlay functionality
     document.getElementById("overlay-collapse").addEventListener("click", (e) => {
