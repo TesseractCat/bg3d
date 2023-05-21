@@ -1,5 +1,6 @@
 import { Vector3, Vector2 } from 'three';
 import { Box, Cylinder } from './shapes.js';
+import { UniqueId } from './utils.js';
 
 // Classes
 // - All classes are easily cloneable, as they always clone parameters
@@ -35,12 +36,7 @@ class Pawn {
     }
 
     static nextId() {
-        // Generate a random 52 bit integer (max safe js uint)
-        // https://stackoverflow.com/a/70167319
-        let [upper,lower] = new Uint32Array(Float64Array.of(Math.random()).buffer);
-        upper = upper & 1048575; // upper & (2^20 - 1)
-        upper = upper * Math.pow(2, 32); // upper << 32
-        return upper + lower;
+        return UniqueId();
     }
 
     clone(parameters) {

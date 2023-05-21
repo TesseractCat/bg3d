@@ -264,9 +264,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
             println!("Websocket connection closed, user <{user_id:?}> left");
             break;
         }
-        if !matches!(message, Message::Text(_)) {
+        if !matches!(message, Message::Binary(_)) {
             if matches!(message, Message::Pong(_)) { continue; } else {
-                println!("Received non-text/non-pong message");
+                println!("Received non-binary/non-pong message");
                 continue;
             }
         }
@@ -274,7 +274,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
-        match serde_json::from_str(message.to_text()?) {
+        let message_bytes = message.into_data();
+        match rmp_serde::from_slice(&message_bytes) {
             Ok(event_data) => {
                 let event_result = match event_data {
                     Event::Join { } => user_joined(user_id, lobby.read().await.deref()), 
@@ -303,7 +304,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 
                 if let Err(err) = event_result {
                     println!("Error encountered while handling event:");
-                    println!(" - Event: {:?}", serde_json::from_str::<Event>(message.to_text()?)?);
+                    println!(" - Event: {:?}", rmp_serde::from_slice::<Event>(&message_bytes)?);
                     println!(" - Error: {:?}", err);
                 }
             },

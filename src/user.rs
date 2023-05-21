@@ -10,16 +10,16 @@ use crate::pawn::{Vec3, Pawn, PawnId};
 
 pub trait Sender {
     fn send_event(&mut self, content: &Event) -> Result<(), Box<dyn Error>>;
-    fn send_string(&mut self, content: &str) -> Result<(), Box<dyn Error>>;
+    fn send_binary(&mut self, content: &[u8]) -> Result<(), Box<dyn Error>>;
 }
 impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     fn send_event(&mut self, content: &Event)  -> Result<(), Box<dyn Error>> {
-        let content = serde_json::to_string(content)?;
-        self.send_string(&content)
+        let content = rmp_serde::to_vec_named(content)?;
+        self.send_binary(&content)
     }
-    fn send_string(&mut self, content: &str)  -> Result<(), Box<dyn Error>> {
+    fn send_binary(&mut self, content: &[u8])  -> Result<(), Box<dyn Error>> {
         for user in self {
-            user.send_string(content)?;
+            user.send_binary(content)?;
         }
         Ok(())
     }
@@ -52,9 +52,9 @@ impl User {
     }
 
     pub fn send_event(&self, content: &Event) -> Result<(), SendError<Message>> {
-        self.tx.send(Message::Text(serde_json::to_string(content).unwrap()))
+        self.send_binary(&rmp_serde::to_vec_named(content).unwrap())
     }
-    pub fn send_string(&self, content: &str) -> Result<(), SendError<Message>> {
-        self.tx.send(Message::Text(content.to_string()))
+    pub fn send_binary(&self, content: &[u8]) -> Result<(), SendError<Message>> {
+        self.tx.send(Message::Binary(content.to_vec()))
     }
 }

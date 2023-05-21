@@ -14,3 +14,15 @@ export function cancellablePromise(executor) {
     res.cancel = cancel;
     return res;
 }
+
+export function UniqueId() {
+    /*// Generate a random 52 bit integer (max safe js uint)
+    // https://stackoverflow.com/a/70167319
+    let [upper,lower] = new Uint32Array(Float64Array.of(Math.random()).buffer);
+    upper = upper & 1048575; // upper & (2^20 - 1)
+    upper = upper * Math.pow(2, 32); // upper << 32
+    return upper + lower;*/
+    //return crypto.getRandomValues(new Uint32Array(1))[0];
+    let [upper, lower] = crypto.getRandomValues(new Uint32Array(2));
+    return (BigInt(upper) << BigInt(32)) | BigInt(lower);
+}

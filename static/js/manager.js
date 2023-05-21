@@ -16,6 +16,8 @@ import { OrbitControls } from './OrbitControls.js';
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
+import { unpack, Packr } from 'msgpackr';
+
 class Cursor {
     mesh;
     networkTransform;
@@ -481,8 +483,9 @@ export default class Manager extends EventTarget {
     benchmark = false;
     benchmarkTime = 0;
     benchmarkBytes = 0;
+    packer = new Packr({ encodeUndefinedAsNil: true, useRecords: false });
     sendSocket(obj) {
-        let json = JSON.stringify(obj, function(k,v) {
+        /*let json = JSON.stringify(obj, function(k,v) {
             if (typeof v === "number") {
                 //FIXME: Is this enough precision?
                 return parseFloat(v.toFixed(2));
@@ -498,7 +501,9 @@ export default class Manager extends EventTarget {
             }
         }
         if (this.socket.readyState == 1)
-            this.socket.send(json);
+            this.socket.send(json);*/
+        if (this.socket.readyState == 1)
+            this.socket.send(this.packer.pack(obj));
     }
     
     buildScene() {
@@ -647,7 +652,8 @@ export default class Manager extends EventTarget {
             shade.style.display = 'block';
         });
         this.socket.addEventListener('message', (e) => {
-            let msg = JSON.parse(e.data);
+            //let msg = JSON.parse(e.data);
+            let msg = unpack(e.data);
             let type = msg.type;
             
             if (type == "start") {

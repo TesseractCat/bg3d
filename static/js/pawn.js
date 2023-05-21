@@ -8,6 +8,8 @@ import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredM
 import { Spring, Vector3Spring } from './spring';
 import { AudioLoader, Audio as GlobalAudio } from 'three';
 
+import { UniqueId } from './utils';
+
 Math.clamp = function(x, min, max) {
     return Math.min(Math.max(x, min), max);
 };
@@ -52,12 +54,7 @@ export class Pawn {
     selectStaticPosition;
     
     static nextId() {
-        // Generate a random 52 bit integer (max safe js uint)
-        // https://stackoverflow.com/a/70167319
-        let [upper,lower] = new Uint32Array(Float64Array.of(Math.random()).buffer);
-        upper = upper & 1048575; // upper & (2^20 - 1)
-        upper = upper * Math.pow(2, 32); // upper << 32
-        return upper + lower;
+        return UniqueId();
     }
     
     constructor({
