@@ -304,14 +304,16 @@ export default class Hand extends HTMLElement {
             }));
         }
     }
-    updateCard(cardJSON) {
-        if (this.cards.has(cardJSON.id)) {
-            let card = this.cards.get(cardJSON.id);
-            if (cardJSON.hasOwnProperty('data')) {
-                card.data = cardJSON.data;
+    updateCard(serializedCard) {
+        if (this.cards.has(serializedCard.id)) {
+            let card = this.cards.get(serializedCard.id);
+            if (serializedCard.hasOwnProperty('data')) {
+                card.data = serializedCard.data;
 
                 let imageElement = this.element.querySelector(`bird-card[data-id="${card.id}"]`);
-                imageElement.src = `${window.location.pathname}/${card.data.contents[0]}`;
+                imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
+                imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
+                imageElement.style.aspectRatio = `${card.data.size.x}/${card.data.size.y}`;
             }
         }
     }

@@ -265,6 +265,7 @@ export default class Manager extends EventTarget {
     updatePawn(serializedPawn) {
         if (!this.pawns.has(serializedPawn.id)) {
             if (this.hand.cards.has(serializedPawn.id)) {
+                console.warn("Updating card already in hand!");
                 this.hand.updateCard(serializedPawn);
             } else {
                 console.warn("Attempting to update non-existent pawn");
