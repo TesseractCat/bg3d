@@ -6,7 +6,7 @@ use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor};
 
 use crate::events::Event;
-use crate::lobby::{Vec3, Pawn, PawnId};
+use crate::pawn::{Vec3, Pawn, PawnId};
 
 pub trait Sender {
     fn send_event(&mut self, content: &Event) -> Result<(), Box<dyn Error>>;

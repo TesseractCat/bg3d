@@ -5,25 +5,31 @@ authors = ["tesseractcat <tesseractcats@gmail.com>"]
 edition = "2021"
 
 [dependencies]
-random_color = "0.6.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_with = { version = "1.14.0" }
+serde_json = { version = "1.0" }
+
+random_color = { version = "0.6.1" }
 names = { version = "0.12.0", default-features = false }
 
-futures = "0.3"
-futures-util = "0.3.17"
+futures = { version = "0.3" }
+futures-util = { version = "0.3.17" }
 
 tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1.7"
-
-serde = { version = "1.0", features = ["derive"]}
-serde_with = "1.14.0"
-serde_json = "1.0"
+tokio-stream = { version = "0.1.7" }
 
 axum = { version = "0.6.15", features = ["ws"] }
 tower-http = { version = "0.4.0", features = ["fs", "compression-gzip"] }
-data-url = "0.1.1"
+data-url = { version = "0.1.1" }
 
 rapier3d = { version = "0.17", features = [ "simd-stable" ] }
 gltf = { version = "1.1.0", features = [ "extras" ] }
+
+[lib]
+name = "bg3d"
+
+[[bin]]
+name = "BG3D"
 
 [profile.release]
 codegen-units = 1

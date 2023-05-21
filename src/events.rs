@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 use crate::user::{User, UserId};
-use crate::lobby::{Pawn, PawnUpdate, Vec3, GameInfo, PawnId, LobbySettings};
+use crate::pawn::{Pawn, PawnUpdate, Vec3, PawnId};
+use crate::lobby::{GameInfo, LobbySettings};
 use crate::physics::CollisionAudioInfo;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

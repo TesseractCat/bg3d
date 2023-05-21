@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use serde::{Serialize, Deserialize};
 
-use crate::lobby::Vec3;
+use crate::pawn::Vec3;
 use crate::PHYSICS_SCALE;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Html};
+use axum::response::IntoResponse;
 use axum::{
     extract::{
         Path as AxumPath,
@@ -36,6 +36,7 @@ use rapier3d::prelude::*;
 use gltf::Gltf;
 use crate::gltf_ext::GltfExt;
 
+mod pawn;
 mod lobby;
 mod user;
 mod physics;
@@ -43,6 +44,7 @@ mod events;
 mod gltf_ext;
 
 use lobby::*;
+use pawn::*;
 use user::*;
 use events::*;
 
@@ -564,7 +566,7 @@ fn extract_pawns(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, new_id: Pa
         None => add_pawn(lobby.host, lobby, Cow::Owned(to)),
     }
 }
-fn store_pawn(user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
+fn store_pawn(_user_id: UserId, lobby: &mut Lobby, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
     if !match into_id {
         PawnOrUser::User(id) => lobby.pawns.contains_key(&from_id) && lobby.users.contains_key(&id),
         PawnOrUser::Pawn(id) => lobby.pawns.contains_key(&from_id) && lobby.pawns.contains_key(&id),

@@ -635,6 +635,7 @@ export default class Manager extends EventTarget {
         this.socket =
             new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
                           + location.host + lobby + "/ws");
+        this.socket.binaryType = "arraybuffer";
         
         this.socket.addEventListener('open', (e) => {
             this.sendSocket({
