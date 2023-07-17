@@ -19,7 +19,7 @@ use axum::{
     response::Redirect,
     routing::get,
     Router,
-    http::Uri
+    http::{Uri, header::HeaderMap}
 };
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
@@ -83,10 +83,10 @@ async fn main() {
             }
         )))
         .route("/ws", get(
-            |AxumPath(lobby): AxumPath<String>, ws: WebSocketUpgrade| async move {
+            |AxumPath(lobby): AxumPath<String>, ws: WebSocketUpgrade, headers: HeaderMap| async move {
                 let lobbies = lobbies_ws_clone.clone();
                 ws.on_upgrade(move |socket| async {
-                    if let Err(err) = user_connected(socket, lobby, lobbies).await {
+                    if let Err(err) = user_connected(socket, lobby, lobbies, headers).await {
                         println!("Error encountered in websocket connection: {:?}", err);
                     }
                 })
@@ -136,9 +136,17 @@ async fn main() {
 }
 async fn dashboard(lobbies: Lobbies) -> String {
     let lobbies = lobbies.read().await;
+
+    let mut lobbies_text = String::new();
+    for (name, lobby) in lobbies.iter() {
+        let lobby = lobby.read().await;
+        lobbies_text += &format!(" - '{}' [{} user(s)]\n", name, lobby.users.len());
+    }
+
     format!(
         include_str!("../static/dashboard.html"),
-        lobby_count = lobbies.len()
+        lobby_count = lobbies.len(),
+        lobbies = lobbies_text
     )
 }
 async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::response::Result<impl IntoResponse> {
@@ -156,15 +164,14 @@ async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::res
     ))
 }
 
-async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> Result<(), Box<dyn Error>> {
+async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, headers: HeaderMap) -> Result<(), Box<dyn Error>> {
     let (mut tx, mut rx) = ws.split();
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
     
-    // FIXME: The following two tasks probabily need to be aborted after the user disconnects
     // Automatically send buffered messages
     let mut buffer_rx = UnboundedReceiverStream::new(buffer_rx);
-    tokio::task::spawn(async move {
+    let buffer_task_handle = tokio::task::spawn(async move {
         while let Some(message) = buffer_rx.next().await {
             tx.send(message).unwrap_or_else(|_| {}).await
         }
@@ -172,7 +179,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 
     // Send keep-alive pings every 5 seconds
     let cloned_tx = buffer_tx.clone();
-    tokio::task::spawn(async move {
+    let keep_alive_task_handle = tokio::task::spawn(async move {
         let mut interval = interval(Duration::from_secs(5));
         loop {
             cloned_tx.send(Message::Ping(vec![])).ok();
@@ -241,6 +248,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
 
         user_id
     };
+
+    println!("User <{:?}> connected with headers:\n - Referrer: {:?}\n - UA: {:?}\n - Lang: {:?}",
+        user_id, headers.get("referer"), headers.get("user-agent"), headers.get("accept-language"));
     
     // Continually process received messages
     // - Timeout at 10 seconds
@@ -314,6 +324,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies) -> 
         };
     }
 
+    buffer_task_handle.abort();
+    keep_alive_task_handle.abort();
     user_disconnected(user_id, &lobby_name, &lobbies).await
 }
 
