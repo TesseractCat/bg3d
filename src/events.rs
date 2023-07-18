@@ -23,7 +23,7 @@ pub enum PawnOrUser {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event<'a> {
-    Join {},
+    Join { referrer: &'a str },
     #[serde(skip_deserializing)]
     Start {
         id: UserId, host: bool, color: &'a str, info: &'a Option<GameInfo>,

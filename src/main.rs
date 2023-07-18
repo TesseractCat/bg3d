@@ -19,7 +19,7 @@ use axum::{
     response::Redirect,
     routing::get,
     Router,
-    http::{Uri, header::HeaderMap}
+    http::{Uri, header::HeaderMap, header}
 };
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
 
@@ -248,9 +248,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
         user_id
     };
-
-    println!("User <{:?}> connected with headers:\n - Referrer: {:?}\n - UA: {:?}\n - Lang: {:?}",
-        user_id, headers.get("referer"), headers.get("user-agent"), headers.get("accept-language"));
     
     // Continually process received messages
     // - Timeout at 10 seconds
@@ -288,7 +285,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         match rmp_serde::from_slice(&message_bytes) {
             Ok(event_data) => {
                 let event_result = match event_data {
-                    Event::Join { } => user_joined(user_id, lobby.read().await.deref()), 
+                    Event::Join { referrer } => user_joined(user_id, lobby.read().await.deref(), referrer, headers.clone()), 
                     Event::Ping { idx } => ping(user_id, lobby.read().await.deref(), idx),
 
                     Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
@@ -749,12 +746,15 @@ fn settings(user_id: UserId, lobby: &mut Lobby, settings: LobbySettings) -> Resu
 
 // --- USER EVENTS ---
 
-fn user_joined(user_id: UserId, lobby: &Lobby) -> Result<(), Box<dyn Error>> {
+fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMap) -> Result<(), Box<dyn Error>> {
     // Get user
     let user = lobby.users.get(&user_id).ok_or("Invalid user id")?;
     
-    println!("User <{:?}> joined lobby [{}] with {} users and {} pawns",
+    println!("User <{:?}> joined lobby [{}] with {} users and {} pawns:",
         user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
+    println!(" - Referrer: {:?}", referrer);
+    println!(" - Lang: {:?}", headers.get(header::ACCEPT_LANGUAGE));
+    println!(" - UA: {:?}", headers.get(header::USER_AGENT));
     
     user.send_event(&Event::Start {
         id: user_id,

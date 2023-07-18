@@ -644,7 +644,8 @@ export default class Manager extends EventTarget {
         
         this.socket.addEventListener('open', (e) => {
             this.sendSocket({
-                type: "join"
+                type: "join",
+                referrer: document.referrer
             });
             console.log('Connected!');
         });
