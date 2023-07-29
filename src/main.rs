@@ -12,6 +12,7 @@ use std::path::Path;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{
+    body::Body,
     extract::{
         Path as AxumPath,
         ws::{Message, WebSocket, WebSocketUpgrade}
@@ -19,9 +20,10 @@ use axum::{
     response::Redirect,
     routing::get,
     Router,
-    http::{Uri, header::HeaderMap, header}
+    http::{Uri, header::HeaderMap, header, Request}
 };
 use tower_http::{services::{ServeDir, ServeFile}, compression::CompressionLayer};
+use tower::ServiceExt;
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{interval, timeout, Duration, Instant};
@@ -66,6 +68,7 @@ async fn main() {
     // Define our lobbies HashMap
     let lobbies = Lobbies::default();
 
+    let lobbies_index_clone = lobbies.clone();
     let lobbies_assets_clone = lobbies.clone();
     let lobbies_ws_clone = lobbies.clone();
     let lobbies_dashboard_clone = lobbies.clone();
@@ -73,7 +76,15 @@ async fn main() {
     // Routing
     // FIXME: Re-add cache headers
     let lobby_routes = Router::new()
-        .route_service("/", ServeFile::new("static/index.html"))
+        .route("/", get(|AxumPath(lobby): AxumPath<String>, request: Request<Body>| async move {
+            let lobbies = lobbies_index_clone.clone();
+            if let Some(lobby) = lobbies.read().await.get(&lobby) {
+                if lobby.read().await.users.len() >= 32 {
+                    return ServeFile::new("static/full.html").oneshot(request).await;
+                }
+            }
+            return ServeFile::new("static/index.html").oneshot(request).await;
+        }))
         .nest_service("/assets", ServeDir::new("static/games").fallback(get(
             move |AxumPath(lobby): AxumPath<String>, uri: Uri| {
                 let lobbies = lobbies_assets_clone.clone();
