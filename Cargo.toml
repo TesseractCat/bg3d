@@ -27,6 +27,8 @@ rapier3d = { version = "0.17", features = [ "simd-stable" ] }
 gltf = { version = "1.1.0", features = [ "extras" ] }
 tower = "0.4.13"
 
+mlua = { version = "0.9.1", features = ["luau", "vendored", "send"] }
+
 [lib]
 name = "bg3d"
 

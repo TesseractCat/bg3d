@@ -5,6 +5,8 @@ use std::error::Error;
 use serde::{Serialize, Deserialize};
 use tokio::task::JoinHandle;
 
+use mlua::Lua;
+
 use crate::user::*;
 use crate::physics::*;
 use crate::events::*;
@@ -48,10 +50,16 @@ pub struct Lobby {
     pub world: PhysicsWorld,
     pub physics_handle: Option<JoinHandle<()>>,
 
+    pub lua: Lua,
+
     next_user_id: AtomicU64,
 }
 impl Lobby {
     pub fn new() -> Lobby {
+        let lua = Lua::new();
+        lua.sandbox(true).expect("Failed to enable sandbox for lua VM");
+        lua.set_memory_limit(128000).expect("Failed to set memory limit for lua VM");
+
         Lobby {
             name: "".to_string(),
             host: UserId(0),
@@ -64,6 +72,8 @@ impl Lobby {
 
             world: PhysicsWorld::new(PHYSICS_RATE),
             physics_handle: None,
+
+            lua,
 
             next_user_id: AtomicU64::new(0),
         }

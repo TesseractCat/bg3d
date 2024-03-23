@@ -27,7 +27,7 @@ use tower::ServiceExt;
 
 use futures_util::{StreamExt, SinkExt, TryFutureExt};
 use tokio::time::{interval, timeout, Duration, Instant};
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use data_url::DataUrl;
@@ -55,7 +55,7 @@ const PHYSICS_SCALE: f32 = 1.0/8.0;
 const CURSOR_RATE: f32 = 1.0/10.0;
 
 //TODO: Replace this with Dashmap?
-type Lobbies = Arc<RwLock<HashMap<String, Arc<RwLock<Lobby>>>>>;
+type Lobbies = Arc<RwLock<HashMap<String, Arc<Mutex<Lobby>>>>>;
 
 #[tokio::main]
 async fn main() {
@@ -79,7 +79,7 @@ async fn main() {
         .route("/", get(|AxumPath(lobby): AxumPath<String>, request: Request<Body>| async move {
             let lobbies = lobbies_index_clone.clone();
             if let Some(lobby) = lobbies.read().await.get(&lobby) {
-                if lobby.read().await.users.len() >= 32 {
+                if lobby.lock().await.users.len() >= 32 {
                     return ServeFile::new("static/full.html").oneshot(request).await;
                 }
             }
@@ -130,7 +130,7 @@ async fn main() {
             {
                 let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
-                    let lobby = lobby.read().await;
+                    let lobby = lobby.lock().await;
                     lobby.relay_cursors().ok();
                 }
             }
@@ -150,7 +150,7 @@ async fn dashboard(lobbies: Lobbies) -> String {
 
     let mut lobbies_text = String::new();
     for (name, lobby) in lobbies.iter() {
-        let lobby = lobby.read().await;
+        let lobby = lobby.lock().await;
         lobbies_text += &format!(" - '{}' [{} user(s)]\n", name, lobby.users.len());
     }
 
@@ -163,7 +163,7 @@ async fn dashboard(lobbies: Lobbies) -> String {
 async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::response::Result<impl IntoResponse> {
     let lobbies_rl = lobbies.read().await;
 
-    let lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.read().await;
+    let lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.lock().await;
     let asset = lobby.assets.get(path.path()).ok_or(StatusCode::NOT_FOUND)?;
 
     axum::response::Result::Ok((
@@ -209,7 +209,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
             let mut lobby = Lobby::new();
             lobby.name = lobby_name.clone();
 
-            let lobby_arc = Arc::new(RwLock::new(lobby));
+            let lobby_arc = Arc::new(Mutex::new(lobby));
 
             // Start task to step physics
             let lobby_physics_clone = lobby_arc.clone();            
@@ -222,7 +222,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                     {
                         let lobby_physics_clone = lobby_physics_clone.clone();
                         if let Err(err) = tokio::task::spawn_blocking(move || {
-                            let mut lobby_wl = lobby_physics_clone.blocking_write();
+                            let mut lobby_wl = lobby_physics_clone.blocking_lock();
                             lobby_wl.step(tick % 3 == 0).ok();
                         }).await {
                             println!("Encountered error during physics step: {}", err);
@@ -234,14 +234,14 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                     interval.tick().await;
                 }
             });
-            lobby_arc.write().await.physics_handle = Some(physics_handle);
+            lobby_arc.lock().await.physics_handle = Some(physics_handle);
 
             lobbies_wl.insert(lobby_name.clone(), lobby_arc);
             host = true;
         }
 
         let lobbies_rl = lobbies.read().await;
-        let mut lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?.write().await;
+        let mut lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?.lock().await;
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
@@ -296,26 +296,26 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         match rmp_serde::from_slice(&message_bytes) {
             Ok(event_data) => {
                 let event_result = match event_data {
-                    Event::Join { referrer } => user_joined(user_id, lobby.read().await.deref(), referrer, headers.clone()), 
-                    Event::Ping { idx } => ping(user_id, lobby.read().await.deref(), idx),
+                    Event::Join { referrer } => user_joined(user_id, lobby.lock().await.deref(), referrer, headers.clone()), 
+                    Event::Ping { idx } => ping(user_id, lobby.lock().await.deref(), idx),
 
-                    Event::AddPawn { pawn } => add_pawn(user_id, lobby.write().await.deref_mut(), pawn),
-                    Event::RemovePawns { ids } => remove_pawns(user_id, lobby.write().await.deref_mut(), ids),
-                    Event::ClearPawns { } => clear_pawns(user_id, lobby.write().await.deref_mut()),
-                    Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.write().await.deref_mut(), updates),
+                    Event::AddPawn { pawn } => add_pawn(user_id, lobby.lock().await.deref_mut(), pawn),
+                    Event::RemovePawns { ids } => remove_pawns(user_id, lobby.lock().await.deref_mut(), ids),
+                    Event::ClearPawns { } => clear_pawns(user_id, lobby.lock().await.deref_mut()),
+                    Event::UpdatePawns { updates, .. } => update_pawns(user_id, lobby.lock().await.deref_mut(), updates),
 
-                    Event::ExtractPawns { from_id, new_id, into_id, count } => extract_pawns(user_id, lobby.write().await.deref_mut(), from_id, new_id, into_id, count),
-                    Event::StorePawn { from_id, into_id } => store_pawn(user_id, lobby.write().await.deref_mut(), from_id, into_id),
-                    Event::TakePawn { from_id, target_id, position_hint } => take_pawn(user_id, lobby.write().await.deref_mut(), from_id, target_id, position_hint),
+                    Event::ExtractPawns { from_id, new_id, into_id, count } => extract_pawns(user_id, lobby.lock().await.deref_mut(), from_id, new_id, into_id, count),
+                    Event::StorePawn { from_id, into_id } => store_pawn(user_id, lobby.lock().await.deref_mut(), from_id, into_id),
+                    Event::TakePawn { from_id, target_id, position_hint } => take_pawn(user_id, lobby.lock().await.deref_mut(), from_id, target_id, position_hint),
 
-                    Event::RegisterGame(info) => register_game(user_id, lobby.write().await.deref_mut(), info),
-                    Event::RegisterAssets { assets } => register_assets(user_id, lobby.write().await.deref_mut(), assets),
-                    Event::ClearAssets { } => clear_assets(user_id, lobby.write().await.deref_mut()),
-                    Event::Settings(s) => settings(user_id, lobby.write().await.deref_mut(), s),
+                    Event::RegisterGame(info) => register_game(user_id, lobby.lock().await.deref_mut(), info),
+                    Event::RegisterAssets { assets } => register_assets(user_id, lobby.lock().await.deref_mut(), assets),
+                    Event::ClearAssets { } => clear_assets(user_id, lobby.lock().await.deref_mut()),
+                    Event::Settings(s) => settings(user_id, lobby.lock().await.deref_mut(), s),
 
-                    Event::SendCursor { position } => update_cursor(user_id, lobby.write().await.deref_mut(), position),
+                    Event::SendCursor { position } => update_cursor(user_id, lobby.lock().await.deref_mut(), position),
 
-                    Event::Chat { content, .. } => chat(user_id, lobby.read().await.deref(), content),
+                    Event::Chat { content, .. } => chat(user_id, lobby.lock().await.deref(), content),
 
                     _ => Err("Received broadcast-only event".into()),
                 };
@@ -795,7 +795,7 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
 
 async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies) -> Result<(), Box<dyn Error>> {
     let lobbies_rl = lobbies.read().await;
-    let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.write().await;
+    let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.lock().await;
     
     // Tell all other users that this user has disconnected
     lobby.users.values()

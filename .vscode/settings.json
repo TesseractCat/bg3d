@@ -1,5 +1,0 @@
-{
-    "rust-analyzer.linkedProjects": [
-        ".\\bg3d_serde_shim\\Cargo.toml"
-    ]
-}
