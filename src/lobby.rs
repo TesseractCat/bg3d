@@ -165,9 +165,11 @@ impl Lobby {
         })
     }
 
-    pub fn lua_scope<R, F>(&mut self, f: F) -> Result<R, mlua::Error>
+    // Cursed lifetime workaround, third argument to FnOnce is just to imply lifetime bounds :|
+    // this solution was discovered in the #dark-arts channel on the Rust discord
+    pub fn lua_scope<'a, R, F>(&mut self, f: F) -> Result<R, mlua::Error>
     where
-        F: for<'lua, 'scope> FnOnce(&mlua::Lua, &mlua::Scope<'lua, 'scope>) -> Result<R, mlua::Error>,
+        F: for<'lua, 'scope> FnOnce(&mlua::Lua, &mlua::Scope<'lua, 'scope>, &'lua &'a ()) -> Result<R, mlua::Error>,
     {
         let lua = self.lua.take().unwrap();
 
@@ -175,7 +177,7 @@ impl Lobby {
             let ud = scope.create_userdata_ref_mut(self).expect("Failed to create UserData from lobby");
             lua.globals().raw_set("lobby", ud).expect("Failed to set lobby UserData");
 
-            f(&lua, scope)
+            f(&lua, scope, &&())
         });
 
         self.lua = Some(lua);
@@ -682,20 +684,17 @@ impl Lobby {
                 processed_assets.values().fold(0, |acc, a| acc + a.data.len())/1024);
 
         // Load lua if it exists
-        if let Err(e) = self.lua_scope(|lua, scope| {
-            scope.create_function(|lua, path: String| {
-                println!("{}", processed_assets.len());
-                Ok(())
-            });
-            // lua.globals().set("require", scope.create_function(|lua, path: String| {
-            //     Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
-            //         lua.load(String::from_utf8(asset.data.clone()).unwrap()).eval()?
-            //     } else { mlua::Value::Nil })
-            // })?)?;
-            // lua.load("require(\"main\")").exec()?;
-            // if let Ok(start_fn) = lua.globals().get::<_, mlua::Function>("start") {
-            //     let _: () = start_fn.call(())?;
-            // }
+        // `require` function is only defined on initial load.
+        if let Err(e) = self.lua_scope(|lua, scope, _| {
+            lua.globals().set("require", scope.create_function(|lua, path: String| {
+                Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
+                    lua.load(String::from_utf8(asset.data.clone()).unwrap()).eval()?
+                } else { mlua::Value::Nil })
+            })?)?;
+            lua.load("require(\"main\")").exec()?;
+            if let Ok(start_fn) = lua.globals().get::<_, mlua::Function>("start") {
+                let _: () = start_fn.call(())?;
+            }
             Ok(())
         }) {
             self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
