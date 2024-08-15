@@ -19,15 +19,19 @@ futures-util = { version = "0.3.17" }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1.7" }
 
-axum = { version = "0.6.15", features = ["ws"] }
-tower-http = { version = "0.4.0", features = ["fs", "compression-gzip"] }
+axum-macros = { version = "0.3.0-rc.3" }
+axum = { version = "0.7.4", features = ["ws", "macros"] }
+tower-http = { version = "0.5", features = ["fs", "compression-gzip"] }
 data-url = { version = "0.1.1" }
 
 rapier3d = { version = "0.17", features = [ "simd-stable" ] }
 gltf = { version = "1.1.0", features = [ "extras" ] }
 tower = "0.4.13"
 
-mlua = { version = "0.9.1", features = ["luau", "vendored", "send"] }
+#mlua = { version = "0.9.1", features = ["luau", "vendored", "send"] }
+mlua = { version = "0.9.1", features = ["luajit", "vendored", "send"] }
+paste = "1.0.14"
+ouroboros = "0.18.4"
 
 [lib]
 name = "bg3d"

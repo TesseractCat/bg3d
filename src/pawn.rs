@@ -8,9 +8,9 @@ use crate::PHYSICS_SCALE;
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec3 {
-        pub x: f64,
-        pub y: f64,
-        pub z: f64,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 impl From<&Vector<f32>> for Vec3 {
 	fn from(v: &Vector<f32>) -> Self {
@@ -40,6 +40,27 @@ impl From<&Vec3> for Rotation<f32> {
 	fn from(v: &Vec3) -> Self {
 		Rotation::from_euler_angles(v.x as f32, v.y as f32, v.z as f32)
 	}
+}
+impl mlua::UserData for Vec3 {
+    fn add_fields<'lua, F: mlua::UserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_field_method_get("x", |_, this| Ok(this.x));
+        fields.add_field_method_get("y", |_, this| Ok(this.y));
+        fields.add_field_method_get("z", |_, this| Ok(this.z));
+
+        fields.add_field_method_set("x", |_, this, val| {this.x = val; Ok(())});
+        fields.add_field_method_set("y", |_, this, val| {this.y = val; Ok(())});
+        fields.add_field_method_set("z", |_, this, val| {this.z = val; Ok(())});
+    }
+    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_function("new", |_, (x,y,z):(f64,f64,f64)| {
+            Ok(Vec3 { x,y,z })
+        });
+    }
+}
+impl<'lua> mlua::FromLua<'lua> for Vec3 {
+    fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
+        value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow().map(|x| *x)
+    }
 }
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
@@ -79,7 +100,13 @@ impl TryInto<Collider> for &PawnData {
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Hash)]
-pub struct PawnId(u64);
+pub struct PawnId(pub u64);
+impl mlua::UserData for PawnId { }
+impl<'lua> mlua::FromLua<'lua> for PawnId {
+    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        Ok(*(value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow()?))
+    }
+}
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Pawn {

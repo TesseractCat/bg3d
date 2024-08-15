@@ -16,46 +16,8 @@ export default class PluginLoader {
 
     constructor(manager) {
         this.manager = manager;
-
-        // Hook events
-        const update = (pawns) => {
-            if (this.pluginWorker)
-                this.pluginWorker.postMessage({name: "update", pawns: pawns});
-        };
-        this.manager.addEventListener("update_pawns", (e) => {
-            update(e.detail.pawns.map(p => this.manager.pawns.get(p.id)?.serialize()).filter(p => {
-                // FIXME: Why does this ever end up with pawns that don't exist?
-                // - Maybe something is responding to the same event and removing a pawn?
-                //if (!p) console.warn("Plugin attempting to update non-existent pawn");
-                return p;
-            }));
-        });
-        this.manager.addEventListener("add_pawn", (e) => {
-            update([this.manager.pawns.get(e.detail.pawn.id).serialize()]);
-        });
-        this.manager.addEventListener("remove_pawns", (e) => {
-            if (this.pluginWorker)
-                this.pluginWorker.postMessage({name: "remove", pawns: e.detail.pawns});
-        });
-        this.manager.addEventListener("clear_pawns", (e) => {
-            if (this.pluginWorker)
-                this.pluginWorker.postMessage({name: "clear"});
-        });
-
-        // Warn host if plugin is running
-        window.onbeforeunload = () => {
-            if (this.pluginWorker)
-                return "A plugin is still running. Are you sure you want to quit?";
-            return;
-        };
     }
 
-    createScriptBlob(blob) {
-        return new Blob([
-            `importScripts("${window.location.protocol}//${window.location.host}/static/prelude.bundle.js?v=${window.version}");\n\n`,
-            blob
-        ], {type: "text/javascript"});
-    }
     async loadFromFile(file) {
         if (!this.manager.host) {
             console.warn("Attempted to load plugin on non-host client!");
@@ -81,36 +43,6 @@ export default class PluginLoader {
         await reader.close();
     }
     async loadManifest(manifest, {entries = [], path = ""}) {
-        // Load script
-        let scriptBlob;
-        if (manifest.script != undefined) {
-            if (entries.length > 0) {
-                // Load script from zip entries
-                let script = findEntry(entries, manifest.script);
-                if (script)
-                    scriptBlob = this.createScriptBlob(await script.getData(new zip.BlobWriter()));
-            } else {
-                // Load script from URL
-                scriptBlob = this.createScriptBlob(await (await fetch(`${path}/${manifest.script}?v=${window.version}`)).blob());
-            }
-        }
-
-        if (!scriptBlob) {
-            console.error("Failed to load script!");
-            this.manager.chat.addSystemEntry("Failed to load plugin: Bad script");
-            return;
-        }
-
-        // Load worker
-        if (this.pluginWorker)
-            this.pluginWorker.terminate();
-
-        this.pluginWorker = new Worker(URL.createObjectURL(scriptBlob));
-        this.pluginWorker.addEventListener('message', (e) => this.onWorker(e.data));
-
-        // First clear all existing assets and pawns
-        this.clear();
-
         // Register everything
         this.registerGame(manifest);
         if (entries.length > 0) {
@@ -127,26 +59,6 @@ export default class PluginLoader {
             );
             console.log("Done!");
         }
-
-        // Start worker
-        this.pluginWorker.postMessage({name: "start"});
-
-        console.log("Plugin loaded!");
-    }
-
-    onWorker(msg) {
-        if (msg.name == "commit") {
-            for (let pawn of msg.data) {
-                if (!this.manager.pawns.has(pawn.id)) {
-                    this.manager.sendAddPawn(deserializePawn(pawn));
-                } else {
-                    this.manager.sendUpdatePawn(deserializePawn(pawn));
-                }
-            }
-        } else if (msg.name == "close") {
-            this.pluginWorker = null;
-            console.log("Plugin closed!");
-        }
     }
 
     registerGame(manifest) {
@@ -161,6 +73,12 @@ export default class PluginLoader {
 
             let mimeType = "";
             switch (extension) {
+                case "lua":
+                    mimeType = "text/x-lua";
+                    break;
+                case "json":
+                    mimeType = "application/json";
+                    break;
                 case "gltf":
                     mimeType = "model/gltf+json";
                     break;

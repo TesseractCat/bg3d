@@ -37,6 +37,7 @@ window.onload = () => {
 
     manager.init((host) => {
         let games = [
+            ['Test', 'plugins/test.zip'],
             ['Welcome', 'plugins/welcome'],
             ['Cards', 'plugins/cards'],
             ['Chess', 'plugins/chess'],
