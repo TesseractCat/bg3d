@@ -53,6 +53,7 @@ pub struct Lobby {
     pub host: UserId,
     pub info: Option<GameInfo>,
     pub settings: LobbySettings,
+    pub start_time: Instant,
 
     pub users: HashMap<UserId, User>, // FIXME: Make these both u16
     pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
@@ -70,18 +71,16 @@ pub struct Lobby {
 impl Lobby {
     pub fn new() -> Lobby {
         let lua = Lua::new_with(
-            mlua::StdLib::MATH & mlua::StdLib::TABLE & mlua::StdLib::STRING,
+            mlua::StdLib::MATH | mlua::StdLib::TABLE | mlua::StdLib::STRING,
             mlua::LuaOptions::new()
         ).unwrap();
-        lua.set_memory_limit(128000).expect("Failed to set memory limit for lua VM");
-        lua.set_hook(HookTriggers::new().every_nth_instruction(10000), |_lua, _debug| {
-            Err(mlua::Error::SafetyError("Exceeded execution limit".to_string()))
-        });
+        lua.set_memory_limit(1 << 18).expect("Failed to set memory limit for lua VM");
 
         // https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua
-        const ALLOWED_GLOBALS: [&str; 17] = [
-            "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
+        const ALLOWED_GLOBALS: [&str; 21] = [
+            "_G", "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
             "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall",
+            "math", "table", "string", // Libraries
             "setmetatable", "getmetatable", "rawget", "rawset" // FIXME: Can modify protected metatables, sandbox break?
         ];
         for pair in lua.globals().pairs::<mlua::Value, mlua::Value>() {
@@ -92,16 +91,24 @@ impl Lobby {
             }
         }
 
-        lua.globals().raw_set("Vec3", Vec3::default()).expect("Failed while initializing globals");
-        lua.globals().raw_set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
+        lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
 
-        lua.load(include_str!("prelude.lua")).exec().expect("Error in lua prelude");
+        lua.globals().set("require", lua.create_function(|lua, path: String| {
+            let text = match path.as_str() {
+                "math" => include_str!("math.lua"),
+                "prelude" => include_str!("prelude.lua"),
+                _ => panic!("Attempted to require undefined library '{}' during lua startup", path),
+            };
+            lua.load(text).eval::<mlua::Value>()
+        }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
+        lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
 
         Lobby {
             name: "".to_string(),
             host: UserId(0),
             info: None,
             settings: Default::default(),
+            start_time: Instant::now(),
 
             users: HashMap::new(),
             pawns: HashMap::new(),
@@ -150,13 +157,14 @@ impl Lobby {
         }
 
         // Lua callback
-        self.lua_scope(|lua, _scope, _| {
-            Self::run_lua_callback(lua, "physics", ()).map(|r: mlua::Result<()>| {
-                r.expect("Error in lua physics");
-                ()
-            });
+        if let Err(e) = self.lua_scope(|lua, _scope, _| {
+            if let Some(res) = Self::run_lua_callback(lua, "physics", ()) {
+                res?;
+            }
             Ok(())
-        })?;
+        }) {
+            self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
+        }
 
         Ok(())
     }
@@ -177,6 +185,10 @@ impl Lobby {
         F: for<'lua, 'scope> FnOnce(&mlua::Lua, &mlua::Scope<'lua, 'scope>, &'lua &'a ()) -> Result<R, mlua::Error>,
     {
         let lua = self.lua.take().expect("Triggered lua callback inside another lua callback");
+
+        lua.set_hook(HookTriggers::new().every_nth_instruction(1 << 14), |_lua, _debug| {
+            Err(mlua::Error::SafetyError("Exceeded execution limit".to_string()))
+        });
 
         let result = lua.scope(|scope: &mlua::Scope| {
             let ud = scope.create_userdata_ref_mut(self).expect("Failed to create UserData from lobby");
@@ -222,6 +234,9 @@ impl mlua::UserData for Lobby {
         }
         method!(name: |this, _lua| {
             Ok(this.name.clone())
+        });
+        method!(time: |this, _lua| {
+            Ok((Instant::now() - this.start_time).as_secs_f32())
         });
         method!(system_chat: |this, _lua, message: String| {
             this.system_chat(Cow::Owned(message))?;
@@ -298,10 +313,14 @@ impl Lobby {
             id: Some(user_id),
             content: Cow::Borrowed(&content)
         })?;
-        self.lua_scope(|lua, scope, _| {
-            // let _: Option<()> = Self::run_lua_callback(lua, "chat", (user_id.0, content.into_owned()));
+        if let Err(e) = self.lua_scope(|lua, scope, _| {
+            if let Some(res) = Self::run_lua_callback(lua, "chat", (user_id.0, content.into_owned())) {
+                res?;
+            }
             Ok(())
-        })?;
+        }) {
+            self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
+        }
         Ok(())
     }
     pub fn system_chat(&self, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {

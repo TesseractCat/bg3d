@@ -1,3 +1,12 @@
+-- Global vector math
+
+local vmath = require "math"
+vec3 = vmath.vec3
+vec2 = vmath.vec2
+quat = vmath.quat
+
+-- Pawns
+
 Pawn = {}
 function Pawn.update(self, table)
     table.id = self.id
@@ -9,25 +18,21 @@ end
 function Pawn.new(id)
     local o = {id = id}
     setmetatable(o, {
-        __index = function(table, key)
-            if table[key] == nil then
+        __index = function(self, key)
+            if key == "id" then
+                return rawget(self, id)
+            else
                 if Pawn[key] ~= nil then
                     return Pawn[key] -- Pawn class methods
                 else
-                    return lobby:get_pawn(id, key) -- Pawn get fields
+                    return lobby:get_pawn(self.id, key) -- Pawn get fields
                 end
-            else
-                return table[key]
             end
         end,
-        __newindex = function(table, key, value)
-            if key == "id" then
-                error("pawn `id` is constant")
-            else
-                update = {id = id}
-                update[key] = value
-                table:update(update)
-            end
+        __newindex = function(self, key, value)
+            update = {}
+            update[key] = value
+            self:update(update)
         end
     })
     return o

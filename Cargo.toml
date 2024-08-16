@@ -28,7 +28,7 @@ data-url = { version = "0.1.1" }
 rapier3d = { version = "0.22", features = [ "simd-stable" ] }
 gltf = { version = "1.1.0", features = [ "extras" ] }
 
-mlua = { version = "0.9.1", features = ["luajit", "vendored", "send"] }
+mlua = { version = "0.9.1", features = ["luajit", "vendored", "send", "macros"] }
 
 [lib]
 name = "bg3d"

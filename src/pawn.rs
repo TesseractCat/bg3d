@@ -2,6 +2,7 @@ use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
 use tokio::time::Instant;
 use rapier3d::prelude::*;
+use mlua::TableExt;
 
 use crate::user::*;
 use crate::PHYSICS_SCALE;
@@ -41,25 +42,18 @@ impl From<&Vec3> for Rotation<f32> {
 		Rotation::from_euler_angles(v.x as f32, v.y as f32, v.z as f32)
 	}
 }
-impl mlua::UserData for Vec3 {
-    fn add_fields<'lua, F: mlua::UserDataFields<'lua, Self>>(fields: &mut F) {
-        fields.add_field_method_get("x", |_, this| Ok(this.x));
-        fields.add_field_method_get("y", |_, this| Ok(this.y));
-        fields.add_field_method_get("z", |_, this| Ok(this.z));
-
-        fields.add_field_method_set("x", |_, this, val| {this.x = val; Ok(())});
-        fields.add_field_method_set("y", |_, this, val| {this.y = val; Ok(())});
-        fields.add_field_method_set("z", |_, this, val| {this.z = val; Ok(())});
-    }
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_function("new", |_, (x,y,z):(f64,f64,f64)| {
-            Ok(Vec3 { x,y,z })
-        });
+impl<'lua> mlua::IntoLua<'lua> for Vec3 {
+    fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
+        lua.globals().get::<_, mlua::Table>("vec3")?.call((self.x, self.y, self.z))
     }
 }
 impl<'lua> mlua::FromLua<'lua> for Vec3 {
     fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow().map(|x| *x)
+        Ok(if let Some(table) = value.as_table() {
+            Self { x: table.get("x")?, y: table.get("y")?, z: table.get("z")? }
+        } else {
+            Self::default()
+        })
     }
 }
 
