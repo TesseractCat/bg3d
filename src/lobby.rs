@@ -261,14 +261,23 @@ impl mlua::UserData for Lobby {
                 select_rotation: params.get("select_rotation").ok().unwrap_or_default(),
 
                 selected_user: None,
-                data: PawnData::Pawn { },
+                data: params.get::<_, Option<PawnData>>("data")?.unwrap_or(PawnData::Pawn { }),
                 rigid_body: None,
                 last_updated: Instant::now()
             };
+            println!("CREATING: {:?}", pawn);
             this.add_pawn(Cow::Owned(pawn))?;
-            Ok(lua.globals().get::<_, mlua::Table>("Pawn").unwrap().get::<_, mlua::Function>("new").unwrap().call::<_, mlua::Table>(id.0).unwrap())
+
+            Ok(
+                lua.globals().get::<_, mlua::Table>("Pawn")?
+                    .get::<_, mlua::Function>("new")?
+                    .call::<_, mlua::Table>((
+                        lua.globals().get::<_, mlua::Table>("Pawn")?,
+                        id.0
+                    ))?
+            )
         });
-        method!(update_pawn: |this, _lua, params: mlua::Table| {
+        method!(update_pawn: |this, lua, params: mlua::Table| {
             let update = PawnUpdate {
                 id: PawnId(params.get("id").unwrap()),
                 name: params.get("name").ok(),
@@ -281,7 +290,7 @@ impl mlua::UserData for Lobby {
                 select_rotation: params.get("select_rotation").ok(),
 
                 selected: None,
-                data: None
+                data: params.get("data").ok()
             };
             this.update_pawns(None, Vec::from([update]))?;
             Ok(())

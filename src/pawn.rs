@@ -62,6 +62,20 @@ pub struct Vec2 {
         pub x: f64,
         pub y: f64,
 }
+impl<'lua> mlua::IntoLua<'lua> for Vec2 {
+    fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
+        lua.globals().get::<_, mlua::Table>("vec2")?.call((self.x, self.y))
+    }
+}
+impl<'lua> mlua::FromLua<'lua> for Vec2 {
+    fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
+        Ok(if let Some(table) = value.as_table() {
+            Self { x: table.get("x")?, y: table.get("y")? }
+        } else {
+            Self::default()
+        })
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "class", content = "data")]
@@ -76,6 +90,45 @@ pub enum PawnData {
     #[serde(rename_all = "camelCase")]
     Dice { roll_rotations: Vec<Vec3> },
     Pawn {},
+}
+impl<'lua> mlua::FromLua<'lua> for PawnData {
+    fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        if let Some(table) = value.as_table() {
+            if let Some(mt) = table.get_metatable() {
+                let deck_mt = lua.globals().get::<_, mlua::Table>("DeckData")?;
+                let snap_point_mt = lua.globals().get::<_, mlua::Table>("SnapPointData")?;
+                let container_mt = lua.globals().get::<_, mlua::Table>("ContainerData")?;
+                let dice_mt = lua.globals().get::<_, mlua::Table>("DiceData")?;
+                if mt == deck_mt {
+                    Ok(PawnData::Deck {
+                        contents: table.get("contents")?,
+                        back: table.get("back")?,
+                        side_color: table.get("side_color")?,
+                        border: table.get("border")?,
+                        corner_radius: table.get("corner_radius")?,
+                        card_thickness: table.get("card_thickness")?,
+                        size: table.get("size")?
+                    })
+                } else if mt == snap_point_mt {
+                    Ok(PawnData::SnapPoint {
+                        radius: table.get("radius")?,
+                        size: table.get("size")?,
+                        scale: table.get("scale")?,
+                        snaps: table.get("snaps")?
+                    })
+                } else {
+                    Err(mlua::Error::FromLuaConversionError { from: "table", to: "PawnData", message: Some("Invalid PawnData type".to_string()) })
+                }
+            } else {
+                Err(mlua::Error::FromLuaConversionError { from: "table", to: "PawnData", message: Some("Mismatched metatable".to_string()) })
+            }
+        } else {
+            Err(mlua::Error::FromLuaConversionError {
+                from: "value", to: "PawnData",
+                message: Some(format!("Data type is {}, expected table", value.type_name()))
+            })
+        }
+    }
 }
 impl TryInto<Collider> for &PawnData {
     type Error = ();

@@ -8,14 +8,14 @@ quat = vmath.quat
 -- Pawns
 
 Pawn = {}
-function Pawn.update(self, table)
+function Pawn:update(table)
     table.id = self.id
     lobby:update_pawn(table)
 end
-function Pawn.destroy(self)
+function Pawn:destroy()
     lobby:destroy_pawn(self.id)
 end
-function Pawn.new(id)
+function Pawn:new(id)
     local o = {id = id}
     setmetatable(o, {
         __index = function(self, key)
@@ -35,5 +35,20 @@ function Pawn.new(id)
             self:update(update)
         end
     })
+    return o
+end
+
+DeckData = {}
+SnapPointData = {}
+ContainerData = {}
+DiceData = {}
+function SnapPointData:new(options)
+    o = {
+        radius = options.radius or 1,
+        size = options.size or vec2(1, 1),
+        scale = options.scale or 1,
+        snaps = options.snaps or {}
+    }
+    setmetatable(o, self)
     return o
 end

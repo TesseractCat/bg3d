@@ -6,6 +6,7 @@ local forward
 local vtmp1
 local vtmp2
 local qtmp1
+local v2tmp1
 
 vec3 = {
     __call = function(_, x, y, z)
@@ -248,7 +249,7 @@ vec2 = {
         end,
 
         distance = function(v, u)
-            return vec2.sub(v, u, vtmp1):length()
+            return vec2.sub(v, u, v2tmp1):length()
         end,
 
         angle = function(v, u)
@@ -277,7 +278,7 @@ vec2 = {
 
         project = function(v, u, out)
             out = out or v
-            local unorm = vtmp1
+            local unorm = v2tmp1
             u:normalize(unorm)
             local dot = v:dot(unorm)
             out.x = unorm.x * dot
@@ -470,6 +471,7 @@ quat = {
 }
 
 setmetatable(vec3, vec3)
+setmetatable(vec2, vec2)
 setmetatable(quat, quat)
 
 forward = vec3(0, 0, -1)
