@@ -1,15 +1,9 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
 use std::path::Path;
-use std::pin::Pin;
-use std::rc::Rc;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
-use std::sync::{Arc, Mutex};
 use data_url::DataUrl;
-use ouroboros::self_referencing;
 use tokio::time::Instant;
 
 use gltf::Gltf;
@@ -19,11 +13,8 @@ use rapier3d::geometry::{Collider, ColliderHandle};
 use rapier3d::math::{Rotation, Vector};
 use rapier3d::pipeline::ActiveEvents;
 use serde::{Serialize, Deserialize};
-use tokio::task::JoinHandle;
 
-use paste::paste;
-
-use mlua::{HookTriggers, Lua, IntoLua};
+use mlua::{HookTriggers, IntoLua, Lua};
 
 use crate::gltf_ext::GltfExt;
 use crate::user::*;
@@ -68,7 +59,7 @@ pub struct Lobby {
     pub assets: HashMap<String, Asset>,
 
     pub world: PhysicsWorld,
-    pub physics_handle: Option<JoinHandle<()>>,
+    pub abort_token: Option<bool>,
 
     pub lua: Option<Lua>,
 
@@ -88,9 +79,10 @@ impl Lobby {
         });
 
         // https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua
-        const ALLOWED_GLOBALS: [&str; 13] = [
+        const ALLOWED_GLOBALS: [&str; 17] = [
             "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
-            "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall"
+            "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall",
+            "setmetatable", "getmetatable", "rawget", "rawset" // FIXME: Can modify protected metatables, sandbox break?
         ];
         for pair in lua.globals().pairs::<mlua::Value, mlua::Value>() {
             let pair = pair.expect("Failed while cleaning globals");
@@ -101,6 +93,9 @@ impl Lobby {
         }
 
         lua.globals().raw_set("Vec3", Vec3::default()).expect("Failed while initializing globals");
+        lua.globals().raw_set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
+
+        lua.load(include_str!("prelude.lua")).exec().expect("Error in lua prelude");
 
         Lobby {
             name: "".to_string(),
@@ -113,7 +108,7 @@ impl Lobby {
             assets: HashMap::new(),
 
             world: PhysicsWorld::new(PHYSICS_RATE),
-            physics_handle: None,
+            abort_token: None,
 
             lua: Some(lua),
 
@@ -150,9 +145,18 @@ impl Lobby {
             // Send update
             return self.users.values().send_event(&Event::UpdatePawns {
                 updates: dirty_pawns.iter().map(|p| p.serialize_transform()).collect(),
-                collisions: self.world.get_collisions(),
+                collisions: None,
             });
         }
+
+        // Lua callback
+        self.lua_scope(|lua, _scope, _| {
+            Self::run_lua_callback(lua, "physics", ()).map(|r: mlua::Result<()>| {
+                r.expect("Error in lua physics");
+                ()
+            });
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -167,11 +171,12 @@ impl Lobby {
 
     // Cursed lifetime workaround, third argument to FnOnce is just to imply lifetime bounds :|
     // this solution was discovered in the #dark-arts channel on the Rust discord
+    // Minimal repro: https://play.rust-lang.org/?version=stable&mode=debug&edition=2021&gist=42c572f9b964787146018dcbe664741b
     pub fn lua_scope<'a, R, F>(&mut self, f: F) -> Result<R, mlua::Error>
     where
         F: for<'lua, 'scope> FnOnce(&mlua::Lua, &mlua::Scope<'lua, 'scope>, &'lua &'a ()) -> Result<R, mlua::Error>,
     {
-        let lua = self.lua.take().unwrap();
+        let lua = self.lua.take().expect("Triggered lua callback inside another lua callback");
 
         let result = lua.scope(|scope: &mlua::Scope| {
             let ud = scope.create_userdata_ref_mut(self).expect("Failed to create UserData from lobby");
@@ -184,37 +189,49 @@ impl Lobby {
 
         result
     }
+    fn run_lua_callback<'lua, R: mlua::FromLuaMulti<'lua>, A: mlua::IntoLuaMulti<'lua>>(lua: &'lua Lua, callback_name: &str, args: A) -> Option<mlua::Result<R>> {
+        if let Some(game) = lua.globals().get::<_, mlua::Table>("game").ok() {
+            if let Some(callback) = game.get::<_, mlua::Function>(callback_name).ok() {
+                Some(callback.call(args))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 }
 impl mlua::UserData for Lobby {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         macro_rules! method {
-            ($name:tt: |$this:ident| $method:expr) => {
-                methods.add_method_mut(stringify!($name), |_, $this: &mut Self, _: ()| {
+            ($name:tt: |$this:ident, $lua:ident, $($argname:ident : $argtype:ty),+| $method:expr) => {
+                #[allow(unused_parens)]
+                methods.add_method_mut(stringify!($name), |$lua, $this: &mut Self, ($($argname),+): ($($argtype),+)| {
                     (|| -> Result<_, Box<dyn Error>> {
                         $method
                     })().map_err(|e| mlua::Error::RuntimeError(format!("Error occurred in Rust callback [{}]: {}", stringify!($name), e)))
                 })
             };
-            ($name:tt: |$this:ident, $($argname:ident : $argtype:ty),+| $method:expr) => {
-                methods.add_method_mut(stringify!($name), |_, $this: &mut Self, ($($argname),+): ($($argtype),+)| {
+            ($name:tt: |$this:ident, $lua:ident| $method:expr) => {
+                methods.add_method_mut(stringify!($name), |$lua, $this: &mut Self, _: ()| {
                     (|| -> Result<_, Box<dyn Error>> {
                         $method
                     })().map_err(|e| mlua::Error::RuntimeError(format!("Error occurred in Rust callback [{}]: {}", stringify!($name), e)))
                 })
-            }
+            };
         }
-        method!(name: |this| {
+        method!(name: |this, _lua| {
             Ok(this.name.clone())
         });
-        method!(system_chat: |this, message: String| {
-            this.chat(UserId(0), Cow::Owned(message))?;
+        method!(system_chat: |this, _lua, message: String| {
+            this.system_chat(Cow::Owned(message))?;
             Ok(())
         });
-        method!(send_chat: |this, user_id: u64, message: String| {
+        method!(send_chat: |this, _lua, user_id: u64, message: String| {
             this.chat(UserId(user_id), Cow::Owned(message))?;
             Ok(())
         });
-        method!(create_pawn: |this, params: mlua::Table| {
+        method!(create_pawn: |this, lua, params: mlua::Table| {
             let id = this.next_pawn_id();
             let pawn = Pawn {
                 id,
@@ -234,9 +251,9 @@ impl mlua::UserData for Lobby {
                 last_updated: Instant::now()
             };
             this.add_pawn(Cow::Owned(pawn))?;
-            Ok(id.0)
+            Ok(lua.globals().get::<_, mlua::Table>("Pawn").unwrap().get::<_, mlua::Function>("new").unwrap().call::<_, mlua::Table>(id.0).unwrap())
         });
-        method!(update_pawn: |this, params: mlua::Table| {
+        method!(update_pawn: |this, _lua, params: mlua::Table| {
             let update = PawnUpdate {
                 id: PawnId(params.get("id").unwrap()),
                 name: params.get("name").ok(),
@@ -254,17 +271,38 @@ impl mlua::UserData for Lobby {
             this.update_pawns(None, Vec::from([update]))?;
             Ok(())
         });
+        method!(get_pawn: |this, lua, id: u64, key: String| {
+            let pawn = this.pawns.get(&PawnId(id)).unwrap();
+            Ok::<mlua::Value, _>(match key.as_str() {
+                "name" => pawn.name.clone().into_lua(lua)?,
+                "moveable" => pawn.moveable.into_lua(lua)?,
+
+                "position" => pawn.position.into_lua(lua)?,
+                "rotation" => pawn.rotation.into_lua(lua)?,
+                "select_rotation" => pawn.select_rotation.into_lua(lua)?,
+                _ => mlua::Value::Nil
+            })
+        });
+        method!(destroy_pawn: |this, _lua, id: u64| {
+            this.remove_pawns(Vec::from([PawnId(id)]))?;
+            Ok(())
+        });
     }
 }
 
 impl Lobby {
     // -- CHAT EVENTS --
 
-    pub fn chat(&self, user_id: UserId, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
+    pub fn chat(&mut self, user_id: UserId, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
         self.users.values().send_event(&Event::Chat {
             id: Some(user_id),
             content: Cow::Borrowed(&content)
-        })
+        })?;
+        self.lua_scope(|lua, scope, _| {
+            // let _: Option<()> = Self::run_lua_callback(lua, "chat", (user_id.0, content.into_owned()));
+            Ok(())
+        })?;
+        Ok(())
     }
     pub fn system_chat(&self, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
         self.users.values().send_event(&Event::Chat {
@@ -692,8 +730,9 @@ impl Lobby {
                 } else { mlua::Value::Nil })
             })?)?;
             lua.load("require(\"main\")").exec()?;
-            if let Ok(start_fn) = lua.globals().get::<_, mlua::Function>("start") {
-                let _: () = start_fn.call(())?;
+
+            if let Some(res) = Self::run_lua_callback(lua, "start", ()) {
+                res?;
             }
             Ok(())
         }) {

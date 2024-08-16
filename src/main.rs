@@ -211,30 +211,29 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
             let lobby_arc = Arc::new(Mutex::new(lobby));
 
-            // Start task to step physics
+            // Start thread to step physics
             let lobby_physics_clone = lobby_arc.clone();            
-            let physics_handle = tokio::task::spawn(async move {
-                let mut interval = interval(Duration::from_secs_f32(PHYSICS_RATE));
+            std::thread::spawn(move || {
+                let physics_rate_duration = Duration::from_secs_f32(PHYSICS_RATE);
 
                 let mut tick: u32 = 0;
                 loop {
                     let start = Instant::now();
                     {
-                        let lobby_physics_clone = lobby_physics_clone.clone();
-                        if let Err(err) = tokio::task::spawn_blocking(move || {
-                            let mut lobby_wl = lobby_physics_clone.blocking_lock();
-                            lobby_wl.step(tick % 3 == 0).ok();
-                        }).await {
-                            println!("Encountered error during physics step: {}", err);
+                        let mut lobby_wl = lobby_physics_clone.blocking_lock();
+                        if let Some(true) = lobby_wl.abort_token {
+                            return;
                         }
+                        lobby_wl.step(tick % 3 == 0).ok();
                     }
                     let _elapsed = Instant::now() - start;
+
                     // println!("Physics time: {}", elapsed.as_millis());
                     tick += 1;
-                    interval.tick().await;
+                    std::thread::sleep(physics_rate_duration.saturating_sub(_elapsed));
                 }
             });
-            lobby_arc.lock().await.physics_handle = Some(physics_handle);
+            lobby_arc.lock().await.abort_token = Some(false);
 
             lobbies_wl.insert(lobby_name.clone(), lobby_arc);
             host = true;
@@ -314,7 +313,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
                     Event::SendCursor { position } => lobby.lock().await.deref_mut().update_cursor(user_id, position),
 
-                    Event::Chat { content, .. } => lobby.lock().await.deref().chat(user_id, content),
+                    Event::Chat { content, .. } => lobby.lock().await.deref_mut().chat(user_id, content),
                     Event::Ping { idx } => lobby.lock().await.deref().ping(user_id, idx),
 
                     _ => Err("Received broadcast-only event".into()),
@@ -435,7 +434,8 @@ async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies)
             println!("Host of lobby [{lobby_name}] left, reassigning <{user_id:?}> -> <{:?}>", lobby.host);
         }
     } else { // Otherwise, delete lobby if last user
-        lobby.physics_handle.as_ref().ok_or("Attempting to remove lobby without physics handle")?.abort();
+        //lobby.physics_handle.as_ref().ok_or("Attempting to remove lobby without physics handle")?.abort();
+        lobby.abort_token = Some(true);
         drop(lobby);
         drop(lobbies_rl);
 

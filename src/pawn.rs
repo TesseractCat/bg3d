@@ -101,12 +101,12 @@ impl TryInto<Collider> for &PawnData {
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PawnId(pub u64);
-impl mlua::UserData for PawnId { }
-impl<'lua> mlua::FromLua<'lua> for PawnId {
-    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(*(value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow()?))
-    }
-}
+// impl mlua::UserData for PawnId { }
+// impl<'lua> mlua::FromLua<'lua> for PawnId {
+//     fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+//         Ok(*(value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow()?))
+//     }
+// }
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Pawn {
