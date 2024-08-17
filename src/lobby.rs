@@ -265,17 +265,9 @@ impl mlua::UserData for Lobby {
                 rigid_body: None,
                 last_updated: Instant::now()
             };
-            println!("CREATING: {:?}", pawn);
-            this.add_pawn(Cow::Owned(pawn))?;
+            this.add_pawn(Cow::Owned(pawn.clone()))?;
 
-            Ok(
-                lua.globals().get::<_, mlua::Table>("Pawn")?
-                    .get::<_, mlua::Function>("new")?
-                    .call::<_, mlua::Table>((
-                        lua.globals().get::<_, mlua::Table>("Pawn")?,
-                        id.0
-                    ))?
-            )
+            Ok(pawn)
         });
         method!(update_pawn: |this, lua, params: mlua::Table| {
             let update = PawnUpdate {

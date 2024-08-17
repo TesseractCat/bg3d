@@ -180,6 +180,14 @@ pub struct Pawn {
 	#[serde(skip, default = "Instant::now")]
     pub last_updated: Instant,
 }
+impl<'lua> mlua::IntoLua<'lua> for Pawn {
+    fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
+        let table = lua.create_table()?;
+        table.set("id", self.id.0)?;
+        table.set_metatable(lua.globals().get("Pawn")?);
+        Ok(mlua::Value::Table(table))
+    }
+}
 #[skip_serializing_none]
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
