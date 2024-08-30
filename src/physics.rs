@@ -4,7 +4,8 @@ use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use serde::{Serialize, Deserialize};
 
 use crate::pawn::Vec3;
-use crate::PHYSICS_SCALE;
+
+const PHYSICS_SCALE: f32 = 1.0/8.0;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CollisionAudioInfo {
@@ -71,11 +72,13 @@ impl PhysicsWorld {
             integration_parameters: IntegrationParameters {
                 dt: dt,
                 min_ccd_dt: dt/100.0,
-                contact_damping_ratio: 0.5,
+                contact_damping_ratio: 0.25,
                 // erp: 1.0,
                 // damping_ratio: 0.8,
                 // max_stabilization_iterations: 2,
                 max_ccd_substeps: 2,
+                length_unit: 1.0/PHYSICS_SCALE,
+
                 ..Default::default()
             },
             physics_pipeline: PhysicsPipeline::new(),
@@ -97,10 +100,10 @@ impl PhysicsWorld {
   
         // Ceiling
 		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::y_axis())
-                                    .translation(Vector::y_axis().into_inner() * 500. * PHYSICS_SCALE).build());
+                                    .translation(Vector::y_axis().into_inner() * 500.).build());
 
         // Walls
-        let wall_distance = 80. * PHYSICS_SCALE;
+        let wall_distance = 80.;
 		w.collider_set.insert(ColliderBuilder::halfspace(Vector::x_axis())
                                     .translation(Vector::x_axis().into_inner() * -wall_distance).build());
 		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::x_axis())
@@ -114,7 +117,7 @@ impl PhysicsWorld {
     }
     pub fn step(&mut self) {
         self.physics_pipeline.step(
-            &vector![0.0, -9.8, 0.0],
+            &vector![0.0, -9.8 / PHYSICS_SCALE, 0.0],
             &self.integration_parameters,
 
 			&mut self.island_manager,

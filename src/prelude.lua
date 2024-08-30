@@ -67,6 +67,14 @@ function SnapPointData:new(options)
     setmetatable(o, self)
     return o
 end
+function ContainerData:new(options)
+    o = {
+        holds = options.holds or {},
+        capacity = options.capacity or 1,
+    }
+    setmetatable(o, self)
+    return o
+end
 
 -- Extension functions
 

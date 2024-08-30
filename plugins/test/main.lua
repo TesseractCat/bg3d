@@ -29,6 +29,7 @@ function game.start()
             border = "notes/mat.svg",
             corner_radius = 0.03,
             size = vec2(10, 9),
+            card_thickness = 0.2
         }
     }
 
@@ -36,13 +37,14 @@ function game.start()
         local suits = {'S','D','C','H'};
         local ranks = {'A','2','3','4','5','6','7','8','9','10','J','Q','K'};
 
-        return table.flat_map(suits,
+        return table.flat_map(
+            suits,
             function(suit)
-                return table.map(ranks,
-                    function(rank)
-                        return string.format("generic/cards/%s%s.webp", rank, suit)
-                    end)
-            end)
+                return table.map(
+                    ranks, function(rank) return string.format("generic/cards/%s%s.webp", rank, suit) end
+                )
+            end
+        )
     end
 
     local deck = lobby:create_pawn{
@@ -63,48 +65,50 @@ function game.start()
         data = SnapPointData:new{}
     }
 
-    -- local mini = lobby:create_pawn{
-    --     name: "Mini Bird",
-    --     tint: 0xdd2222,
-    --     mesh: 'generic/minibird.gltf'
-    -- }
-    -- local bag = lobby:create_pawn{
-    --     name: "Mystery Bag", holds: mini, capacity: 5,
-    --     position: vec3(-6.5, 0, 0),
-    --     rotation: vec3(0, math.pi/16, 0),
-    --     mesh: 'generic/bag.gltf',
-    -- }
+    local mini = {
+        name = "Mini Bird",
+        tint = 0xdd2222,
+        mesh = 'generic/minibird.gltf'
+    }
+    local bag = lobby:create_pawn{
+        name = "Mystery Bag",
+        position = vec3(-6.5, 0, 0),
+        rotation = vec3(0, math.pi/16, 0),
+        mesh = 'generic/bag.gltf',
+        data = ContainerData:new{
+            holds = mini, capacity = 5,
+        }
+    }
 
-    -- local post_its = {
-    --     lobby:create_pawn{
-    --         name: "Post-it", tint: 0xFFFF99,
-    --         position: vec3(-2.8, 2.8, 3),
-    --         rotation: vec3(0, -math.pi/32, 0),
-    --         texture: 'notes/welcome.webp',
-    --         mesh: 'notes/post-it.gltf',
-    --     },
-    --     lobby:create_pawn{
-    --         name: "Post-it", tint: 0xFF99FF,
-    --         position: vec3(1.0, 2.8, 2.8),
-    --         rotation: vec3(0, math.pi/22, 0),
-    --         texture: 'notes/info.webp',
-    --         mesh: 'notes/post-it.gltf',
-    --     },
-    --     lobby:create_pawn{
-    --         name: "Post-it", tint: 0xBBFFFF,
-    --         position: vec3(6.0, 2.8, -1.6),
-    --         rotation: vec3(0, math.pi/2 - math.pi/64, 0),
-    --         texture: 'notes/cards.webp',
-    --         mesh: 'notes/post-it.gltf',
-    --     },
-    -- }
+    -- Post-its
+    lobby:create_pawn{
+        name = "Post-it", tint = tonumber("0xFFFF99"),
+        position = vec3(-2.8, 5.8, 3),
+        rotation = vec3(0, -math.pi/32, 0),
+        texture = 'notes/welcome.webp',
+        mesh = 'notes/post-it.gltf',
+    }
+    lobby:create_pawn{
+        name = "Post-it", tint = tonumber("0xFF99FF"),
+        position = vec3(1.0, 5.8, 2.8),
+        rotation = vec3(0, math.pi/22, 0),
+        texture = 'notes/info.webp',
+        mesh = 'notes/post-it.gltf',
+    }
+    lobby:create_pawn{
+        name = "Post-it", tint = tonumber("0xBBFFFF"),
+        position = vec3(6.0, 5.8, -1.6),
+        rotation = vec3(0, math.pi/2 - math.pi/64, 0),
+        texture = 'notes/cards.webp',
+        mesh = 'notes/post-it.gltf',
+    }
 
-    -- let queen = new Pawn({
-    --     name: "Queen",
-    --     mesh: 'chess/queen.gltf',
-    --     position: vec3(3.5,1,1),
-    --     tint: 0x303030
-    -- });
+    local queen = lobby:create_pawn{
+        name = "Queen",
+        mesh = 'chess/queen.gltf',
+        position = vec3(3.5,1,1),
+        tint = tonumber("0x303030")
+    }
     -- let die = new Dice({
     --     name: 'Die',
     --     position: vec3(4,1,3),

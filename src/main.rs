@@ -52,7 +52,6 @@ use user::*;
 use events::*;
 
 const PHYSICS_RATE: f32 = 1.0/45.0;
-const PHYSICS_SCALE: f32 = 1.0/8.0;
 const CURSOR_RATE: f32 = 1.0/10.0;
 
 //TODO: Replace this with Dashmap?

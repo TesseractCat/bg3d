@@ -14,14 +14,14 @@ use rapier3d::math::{Rotation, Vector};
 use rapier3d::pipeline::ActiveEvents;
 use serde::{Serialize, Deserialize};
 
-use mlua::{HookTriggers, IntoLua, Lua};
+use mlua::{FromLua, HookTriggers, IntoLua, Lua};
 
 use crate::gltf_ext::GltfExt;
 use crate::user::*;
 use crate::physics::*;
 use crate::events::*;
 use crate::pawn::*;
-use crate::{PHYSICS_RATE, PHYSICS_SCALE};
+use crate::PHYSICS_RATE;
 
 pub struct Asset {
     pub mime_type: String,
@@ -120,7 +120,7 @@ impl Lobby {
             lua: Some(lua),
 
             next_user_id: AtomicU64::new(1),
-            next_pawn_id: AtomicU64::new(0),
+            next_pawn_id: AtomicU64::new(1),
         }
     }
 
@@ -142,7 +142,7 @@ impl Lobby {
 
             let rb_handle = pawn.rigid_body.ok_or("A pawn must have a rigid body handle")?;
             let rb = self.world.rigid_body_set.get(rb_handle).ok_or("Invalid rigidbody handle")?;
-            pawn.position = Vec3::from(&(rb.translation()/PHYSICS_SCALE));
+            pawn.position = Vec3::from(rb.translation());
             pawn.rotation = Vec3::from(rb.rotation());
             if !rb.is_sleeping() && rb.is_moving() {
                 dirty_pawns.push(pawn);
@@ -248,23 +248,9 @@ impl mlua::UserData for Lobby {
         });
         method!(create_pawn: |this, lua, params: mlua::Table| {
             let id = this.next_pawn_id();
-            let pawn = Pawn {
-                id,
-                name: params.get("name").ok(),
-                mesh: params.get("mesh").ok(),
-                tint: params.get("tint").ok(),
-                texture: params.get("texture").ok(),
-                moveable: params.get::<_, mlua::Value>("moveable").ok().and_then(|x| x.as_boolean()).unwrap_or(true),
 
-                position: params.get("position").ok().unwrap_or_default(),
-                rotation: params.get("rotation").ok().unwrap_or_default(),
-                select_rotation: params.get("select_rotation").ok().unwrap_or_default(),
-
-                selected_user: None,
-                data: params.get::<_, Option<PawnData>>("data")?.unwrap_or(PawnData::Pawn { }),
-                rigid_body: None,
-                last_updated: Instant::now()
-            };
+            let mut pawn = Pawn::from_lua(mlua::Value::Table(params), lua)?;
+            pawn.id = id;
             this.add_pawn(Cow::Owned(pawn.clone()))?;
 
             Ok(pawn)
@@ -341,10 +327,10 @@ impl Lobby {
         // Deserialize collider
         // FIXME: Only enable CCD on cards/thin geometry?
         let rigid_body = if pawn.moveable { RigidBodyBuilder::dynamic() } else { RigidBodyBuilder::fixed() }
-            .translation(Vector::from(&pawn.position) * PHYSICS_SCALE)
+            .translation(Vector::from(&pawn.position))
             .rotation(Rotation::from(&pawn.rotation).scaled_axis())
             .linear_damping(1.0).angular_damping(0.5)
-            .ccd_enabled(matches!(pawn.data, PawnData::Deck { .. }) && pawn.moveable)
+            .ccd_enabled(/*matches!(pawn.data, PawnData::Deck { .. }) ||*/true) // Enable CCD on everything for now...
             .build();
         pawn.to_mut().rigid_body = Some(self.world.rigid_body_set.insert(rigid_body));
 
@@ -365,7 +351,9 @@ impl Lobby {
 
                     if let Some(gltf) = gltf {
                         Box::new(gltf.colliders().map(|collider| {
-                            collider.friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build()
+                            collider
+                                .friction(0.7).mass(0.01)
+                                .active_events(ActiveEvents::COLLISION_EVENTS).build()
                         }))
                     } else {
                         Box::new(std::iter::empty())
@@ -487,7 +475,7 @@ impl Lobby {
                 // Update position and velocity
                 if update.position.is_some() || update.rotation.is_some() {
                     let old_position: &Vector<f32> = rb.translation();
-                    let position: Vector<f32> = Vector::from(&pawn.position) * PHYSICS_SCALE;
+                    let position: Vector<f32> = Vector::from(&pawn.position);
 
                     let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
                     let time_difference = (Instant::now() - pawn.last_updated).as_secs_f32();

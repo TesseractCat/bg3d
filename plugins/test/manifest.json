@@ -1,6 +1,5 @@
 {
     "name": "Test",
     "description": "Lua test",
-    "author": "Built-in",
-    "script": "main.lua"
+    "author": "Built-in"
 }

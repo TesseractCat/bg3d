@@ -5,7 +5,6 @@ use rapier3d::prelude::*;
 use mlua::TableExt;
 
 use crate::user::*;
-use crate::PHYSICS_SCALE;
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
 pub struct Vec3 {
@@ -116,6 +115,11 @@ impl<'lua> mlua::FromLua<'lua> for PawnData {
                         scale: table.get("scale")?,
                         snaps: table.get("snaps")?
                     })
+                } else if mt == container_mt {
+                    Ok(PawnData::Container {
+                        holds: Box::new(table.get("holds")?),
+                        capacity: table.get("capacity")?
+                    })
                 } else {
                     Err(mlua::Error::FromLuaConversionError { from: "table", to: "PawnData", message: Some("Invalid PawnData type".to_string()) })
                 }
@@ -136,10 +140,11 @@ impl TryInto<Collider> for &PawnData {
     fn try_into(self) -> Result<Collider, Self::Error> {
         match &self {
             PawnData::Deck { contents, card_thickness, size, .. } => {
-                Ok(ColliderBuilder::cuboid((size.x/2.) as f32 * PHYSICS_SCALE,
-                                    ((*card_thickness * contents.len() as f64 * 1.15)/2.).max(0.03) as f32 * PHYSICS_SCALE,
-                                    (size.y/2.) as f32 * PHYSICS_SCALE)
-                    .friction(0.7).active_events(ActiveEvents::COLLISION_EVENTS).mass(0.01).build())
+                Ok(ColliderBuilder::cuboid(size.x as f32/2.,
+                                    ((*card_thickness as f32 * contents.len() as f32 * 1.15)/2.).max(0.03),
+                                    size.y as f32/2.)
+                    .friction(0.7).mass(0.01)
+                    .active_events(ActiveEvents::COLLISION_EVENTS).build())
             },
             _ => Err(())
         }
@@ -179,6 +184,31 @@ pub struct Pawn {
 	pub rigid_body: Option<RigidBodyHandle>,
 	#[serde(skip, default = "Instant::now")]
     pub last_updated: Instant,
+}
+impl<'lua> mlua::FromLua<'lua> for Pawn {
+    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        if let Some(params) = value.as_table() {
+            Ok(Pawn {
+                id: PawnId(params.get::<_, u64>("id").ok().unwrap_or(0)),
+                name: params.get("name").ok(),
+                mesh: params.get("mesh").ok(),
+                tint: params.get("tint").ok(),
+                texture: params.get("texture").ok(),
+                moveable: params.get::<_, mlua::Value>("moveable").ok().and_then(|x| x.as_boolean()).unwrap_or(true),
+    
+                position: params.get("position").ok().unwrap_or_default(),
+                rotation: params.get("rotation").ok().unwrap_or_default(),
+                select_rotation: params.get("select_rotation").ok().unwrap_or_default(),
+    
+                selected_user: None,
+                data: params.get::<_, Option<PawnData>>("data")?.unwrap_or(PawnData::Pawn { }),
+                rigid_body: None,
+                last_updated: Instant::now()
+            })
+        } else {
+            Err(mlua::Error::FromLuaConversionError { from: "table", to: "Pawn", message: None })
+        }
+    }
 }
 impl<'lua> mlua::IntoLua<'lua> for Pawn {
     fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
