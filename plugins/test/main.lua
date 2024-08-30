@@ -5,9 +5,18 @@ function game.start()
     local bird = lobby:create_pawn{
         name = "Bird Statue",
         position = vec3(-1.6,2.8,-1.8),
-        rotation =  vec3(0, math.pi/6, 0),
+        rotation = vec3(0, math.pi/6, 0),
         mesh = 'generic/bird.glb',
     }
+
+    lobby:schedule(coroutine.create(function()
+        while true do
+            local pos = bird.position
+            pos.y = pos.y + 0.4
+            bird.position = pos
+            coroutine.yield(40)
+        end
+    end))
 
     local stand = lobby:create_pawn{
         name = "Stand",

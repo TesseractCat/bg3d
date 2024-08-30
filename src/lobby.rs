@@ -63,6 +63,7 @@ pub struct Lobby {
     pub abort_token: Option<bool>,
 
     pub lua: Option<Lua>,
+    pub scheduled_lua_funcs: HashMap<mlua::RegistryKey, u64>,
 
     next_user_id: AtomicU64,
     next_pawn_id: AtomicU64,
@@ -77,10 +78,10 @@ impl Lobby {
         lua.set_memory_limit(1 << 18).expect("Failed to set memory limit for lua VM");
 
         // https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua
-        const ALLOWED_GLOBALS: [&str; 21] = [
+        const ALLOWED_GLOBALS: [&str; 22] = [
             "_G", "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
             "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall",
-            "math", "table", "string", // Libraries
+            "math", "table", "string", "coroutine", // Libraries
             "setmetatable", "getmetatable", "rawget", "rawset" // FIXME: Can modify protected metatables, sandbox break?
         ];
         for pair in lua.globals().pairs::<mlua::Value, mlua::Value>() {
@@ -118,6 +119,7 @@ impl Lobby {
             abort_token: None,
 
             lua: Some(lua),
+            scheduled_lua_funcs: HashMap::new(),
 
             next_user_id: AtomicU64::new(1),
             next_pawn_id: AtomicU64::new(1),
@@ -157,7 +159,17 @@ impl Lobby {
         }
 
         // Lua callback
-        if let Err(e) = self.lua_scope(|lua, _scope, _| {
+        self.scheduled_lua_funcs.iter_mut().for_each(|(_k, v)| {*v -= 1;}); // Tick down timers
+        let (not_ready, ready) = std::mem::take(&mut self.scheduled_lua_funcs).into_iter().partition(|(_, v)| *v != 0);
+        self.scheduled_lua_funcs = not_ready;
+        for ready_func in ready.into_keys() { // Call completed timers
+            if let Err(e) = self.lua_scope(|lua, _scope, _| {
+                lua.registry_value::<mlua::Function>(&ready_func)?.call::<(), ()>(())
+            }) {
+                self.system_chat(Cow::Owned(format!("Lua error in scheduled function: `{}`", e)))?;
+            }
+        }
+        if let Err(e) = self.lua_scope(|lua, _scope, _| { // Call physics callback
             if let Some(res) = Self::run_lua_callback(lua, "physics", ()) {
                 res?;
             }
@@ -214,6 +226,11 @@ impl Lobby {
     }
 }
 impl mlua::UserData for Lobby {
+    fn add_fields<'lua, F: mlua::UserDataFields<'lua, Self>>(fields: &mut F) {
+        fields.add_meta_field_with("__index", |lua| {
+            lua.globals().get::<_, mlua::Table>("lobby_ext")
+        });
+    }
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         macro_rules! method {
             ($name:tt: |$this:ident, $lua:ident, $($argname:ident : $argtype:ty),+| $method:expr) => {
@@ -237,6 +254,10 @@ impl mlua::UserData for Lobby {
         });
         method!(time: |this, _lua| {
             Ok((Instant::now() - this.start_time).as_secs_f32())
+        });
+        method!(timeout: |this, lua, func: mlua::Function, ticks: u64| {
+            this.scheduled_lua_funcs.insert(lua.create_registry_value(func)?, ticks);
+            Ok(())
         });
         method!(system_chat: |this, _lua, message: String| {
             this.system_chat(Cow::Owned(message))?;

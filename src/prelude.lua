@@ -76,6 +76,18 @@ function ContainerData:new(options)
     return o
 end
 
+-- Lobby extensions
+
+lobby_ext = {}
+function lobby_ext:schedule(co)
+    alive, ticks = coroutine.resume(co)
+    if ticks then
+        lobby:timeout(function()
+            lobby_ext:schedule(co)
+        end, ticks)
+    end
+end
+
 -- Extension functions
 
 function table.extend(tbl, rhs)
