@@ -511,6 +511,7 @@ export class Dice extends Pawn {
     shakeEnd = 0;
     shake() {
         this.shakeEnd = Date.now();
+        this.roll();
     }
 
     roll() {

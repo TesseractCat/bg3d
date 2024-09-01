@@ -7,13 +7,11 @@ name = "BG3D"
 version = "0.1.0"
 dependencies = [
  "axum",
- "axum-macros 0.3.8",
  "data-url",
  "futures",
  "futures-util",
  "gltf",
  "mlua",
- "names",
  "random_color",
  "rapier3d",
  "rmp-serde",
@@ -112,7 +110,7 @@ checksum = "3a6c9af12842a67734c9a2e355436e5d03b22383ed60cf13cd0c18fbfe3dcbcf"
 dependencies = [
  "async-trait",
  "axum-core",
- "axum-macros 0.4.1",
+ "axum-macros",
  "base64 0.21.0",
  "bytes",
  "futures-util",
@@ -161,18 +159,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-macros"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdca6a10ecad987bda04e95606ef85a5417dcaac1a78455242d72e031e2b6b62"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn 2.0.65",
 ]
 
 [[package]]
@@ -1059,15 +1045,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.65",
-]
-
-[[package]]
-name = "names"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10a8690bf09abf659851e58cd666c3d37ac6af07c2bd7a9e332cfba471715775"
-dependencies = [
- "rand 0.8.4",
 ]
 
 [[package]]

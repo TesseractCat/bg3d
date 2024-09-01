@@ -484,10 +484,10 @@ export class Container extends Pawn {
         if (this.selected || this.networkSelected)
             return;
         if (button == 0) {
-            if (shift) {
-                this.spawnItem();
-            } else {
+            if (!shift) {
                 super.grab();
+            } else {
+                this.spawnItem();
             }
         }
     }

@@ -71,40 +71,7 @@ pub struct Lobby {
 
 impl Lobby {
     pub fn new() -> Lobby {
-        let lua = Lua::new_with(
-            mlua::StdLib::MATH | mlua::StdLib::TABLE | mlua::StdLib::STRING,
-            mlua::LuaOptions::new()
-        ).unwrap();
-        lua.set_memory_limit(1 << 18).expect("Failed to set memory limit for lua VM");
-
-        // https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua
-        const ALLOWED_GLOBALS: [&str; 22] = [
-            "_G", "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
-            "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall",
-            "math", "table", "string", "coroutine", // Libraries
-            "setmetatable", "getmetatable", "rawget", "rawset" // FIXME: Can modify protected metatables, sandbox break?
-        ];
-        for pair in lua.globals().pairs::<mlua::Value, mlua::Value>() {
-            let pair = pair.expect("Failed while cleaning globals");
-            let key = pair.0.as_str().expect("Failed while cleaning globals");
-            if !ALLOWED_GLOBALS.contains(&key) {
-                lua.globals().raw_set(key, mlua::Value::Nil).expect("Failed while cleaning globals");
-            }
-        }
-
-        lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
-
-        lua.globals().set("require", lua.create_function(|lua, path: String| {
-            let text = match path.as_str() {
-                "math" => include_str!("math.lua"),
-                "prelude" => include_str!("prelude.lua"),
-                _ => panic!("Attempted to require undefined library '{}' during lua startup", path),
-            };
-            lua.load(text).eval::<mlua::Value>()
-        }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
-        lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
-
-        Lobby {
+        let mut lobby = Lobby {
             name: "".to_string(),
             host: UserId(0),
             info: None,
@@ -118,12 +85,14 @@ impl Lobby {
             world: PhysicsWorld::new(PHYSICS_RATE),
             abort_token: None,
 
-            lua: Some(lua),
+            lua: None,
             scheduled_lua_funcs: HashMap::new(),
 
             next_user_id: AtomicU64::new(1),
             next_pawn_id: AtomicU64::new(1),
-        }
+        };
+        lobby.reset_lua();
+        lobby
     }
 
     pub fn next_user_id(&self) -> UserId {
@@ -314,6 +283,44 @@ impl mlua::UserData for Lobby {
 }
 
 impl Lobby {
+    // -- LUA EVENTS --
+    pub fn reset_lua(&mut self) {
+        let lua = Lua::new_with(
+            mlua::StdLib::MATH | mlua::StdLib::TABLE | mlua::StdLib::STRING,
+            mlua::LuaOptions::new()
+        ).unwrap();
+        lua.set_memory_limit(1 << 18).expect("Failed to set memory limit for lua VM");
+
+        // https://github.com/kikito/lua-sandbox/blob/master/sandbox.lua
+        const ALLOWED_GLOBALS: [&str; 22] = [
+            "_G", "_VERSION", "assert", "error",    "ipairs",   "next", "pairs",
+            "pcall",    "select", "tonumber", "tostring", "type", "unpack", "xpcall",
+            "math", "table", "string", "coroutine", // Libraries
+            "setmetatable", "getmetatable", "rawget", "rawset" // FIXME: Can modify protected metatables, sandbox break?
+        ];
+        for pair in lua.globals().pairs::<mlua::Value, mlua::Value>() {
+            let pair = pair.expect("Failed while cleaning globals");
+            let key = pair.0.as_str().expect("Failed while cleaning globals");
+            if !ALLOWED_GLOBALS.contains(&key) {
+                lua.globals().raw_set(key, mlua::Value::Nil).expect("Failed while cleaning globals");
+            }
+        }
+
+        lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
+
+        lua.globals().set("require", lua.create_function(|lua, path: String| {
+            let text = match path.as_str() {
+                "math" => include_str!("math.lua"),
+                "prelude" => include_str!("prelude.lua"),
+                _ => panic!("Attempted to require undefined library '{}' during lua startup", path),
+            };
+            lua.load(text).eval::<mlua::Value>()
+        }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
+        lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
+
+        self.lua = Some(lua);
+    }
+
     // -- CHAT EVENTS --
 
     pub fn chat(&mut self, user_id: UserId, content: Cow<'_, String>) -> Result<(), Box<dyn Error>> {
@@ -752,20 +759,26 @@ impl Lobby {
 
         // Load lua if it exists
         // `require` function is only defined on initial load.
-        if let Err(e) = self.lua_scope(|lua, scope, _| {
-            lua.globals().set("require", scope.create_function(|lua, path: String| {
-                Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
-                    lua.load(String::from_utf8(asset.data.clone()).unwrap()).eval()?
-                } else { mlua::Value::Nil })
-            })?)?;
-            lua.load("require(\"main\")").exec()?;
-
-            if let Some(res) = Self::run_lua_callback(lua, "start", ()) {
-                res?;
+        if processed_assets.contains_key("/main.lua") {
+            // Clear lobby
+            self.clear_pawns()?;
+            // Run lua
+            self.reset_lua();
+            if let Err(e) = self.lua_scope(|lua, scope, _| {
+                lua.globals().set("require", scope.create_function(|lua, path: String| {
+                    Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
+                        lua.load(String::from_utf8(asset.data.clone()).unwrap()).eval()?
+                    } else { mlua::Value::Nil })
+                })?)?;
+                lua.load("require(\"main\")").exec()?;
+    
+                if let Some(res) = Self::run_lua_callback(lua, "start", ()) {
+                    res?;
+                }
+                Ok(())
+            }) {
+                self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
             }
-            Ok(())
-        }) {
-            self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
         }
         
         self.assets = processed_assets;
