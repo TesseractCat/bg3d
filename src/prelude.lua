@@ -17,11 +17,6 @@ Pawn = {
                 return Pawn[key] -- Pawn class methods
             else
                 local field = lobby:get_pawn(self.id, key) -- Pawn get fields
-
-                if type(val) == "table" then
-                    local proxy = {}
-                    proxy
-                end
                 return field
             end
         end
