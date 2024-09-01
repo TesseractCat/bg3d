@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html lang="en">
+    <head>
+        <title>BirdGa.me - Simple Boardgames</title>
+        <meta name="description" content="Multiplayer boardgames online.">
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+        <link rel="preload" href="static/frontpage/fonts/Lora/Lora-Regular.ttf" as="font" crossorigin>
+        <link rel="stylesheet" href="static/frontpage/index.css">
+        <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+
+        <script type="module">
+            import { randomPair } from "/static/frontpage/words.js";
+
+            // Get referrer (Itch link) and redirect if there is a ?lobby query parameter
+            let referrer = document.referrer;
+            let found = referrer.match(/\?lobby=(.+)/);
+            if (found) {
+                let lobby = found[1];
+                window.location.href = `${window.location.origin}/${lobby}`;
+            }
+
+            window.addEventListener("load", () => {
+                document.querySelector("#lobby").value = randomPair();
+                document.querySelector("#new-game").addEventListener("submit", (e) => {
+                    let lobby = document.querySelector("#lobby").value;
+                    window.location.href = `${window.location.origin}/${lobby}`;
+                    e.preventDefault();
+                });
+            });
+        </script>
+    </head>
+    <body>
+        <div id="main">
+            <header>
+                <h1>
+                    <!-- <img src="static/small_icon.png"></img> -->
+                    BirdGa<span>.</span>me
+                </h1>
+            </header>
+
+            <p>
+                Play board games online on a multiplayer board.
+                <br>
+                To start a new game or join an existing one, enter the lobby name and click 'GO'.
+            </p>
+
+            <form id="new-game" method="get" action="/">
+                <div id="game-input">
+                    <input type="text" id="lobby" name="lobby" value="" placeholder="Lobby name">
+                    <button>Go</button>
+                </div>
+            </form>
+        </div>
+
+        <footer>
+            <a href="https://github.com/TesseractCat/bg3d">Github</a> •
+            <a href="https://tesseractcat.itch.io/birdgame">Itch.io</a> •
+            <p style="display: inline" id="year"></p>
+            <script>document.getElementById("year").innerText = (new Date().getFullYear());</script>
+        </footer>
+    </body>
+</html>
