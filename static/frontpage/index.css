@@ -1,8 +1,8 @@
-@import url('../variables.css');
+@import url('/static/variables.css');
 
 @font-face {
     font-family: 'Lora';
-    src: url('fonts/Lora/Lora-Regular.ttf') format('truetype');
+    src: url('/static/fonts/Lora/Lora-Regular.ttf') format('truetype');
     font-display: fallback;
 }
 

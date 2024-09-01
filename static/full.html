@@ -3,10 +3,16 @@
 <html lang="en">
     <head>
         <style>
+            @import url('/static/variables.css');
+
             @font-face {
                 font-family: 'Lora';
-                src: url('fonts/Lora/Lora-Regular.ttf') format('truetype');
+                src: url('/static/fonts/Lora/Lora-Regular.ttf') format('truetype');
                 font-display: fallback;
+            }
+
+            p, h1, a {
+                background-color: var(--bg-top);
             }
 
             body, html {
@@ -15,10 +21,14 @@
                 overflow: hidden;
             }
             body {
+                margin: 0px;
                 display: flex;
                 font-family: Lora;
                 align-items: center;
                 justify-content: center;
+
+                background-image: radial-gradient(var(--bg-bottom) 1.3px, var(--bg-top) 1.3px);
+                background-size: 26px 26px;
             }
 
             h1 {

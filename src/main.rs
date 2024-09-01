@@ -80,10 +80,16 @@ async fn main() {
             let lobbies = lobbies_index_clone.clone();
             if let Some(lobby) = lobbies.read().await.get(&lobby) {
                 if lobby.lock().await.users.len() >= 32 {
-                    return ServeFile::new("static/full.html").oneshot(request).await;
+                    return (
+                        [(header::CACHE_CONTROL, "no-cache")],
+                        ServeFile::new("static/full.html").oneshot(request).await
+                    );
                 }
             }
-            return ServeFile::new("static/index.html").oneshot(request).await;
+            return (
+                [(header::CACHE_CONTROL, "no-cache")],
+                ServeFile::new("static/index.html").oneshot(request).await
+            );
         }))
         .nest_service("/assets", ServeDir::new("static/games").fallback(get(
             move |AxumPath(lobby): AxumPath<String>, uri: Uri| {
