@@ -9,18 +9,25 @@ quat = vmath.quat
 
 Pawn = {
     __index = function(self, key)
-        if key == "id" then
-            return rawget(self, id)
+        local val = rawget(self, key)
+        if val ~= nil then
+            return val
         else
             if Pawn[key] ~= nil then
                 return Pawn[key] -- Pawn class methods
             else
-                return lobby:get_pawn(self.id, key) -- Pawn get fields
+                local field = lobby:get_pawn(self.id, key) -- Pawn get fields
+
+                if type(val) == "table" then
+                    local proxy = {}
+                    proxy
+                end
+                return field
             end
         end
     end,
     __newindex = function(self, key, value)
-        update = {}
+        local update = {}
         update[key] = value
         self:update(update)
     end
@@ -43,7 +50,7 @@ SnapPointData = {}
 ContainerData = {}
 DiceData = {}
 function DeckData:new(options)
-    o = {
+    local o = {
         back = options.back or nil,
         border = options.border or nil,
 
@@ -58,7 +65,7 @@ function DeckData:new(options)
     return o
 end
 function SnapPointData:new(options)
-    o = {
+    local o = {
         radius = options.radius or 1,
         size = options.size or vec2(1, 1),
         scale = options.scale or 1,
@@ -68,9 +75,16 @@ function SnapPointData:new(options)
     return o
 end
 function ContainerData:new(options)
-    o = {
+    local o = {
         holds = options.holds or {},
         capacity = options.capacity or 1,
+    }
+    setmetatable(o, self)
+    return o
+end
+function DiceData:new(options)
+    local o = {
+        roll_rotations = options.roll_rotations or {},
     }
     setmetatable(o, self)
     return o
@@ -80,7 +94,7 @@ end
 
 lobby_ext = {}
 function lobby_ext:schedule(co)
-    alive, ticks = coroutine.resume(co)
+    local alive, ticks = coroutine.resume(co)
     if ticks then
         lobby:timeout(function()
             lobby_ext:schedule(co)

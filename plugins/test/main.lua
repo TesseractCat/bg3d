@@ -5,18 +5,20 @@ function game.start()
     local bird = lobby:create_pawn{
         name = "Bird Statue",
         position = vec3(-1.6,2.8,-1.8),
-        rotation = vec3(0, math.pi/6, 0),
+        rotation = quat.from_euler(0, math.pi/6, 0):get_euler(),
         mesh = 'generic/bird.glb',
     }
+    lobby:system_chat(tostring(quat.from_euler(0, math.pi/6, 0)))
+    lobby:system_chat(tostring(quat.from_euler(0, math.pi/6, 0):get_euler()))
 
-    lobby:schedule(coroutine.create(function()
-        while true do
-            local pos = bird.position
-            pos.y = pos.y + 0.4
-            bird.position = pos
-            coroutine.yield(40)
-        end
-    end))
+    -- local i = 0
+    -- lobby:schedule(coroutine.create(function()
+    --     while true do
+    --         bird.rotation = quat.from_euler(i, i*1.3, i*2.1):get_euler()
+    --         coroutine.yield(20)
+    --         i = i + 1
+    --     end
+    -- end))
 
     local stand = lobby:create_pawn{
         name = "Stand",
@@ -38,7 +40,8 @@ function game.start()
             border = "notes/mat.svg",
             corner_radius = 0.03,
             size = vec2(10, 9),
-            card_thickness = 0.2
+            card_thickness = 0.2,
+            side_color = tostring("0x926c51")
         }
     }
 
@@ -118,19 +121,22 @@ function game.start()
         position = vec3(3.5,1,1),
         tint = tonumber("0x303030")
     }
-    -- let die = new Dice({
-    --     name: 'Die',
-    --     position: vec3(4,1,3),
-    --     mesh: 'generic/die.gltf',
-    --     rollRotations: [
-    --         vec3(0, 0, 0),
-    --         vec3(math.pi/2, 0, 0),
-    --         vec3(math.pi, 0, 0),
-    --         vec3(-math.pi/2, 0, 0),
-    --         vec3(0, 0, math.pi/2),
-    --         vec3(0, 0, -math.pi/2),
-    --     ]
-    -- });
+
+    lobby:create_pawn{
+        name = 'Die',
+        position = vec3(4,1,3),
+        mesh = 'generic/die.gltf',
+        data = DiceData:new{
+            roll_rotations = {
+                vec3(0, 0, 0),
+                vec3(math.pi/2, 0, 0),
+                vec3(math.pi, 0, 0),
+                vec3(-math.pi/2, 0, 0),
+                vec3(0, 0, math.pi/2),
+                vec3(0, 0, -math.pi/2),
+            }
+        }
+    }
 end
 
 -- local last_time

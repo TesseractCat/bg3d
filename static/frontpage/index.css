@@ -1,4 +1,4 @@
-@import url('variables.css');
+@import url('../variables.css');
 
 @font-face {
     font-family: 'Lora';
@@ -14,22 +14,37 @@ body {
     margin: 0px;
     font-family: Lora;
 
+    /* background-image: radial-gradient(color-mix(in hsl, var(--bg-bottom), black 4%) 1.3px, color-mix(in hsl, var(--bg-top), black 4%) 1.3px);
+    background-size: 26px 26px; */
     background-image: radial-gradient(var(--bg-bottom) 1.3px, var(--bg-top) 1.3px);
     background-size: 26px 26px;
-    border: 1px dashed gray;
+    border: 1px solid gray;
     border-radius: var(--half-radius);
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 * {
     box-sizing: border-box;
 }
 
-p {
+p, h1, a {
     background-color: var(--bg-top);
 }
 
 ::selection {
     color: #FFF;
     background: rgba(0,0,0,0.8);
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--dark-text);
+}
+footer a, footer a:visited, footer a:focus {
+    color: var(--dark-text);
 }
 
 #main {
@@ -43,16 +58,23 @@ p {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 1em;
 }
 #main header {
     display: flex;
     justify-content: center;
 }
 #main header h1 {
-    border-bottom: 1px dashed black;
+    border-bottom: 1px solid black;
+    margin: 0px;
 }
 #main header h1 span {
-    color: #777;
+    color: black;
+    width: 3px;
+    display: inline-block;
+    position: relative;
+    bottom: -5px;
+    left: -2px;
 }
 
 #main #game-input {
@@ -75,17 +97,16 @@ p {
 #main #game-input button {
     width: 100px;
     border: 1px solid black;
-    border-left: 1px dashed black;
+    border-left: 1px solid gray;
     border-radius: 0px var(--radius) var(--radius) 0px;
     
     font-size: 1.1em;
     font-family: Lora;
-    font-style: italic;
     cursor: pointer;
     
-    background-color: hsl(0 70% 94% / 1);
+    background-color: var(--accent-button);
     transition: background-color 0.1s;
 }
 #main #game-input button:hover {
-    background-color: hsl(0 100% 84% / 1);
+    background-color: var(--accent-button-hovered);
 }

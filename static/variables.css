@@ -1,10 +1,14 @@
 :root {
     --bg-top: #F9F8F4;
     --bg-bottom: #E5DEC8;
+    --dark-text: #66645a;
 
     --icon: #f7f5ef;
     --icon-hover: #dddbd5;
     --context-menu: aliceblue;
+
+    --accent-button: hsl(0 70% 94% / 1);
+    --accent-button-hovered: hsl(0 100% 84% / 1);
 
     --radius: 10px;
     --half-radius: calc(var(--radius)/2);

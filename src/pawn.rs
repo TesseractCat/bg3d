@@ -120,6 +120,8 @@ impl<'lua> mlua::FromLua<'lua> for PawnData {
                         holds: Box::new(table.get("holds")?),
                         capacity: table.get("capacity")?
                     })
+                } else if mt == dice_mt {
+                    Ok(PawnData::Dice { roll_rotations: table.get("roll_rotations")? })
                 } else {
                     Err(mlua::Error::FromLuaConversionError { from: "table", to: "PawnData", message: Some("Invalid PawnData type".to_string()) })
                 }

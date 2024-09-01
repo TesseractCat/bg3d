@@ -355,7 +355,7 @@ quat = {
             if q.w > 1 or q.w < -1 then q:normalize() end
             local s = math.sqrt(1 - q.w * q.w)
             s = s < .0001 and 1 or 1 / s
-            return 2 * math.acos(q.w), q.x * s, q.y * s, q.z * s
+            return 2 * math.acos(q.w), vec3(q.x * s, q.y * s, q.z * s)
         end,
 
         between = function(u, v)
@@ -392,6 +392,100 @@ quat = {
             if vec3.isvec3(x) then x, y, z = x.x, x.y, x.z end
             vtmp2.x, vtmp2.y, vtmp2.z = x, y, z
             return q:set_between(forward, vtmp2)
+        end,
+        
+        from_euler = function(x, y, z, order)
+            return quat():set_euler(x, y, z, order)
+        end,
+
+        set_euler = function(q, x, y, z, order)
+            -- https://github.com/mrdoob/three.js/blob/97b5d428d598228cae9b206d9a321f18d53a3e86/src/math/Quaternion.js#L201
+            if vec3.isvec3(x) then x, y, z, order = x.x, x.y, x.z, y end
+            order = order or 'XYZ'
+
+            local c1 = math.cos(x/2)
+            local c2 = math.cos(y/2)
+            local c3 = math.cos(z/2)
+
+            local s1 = math.sin(x/2)
+            local s2 = math.sin(y/2)
+            local s3 = math.sin(z/2)
+
+            if order == "XYZ" then
+                q.x = s1 * c2 * c3 + c1 * s2 * s3;
+                q.y = c1 * s2 * c3 - s1 * c2 * s3;
+                q.z = c1 * c2 * s3 + s1 * s2 * c3;
+                q.w = c1 * c2 * c3 - s1 * s2 * s3;
+            elseif order == 'YXZ' then
+                q.x = s1 * c2 * c3 + c1 * s2 * s3;
+                q.y = c1 * s2 * c3 - s1 * c2 * s3;
+                q.z = c1 * c2 * s3 - s1 * s2 * c3;
+                q.w = c1 * c2 * c3 + s1 * s2 * s3;
+            elseif order == 'ZXY' then
+                q.x = s1 * c2 * c3 - c1 * s2 * s3;
+                q.y = c1 * s2 * c3 + s1 * c2 * s3;
+                q.z = c1 * c2 * s3 + s1 * s2 * c3;
+                q.w = c1 * c2 * c3 - s1 * s2 * s3;
+            elseif order == 'ZYX' then
+                q.x = s1 * c2 * c3 - c1 * s2 * s3;
+                q.y = c1 * s2 * c3 + s1 * c2 * s3;
+                q.z = c1 * c2 * s3 - s1 * s2 * c3;
+                q.w = c1 * c2 * c3 + s1 * s2 * s3;
+            elseif order == 'YZX' then
+                q.x = s1 * c2 * c3 + c1 * s2 * s3;
+                q.y = c1 * s2 * c3 + s1 * c2 * s3;
+                q.z = c1 * c2 * s3 - s1 * s2 * c3;
+                q.w = c1 * c2 * c3 - s1 * s2 * s3;
+            elseif order == 'XZY' then
+                q.x = s1 * c2 * c3 - c1 * s2 * s3;
+                q.y = c1 * s2 * c3 - s1 * c2 * s3;
+                q.z = c1 * c2 * s3 + s1 * s2 * c3;
+                q.w = c1 * c2 * c3 + s1 * s2 * s3;
+            else
+                -- Do nothing
+            end
+
+            return q
+        end,
+
+        get_euler = function(q, order)
+            order = order or 'XYZ'
+            q:normalize()
+
+            local axis1 = order:sub(1, 1)
+            local axis2 = order:sub(2, 2)
+            local axis3 = order:sub(3, 3)
+
+            local a1, a2, a3 = 0, 0, 0
+            
+            if axis1 == 'X' then
+                a1 = math.atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y))
+            elseif axis1 == 'Y' then
+                a1 = math.atan2(2 * (q.w * q.y + q.z * q.x), 1 - 2 * (q.y * q.y + q.z * q.z))
+            elseif axis1 == 'Z' then
+                a1 = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.z * q.z + q.x * q.x))
+            end
+            
+            if axis2 == 'X' then
+                local sinp = 2 * (q.w * q.x - q.y * q.z)
+                a2 = math.abs(sinp) >= 1 and (math.pi / 2) * (sinp / math.abs(sinp)) or math.asin(sinp)
+            elseif axis2 == 'Y' then
+                local sinp = 2 * (q.w * q.y - q.z * q.x)
+                a2 = math.abs(sinp) >= 1 and (math.pi / 2) * (sinp / math.abs(sinp)) or math.asin(sinp)
+            elseif axis2 == 'Z' then
+                local sinp = 2 * (q.w * q.z - q.x * q.y)
+                a2 = math.abs(sinp) >= 1 and (math.pi / 2) * (sinp / math.abs(sinp)) or math.asin(sinp)
+            end
+
+            if axis3 == 'X' then
+                a3 = math.atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.z * q.z))
+            elseif axis3 == 'Y' then
+                a3 = math.atan2(2 * (q.w * q.y + q.z * q.x), 1 - 2 * (q.y * q.y + q.x * q.x))
+            elseif axis3 == 'Z' then
+                a3 = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.z * q.z + q.y * q.y))
+            end
+            
+            return vec3(a1, a2, a3)
         end,
 
         add = function(q, r, out)

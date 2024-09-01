@@ -103,14 +103,11 @@ async fn main() {
                 })
             }
         ));
-    let redirect_routes = Router::new()
-        .route("/", get(|| async {
-            let mut generator = Generator::default();
-            Redirect::to(&format!("/{}", generator.next().expect("Generator failed")))
-        }))
+    let index_routes = Router::new()
+        .route_service("/", ServeFile::new("static/frontpage/index.html"))
         .route("/index.html", get(|| async { Redirect::to("/") }));
 
-    let app = redirect_routes
+    let app = index_routes
         .route("/dashboard", get(move || {
             let lobbies = lobbies_dashboard_clone.clone();
             dashboard(lobbies)
