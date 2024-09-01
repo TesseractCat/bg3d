@@ -27,6 +27,12 @@ impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct UserId(pub u64);
+impl mlua::UserData for UserId { }
+impl<'lua> mlua::FromLua<'lua> for UserId {
+    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+        Ok(*(value.as_userdata().ok_or(mlua::Error::UserDataTypeMismatch)?.borrow()?))
+    }
+}
 #[derive(Clone, Serialize, Debug)]
 pub struct User {
     pub id: UserId,

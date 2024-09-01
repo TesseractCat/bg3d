@@ -4,7 +4,8 @@ use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use serde::{Serialize, Deserialize};
 
 use crate::pawn::Vec3;
-use crate::PHYSICS_SCALE;
+
+const PHYSICS_SCALE: f32 = 1.0/8.0;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct CollisionAudioInfo {
@@ -13,10 +14,10 @@ pub struct CollisionAudioInfo {
 }
 
 pub struct TokioEventCollector {
-    event_sender: UnboundedSender<CollisionAudioInfo>
+    event_sender: UnboundedSender<(CollisionEvent, Option<ContactPair>)>
 }
 impl TokioEventCollector {
-    pub fn new (event_sender: UnboundedSender<CollisionAudioInfo>) -> Self {
+    pub fn new (event_sender: UnboundedSender<(CollisionEvent, Option<ContactPair>)>) -> Self {
         Self { event_sender }
     }
 }
@@ -33,25 +34,11 @@ impl EventHandler for TokioEventCollector {
     fn handle_collision_event(
         &self,
         _bodies: &RigidBodySet,
-        colliders: &ColliderSet,
+        _colliders: &ColliderSet,
         event: CollisionEvent,
         pair: Option<&ContactPair>,
     ) {
-        if let Some(pair) = pair {
-            if let Some((_, contact)) = pair.find_deepest_contact() {
-                if let CollisionEvent::Started(collider, _, _) = event {
-                    if let Some(collider) = colliders.get(collider) {
-                        let position: &Vector<f32> = &collider.position().transform_vector(&contact.local_p1.coords);
-                        let impulse = contact.data.impulse;
-
-                        let _ = self.event_sender.send(CollisionAudioInfo {
-                            position: position.into(),
-                            impulse,
-                        });
-                    }
-                }
-            }
-        }
+        let _ = self.event_sender.send((event, pair.cloned()));
     }
 }
 
@@ -63,7 +50,7 @@ pub struct PhysicsWorld {
     pub physics_pipeline: PhysicsPipeline,
 
     pub island_manager: IslandManager,
-    pub broad_phase: BroadPhase,
+    pub broad_phase: DefaultBroadPhase,
     pub narrow_phase: NarrowPhase,
 
     pub impulse_joint_set: ImpulseJointSet,
@@ -71,7 +58,7 @@ pub struct PhysicsWorld {
     pub ccd_solver: CCDSolver,
 
     pub event_handler: TokioEventCollector,
-    pub event_receiver: UnboundedReceiver<CollisionAudioInfo>,
+    pub event_receiver: UnboundedReceiver<(CollisionEvent, Option<ContactPair>)>,
 }
 impl PhysicsWorld {
     pub fn new(dt: f32) -> PhysicsWorld {
@@ -85,18 +72,19 @@ impl PhysicsWorld {
             integration_parameters: IntegrationParameters {
                 dt: dt,
                 min_ccd_dt: dt/100.0,
-                erp: 0.95,
-                damping_ratio: 0.5,
+                contact_damping_ratio: 0.25,
                 // erp: 1.0,
                 // damping_ratio: 0.8,
                 // max_stabilization_iterations: 2,
                 max_ccd_substeps: 2,
+                length_unit: 1.0/PHYSICS_SCALE,
+
                 ..Default::default()
             },
             physics_pipeline: PhysicsPipeline::new(),
 
             island_manager: IslandManager::new(),
-            broad_phase: BroadPhase::new(),
+            broad_phase: DefaultBroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
 
             impulse_joint_set: ImpulseJointSet::new(),
@@ -112,10 +100,10 @@ impl PhysicsWorld {
   
         // Ceiling
 		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::y_axis())
-                                    .translation(Vector::y_axis().into_inner() * 500. * PHYSICS_SCALE).build());
+                                    .translation(Vector::y_axis().into_inner() * 500.).build());
 
         // Walls
-        let wall_distance = 80. * PHYSICS_SCALE;
+        let wall_distance = 80.;
 		w.collider_set.insert(ColliderBuilder::halfspace(Vector::x_axis())
                                     .translation(Vector::x_axis().into_inner() * -wall_distance).build());
 		w.collider_set.insert(ColliderBuilder::halfspace(-Vector::x_axis())
@@ -129,7 +117,7 @@ impl PhysicsWorld {
     }
     pub fn step(&mut self) {
         self.physics_pipeline.step(
-            &vector![0.0, -9.8, 0.0],
+            &vector![0.0, -9.8 / PHYSICS_SCALE, 0.0],
             &self.integration_parameters,
 
 			&mut self.island_manager,
@@ -148,16 +136,12 @@ impl PhysicsWorld {
 			&self.event_handler,
         );
     }
-    pub fn get_collisions(&mut self) -> Option<Vec<CollisionAudioInfo>> {
-        let mut events: Vec<CollisionAudioInfo> = Vec::new();
+    pub fn get_collisions(&mut self) -> impl Iterator<Item = (CollisionEvent, Option<ContactPair>)> {
+        let mut events: Vec<(CollisionEvent, Option<ContactPair>)> = Vec::new();
         while let Ok(event) = self.event_receiver.try_recv() {
             events.push(event);
         }
-        if events.len() == 0 {
-            None
-        } else {
-            Some(events)
-        }
+        events.into_iter()
     }
     pub fn remove_rigidbody(&mut self, handle: RigidBodyHandle) {
         self.rigid_body_set.remove(handle,

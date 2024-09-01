@@ -2,8 +2,6 @@ use gltf::{Gltf, mesh::BoundingBox};
 use rapier3d::{prelude::{Vector, Rotation, Translation, Isometry, ColliderBuilder}, na::Quaternion};
 use std::vec::IntoIter;
 
-use crate::PHYSICS_SCALE;
-
 fn merge_bounding_boxes(mut a: BoundingBox, b: BoundingBox) -> BoundingBox {
     a.min = [a.min[0].min(b.min[0]), a.min[1].min(b.min[1]), a.min[2].min(b.min[2])];
     a.max = [a.max[0].max(b.max[0]), a.max[1].max(b.max[1]), a.max[2].max(b.max[2])];
@@ -28,8 +26,8 @@ impl GltfExt for Gltf {
                 }, |acc, b| merge_bounding_boxes(acc, b));
                 let transform = node.transform().decomposed();
 
-                let min = Vector::new(bounds.min[0], bounds.min[1], bounds.min[2]) * PHYSICS_SCALE;
-                let max = Vector::new(bounds.max[0], bounds.max[1], bounds.max[2]) * PHYSICS_SCALE;
+                let min = Vector::new(bounds.min[0], bounds.min[1], bounds.min[2]);
+                let max = Vector::new(bounds.max[0], bounds.max[1], bounds.max[2]);
                 let scale = Vector::new(transform.2[0], transform.2[1], transform.2[2]);
                 let half = ((max - min)/2.).component_mul(&scale);
                 let center = ((max + min)/2.).component_mul(&scale);
@@ -40,7 +38,7 @@ impl GltfExt for Gltf {
                     Quaternion::new(transform.1[3], transform.1[0], transform.1[1], transform.1[2])
                 );
                 let translation = Translation::from(
-                    Vector::new(transform.0[0], transform.0[1], transform.0[2]) * PHYSICS_SCALE
+                    Vector::new(transform.0[0], transform.0[1], transform.0[2])
                 );
                 let isometry = Isometry::from_parts(translation, rotation) * Isometry::from(center);
 
