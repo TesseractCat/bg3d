@@ -1,5 +1,7 @@
 # Architecture
 
+NOTE: This document is out of date following the migration to a server-side lua plugin architecture.
+
 One good way to understand the architecture is through the 'pawn'/piece object (which is the super class for all pawn types).
 It's defined in three places:
 - The Rust backend (in `src/`), in `lobby.rs`
