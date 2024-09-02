@@ -82,9 +82,7 @@ window.onload = () => {
             e.target.removeAttribute("disabled");
         });
 
-        if (host)
-            document.querySelector("#settings fieldset").removeAttribute("disabled");
-        document.querySelector("#settings").addEventListener("change", (e) => {
+        /*document.querySelector("#settings").addEventListener("change", (e) => {
             window.manager.sendSocket({
                 "type": "settings",
                 ...Object.fromEntries([...new FormData(e.target.form).entries()].map(([k, v]) => {
@@ -93,13 +91,10 @@ window.onload = () => {
                     return [k, v];
                 }))
             });
-        });
+        });*/
         
-        if (host) {
-            delete document.querySelector("#control-panel").dataset.hidden;
-            delete document.querySelector("[data-host-only]").dataset.hidden;
+        if (host)
             loadGame(0);
-        }
         
         animate();
     });

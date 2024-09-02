@@ -49,8 +49,7 @@ footer a, footer a:visited, footer a:focus {
 
 #main {
     margin: auto;
-    padding: 100px;
-    padding-bottom: 150px;
+    padding: 50px;
     width: 100%;
     height: 100%;
     max-width: 600px;

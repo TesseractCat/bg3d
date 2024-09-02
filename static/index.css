@@ -129,17 +129,29 @@ fieldset {
 }
 #player-entries {
     max-height: 100px;
+    margin-top: 5px;
     overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    justify-content: center;
+}
+#player-entries .player {
+    display: flex;
+    justify-content: center;
 }
 #player-entries .player h3 {
     display: inline-block;
 }
-#player-entries .player .text:before {
+#player-entries .player svg {
+    display: inline-block;
+    width: 25px;
+    height: 25px;
+    --bird-stroke-width: 0.5;
+}
+/* #player-entries .player .text:before {
     content:"⬤";
-}
-#player-entries .player:first-child .text:before {
-    content:"♛";
-}
+} */
 #player-entries .player .cards:before {
     content: "|";
     margin: 0.5em;

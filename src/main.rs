@@ -359,6 +359,11 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
             lobby.users.values().send_event(&Event::HandCount { id, count })?;
         }
     }
+
+    lobby.users.values()
+        .send_event(&Event::AssignHost {
+            id: lobby.host,
+        })?;
     
     // Tell all other users that this user has joined
     lobby.users.values()
@@ -423,7 +428,7 @@ async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies)
             lobby.host = *sorted_users.first().unwrap();
 
             // Tell the new host
-            lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost {})?;
+            lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost { id: lobby.host })?;
 
             println!("Host of lobby [{lobby_name}] left, reassigning <{user_id:?}> -> <{:?}>", lobby.host);
         }

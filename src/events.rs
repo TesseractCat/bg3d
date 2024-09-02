@@ -32,7 +32,7 @@ pub enum Event<'a> {
         id: UserId, host: bool, color: &'a str, info: &'a Option<GameInfo>,
         users: Vec<&'a User>, pawns: Vec<&'a Pawn>
     },
-    AssignHost {},
+    AssignHost { id: UserId },
     #[serde(skip_deserializing)]
     Connect { id: UserId, color: &'a str },
     Disconnect { id: UserId },

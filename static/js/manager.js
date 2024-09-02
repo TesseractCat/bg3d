@@ -15,31 +15,73 @@ import { NetworkedTransform } from './transform';
 import { unpack, Packr } from 'msgpackr';
 
 class User {
+    static gltfLoader = new GLTFLoader()
+        .setPath(window.location.origin + '/static/');
+
     id;
 
     color;
     cardTextElement;
+    playerTextElement;
 
     cursorObject;
     cursorTransform;
     headObject;
     headTransform;
 
-    constructor(id, color, cursor, cardTextElement, headObject) {
+    constructor(id, color, self, cardTextElement, playerTextElement) {
         this.id = id;
         this.color = color;
-        this.cursor = cursor;
         this.cardTextElement = cardTextElement;
+        this.playerTextElement = playerTextElement;
         
-        this.headObject = headObject;
+        this.headObject = null;
         this.headTransform = new NetworkedTransform(new Vector3(), new Quaternion());
+        this.cursorTransform = new NetworkedTransform(new Vector3(), new Quaternion());
 
-        if (cursor) {
+        if (!self) {
             const cursorGeometry = new SphereGeometry(0.32, 12, 12);
             const cursorMaterial = new MeshBasicMaterial( {color: color} );
             this.cursorObject = new Mesh(cursorGeometry, cursorMaterial);
+            window.manager.scene.add(this.cursorObject);
+
+            User.gltfLoader.load("head/head.glb", (gltf) => {
+                gltf.scene.traverse((child) => {
+                    if (child instanceof Mesh) {
+                        let mat = new MeshBasicMaterial();
+                        if (child.material.name == 'Tex') {
+                            mat.color = new Color(color);
+                        } else {
+                            mat.color = child.material.emissive;
+                        }
+                        mat.map = child.material.emissiveMap;
+                        if (child.material.name == 'Eye') {
+                            mat.alphaTest = 0.5;
+                        } else {
+                            mat.transparent = true;
+                        }
+                        if (child.name == 'Eyes') {
+                            function blink() {
+                                child.scale.set(1,0.05,1);
+                                child.material.color = new Color(0x000000);
+                                setTimeout(() => {
+                                    child.scale.set(1,1,1);
+                                    child.material.color = new Color(0xffffff);
+                                }, 200);
+                                setTimeout(blink, (Math.random() * 4 + 6) * 1000);
+                            }
+                            blink();
+                        }
+                        child.material.dispose();
+                        child.material = mat;
+                    }
+                });
+                gltf.scene.scale.set(1.5,1.5,1.5);
+                gltf.scene.visible = false;
+                window.manager.scene.add(gltf.scene);
+                this.headObject = gltf.scene;
+            });
         }
-        this.cursorTransform = new NetworkedTransform(new Vector3(), new Quaternion());
     }
     animate() {
         this.cursorTransform.animate();
@@ -47,8 +89,11 @@ class User {
         this.cursorObject?.quaternion.copy(this.cursorTransform.rotation);
 
         this.headTransform.animate();
-        this.headObject?.position.copy(this.headTransform.position);
-        this.headObject?.quaternion.copy(this.headTransform.rotation);
+        if (this.headObject) {
+            this.headObject.position.copy(this.headTransform.position);
+            this.headObject.quaternion.copy(this.headTransform.rotation);
+            this.headObject.visible = true;
+        }
     }
 }
 
@@ -323,14 +368,21 @@ export default class Manager extends EventTarget {
         this.sendSocket({type: "update_pawns", pawns: [pawn.serialize()]});
     }
     
-    static gltfLoader = new GLTFLoader()
-        .setPath(window.location.origin + '/static/');
     addUser(id, color) {
         // Create elements
         let playerElement = document.createElement("div");
         playerElement.classList.add("player");
         playerElement.dataset.id = id;
-        playerElement.style.color = color;
+        playerElement.style.setProperty("--bird-fill-color", color);
+        playerElement.style.setProperty("--bird-stroke-color", color);
+        {
+            let playerIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            playerIcon.setAttribute("viewBox", "0 0 35 25");
+            let useSvg = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            useSvg.setAttribute("href", "static/bird-icon.svg#icon");
+            playerIcon.appendChild(useSvg);
+            playerElement.appendChild(playerIcon);
+        }
         let playerTextElement = document.createElement("h3");
         playerTextElement.classList.add("text");
         playerTextElement.innerText = "";//id;
@@ -341,7 +393,7 @@ export default class Manager extends EventTarget {
         playerElement.appendChild(cardTextElement);
 
         if (id == this.id)
-            playerTextElement.innerText += " (You)";
+            playerTextElement.innerText = "(You)";
         
         let playerList = document.querySelector("#player-entries");
         for (let entryNode of playerList.children) {
@@ -354,49 +406,8 @@ export default class Manager extends EventTarget {
             playerList.appendChild(playerElement);
         
         // Create user object
-        let user = new User(id, color, id != this.id, cardTextElement, null);
+        let user = new User(id, color, id == this.id, cardTextElement, playerTextElement);
         this.users.set(id, user);
-        if (user.cursorObject)
-            this.scene.add(user.cursorObject);
-
-        // Create head
-        if (id != this.id) {
-            Manager.gltfLoader.load("head/head.glb", (gltf) => {
-                gltf.scene.traverse((child) => {
-                    if (child instanceof Mesh) {
-                        let mat = new MeshBasicMaterial();
-                        if (child.material.name == 'Tex') {
-                            mat.color = new Color(color);
-                        } else {
-                            mat.color = child.material.emissive;
-                        }
-                        mat.map = child.material.emissiveMap;
-                        if (child.material.name == 'Eye') {
-                            mat.alphaTest = 0.5;
-                        } else {
-                            mat.transparent = true;
-                        }
-                        if (child.name == 'Eyes') {
-                            function blink() {
-                                child.scale.set(1,0.05,1);
-                                child.material.color = new Color(0x000000);
-                                setTimeout(() => {
-                                    child.scale.set(1,1,1);
-                                    child.material.color = new Color(0xffffff);
-                                }, 200);
-                                setTimeout(blink, (Math.random() * 4 + 6) * 1000);
-                            }
-                            blink();
-                        }
-                        child.material.dispose();
-                        child.material = mat;
-                    }
-                });
-                gltf.scene.scale.set(1.5,1.5,1.5);
-                this.scene.add(gltf.scene);
-                user.headObject = gltf.scene;
-            });
-        }
     }
     removeUser(id) {
         document.querySelector(`.player[data-id="${id}"]`).remove();
@@ -719,16 +730,12 @@ export default class Manager extends EventTarget {
                 callback(this.host);
                 
                 // Start ticks
-                if (this.host) {
-                    setInterval(() => this.tick(), Manager.networkTimestep);
-                } else {
-                    setInterval(() => this.tick(), Manager.networkTimestep);
-                    // If we aren't the host, let's deserialize the pawns received
-                    msg.pawns.forEach(p => {
-                        let pawn = deserializePawn(p);
-                        this.addPawn(pawn);
-                    });
-                }
+                setInterval(() => this.tick(), Manager.networkTimestep);
+                msg.pawns.forEach(p => {
+                    let pawn = deserializePawn(p);
+                    this.addPawn(pawn);
+                });
+
                 // Start ping tester
                 // Can't use WebSocket ping event type because it's not available for browser use
                 let pings = 0;
@@ -740,6 +747,7 @@ export default class Manager extends EventTarget {
                     });
                     pings++;
                 }, 1000);
+
                 // Create webworker to manage animate() when page not focused
                 let animateWorker = new Worker('static/js/loop.js');
                 animateWorker.onmessage = (e) => {
@@ -754,17 +762,22 @@ export default class Manager extends EventTarget {
                     this.addUser(u.id, u.color)
                 });
             } else if (type == "assign_host") {
-                delete document.querySelector("#control-panel").dataset.hidden;
-                delete document.querySelector("[data-host-only]").dataset.hidden;
-                document.querySelector("#settings fieldset").removeAttribute("disabled");
-                this.host = true;
+                if (msg.id == this.id) {
+                    delete document.querySelector("#control-panel").dataset.hidden;
+                    delete document.querySelector("[data-host-only]").dataset.hidden;
+                    //document.querySelector("#settings fieldset").removeAttribute("disabled");
+                    this.host = true;
+                    this.users.get(msg.id).playerTextElement.innerText = "(You/Host)";
+                } else {
+                    this.users.get(msg.id).playerTextElement.innerText = "(Host)";
+                }
             }
 
             if (type == "register_game") {
                 this.info = msg;
                 delete this.info.type;
             }
-            if (type == "settings") {
+            /*if (type == "settings") {
                 let settingsForm = document.querySelector("#settings");
                 for (let elem of settingsForm.elements) {
                     if (elem.type == "checkbox") {
@@ -782,7 +795,7 @@ export default class Manager extends EventTarget {
 
                 let chatElem = document.querySelector("bird-chat");
                 !msg.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
-            }
+            }*/
             
             if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
