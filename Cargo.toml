@@ -10,7 +10,7 @@ serde_with = { version = "1.14.0" }
 serde_json = { version = "1.0" }
 rmp-serde = "1.1.1"
 
-random_color = { version = "0.6.1" }
+random_color = { version = "0.8.0" }
 
 futures = { version = "0.3" }
 futures-util = { version = "0.3.17" }

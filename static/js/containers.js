@@ -1,9 +1,8 @@
-import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, SRGBColorSpace } from 'three';
+import { TextureLoader, Vector2, Vector3, Euler, Quaternion, MeshBasicMaterial, Mesh, RepeatWrapping, Shape, Color, SRGBColorSpace, MeshPhongMaterial } from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 
 import { ExtrudeGeometry } from './ExtrudeGeometryFB';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import { deserializePawn, Pawn } from './pawns';
 import { Box } from './shapes.js';
@@ -76,10 +75,7 @@ export class Deck extends Pawn {
             this.constructor.#shapeGeometryCache.set(key, geometry);
         }
         
-        let material = new MeshBasicMaterial({alphaTest:0.5, opacity:0});
-        
-        this.#box = new Mesh(geometry, material);
-        this.#box.customDepthMaterial = material;
+        this.#box = new Mesh(geometry, new MeshBasicMaterial({alphaTest: 0.5, opacity: 0}));
         this.#box.castShadow = true;
         this.#box.receiveShadow = true;
         this.#box.scale.set(1, -1, 1);
@@ -315,17 +311,17 @@ export class Deck extends Pawn {
         }
         // Apply new materials
         this.#sideTexture.repeat.y = this.data.contents.length - 1;
-        this.#sideMaterial = new MeshPhongDitheredMaterial({
+        this.#sideMaterial = new MeshPhongMaterial({
             color: new Color(this.data.sideColor).multiply(new Color(this.tint)),
             map: this.#sideTexture,
             shininess: 5,
         });
-        this.#faceMaterial = new MeshPhongDitheredMaterial({
+        this.#faceMaterial = new MeshPhongMaterial({
             color: this.tint,
             map: faceTexture,
             shininess: 5,
         });
-        this.#backMaterial = new MeshPhongDitheredMaterial({
+        this.#backMaterial = new MeshPhongMaterial({
             color: this.tint,
             map: backTexture,
             shininess: 5,
@@ -375,13 +371,14 @@ export class Deck extends Pawn {
         // Dispose of old materials
         this.#updateMaterials(faceTexture, backTexture);
         if (fadeIn) {
-            this.#box.customDepthMaterial = new DepthDitheredMaterial().clone();
-            for (let material of this.#box.material.concat([this.#box.customDepthMaterial])) {
+            for (let material of this.#box.material) {
                 material.opacity = 0.0;
+                material.transparent = true;
                 let fadeInInterval = setInterval(() => {
                     material.opacity += 6.0/60.0;
                     if (material.opacity >= 1) {
                         material.opacity = 1;
+                        material.transparent = false;
                         clearInterval(fadeInInterval);
                     }
                 }, 1000.0/60.0);

@@ -238,7 +238,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
-        let color: Color = match (user_id.0 + 1) % 7 {
+        let color: Color = match (user_id.0) % 7 {
             1 => Color::Red,
             2 => Color::Blue,
             3 => Color::Purple,

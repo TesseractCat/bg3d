@@ -3,7 +3,7 @@ use std::error::Error;
 use tokio::sync::{mpsc, mpsc::error::SendError};
 use serde::{Serialize, Deserialize};
 use axum::extract::ws::Message;
-use random_color::{Color, Luminosity, RandomColor};
+use random_color::{Color, Luminosity, RandomColor, color_dictionary::ColorDictionary};
 
 use crate::events::Event;
 use crate::pawn::{Vec3, Pawn, PawnId};
@@ -57,7 +57,7 @@ impl User {
             id,
             tx,
             hand: HashMap::new(),
-            color: RandomColor::new().hue(color).luminosity(Luminosity::Dark).to_hex(),
+            color: RandomColor::new().dictionary(ColorDictionary::new()).hue(color).luminosity(Luminosity::Dark).to_hex(),
 
             cursor_position: Vec3 {x:0.0,y:0.0,z:0.0},
             head_position: Vec3 {x:0.0,y:0.0,z:0.0},

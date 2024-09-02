@@ -1,9 +1,8 @@
-import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color, TextureLoader } from 'three';
+import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color, TextureLoader, MeshPhongMaterial } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import Manager from './manager';
 import { NetworkedTransform } from './transform';
-import { MeshStandardDitheredMaterial, MeshPhongDitheredMaterial, DepthDitheredMaterial } from './DitheredMaterials';
 
 import { Spring, Vector3Spring } from './spring';
 import { AudioLoader, Audio as GlobalAudio } from 'three';
@@ -99,21 +98,22 @@ export class Pawn {
                             }
                         }
 
-                        let oldMaterial = child.material;
-                        if (window.isMobile) {
-                            child.material = MeshPhongDitheredMaterial.fromStandard(child.material);
-                        } else {
-                            child.material = new MeshStandardDitheredMaterial().copy(child.material);
-                        }
-                        child.customDepthMaterial = new DepthDitheredMaterial().clone();
-                        oldMaterial.dispose();
+                        let mat = new MeshPhongMaterial();
+                        mat.color = child.material.color;
+                        mat.map = child.material.map;
+                        mat.normalMap = child.material.normalMap;
+                        mat.shininess = (1 - child.material.roughness) * 60;
+                        mat.transparent = true;
+                        child.material.dispose();
+                        child.material = mat;
 
-                        for (let material of [child.material, child.customDepthMaterial]) {
+                        for (let material of [child.material/*, child.customDepthMaterial*/]) {
                             material.opacity = 0.0;
                             let fadeInInterval = setInterval(() => {
                                 material.opacity += 6.0/60.0;
                                 if (material.opacity >= 1) {
                                     material.opacity = 1;
+                                    material.transparent = false;
                                     clearInterval(fadeInInterval);
                                 }
                             }, 1000.0/60.0);

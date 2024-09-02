@@ -1,17 +1,11 @@
 import {
     SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Matrix4, Raycaster, AudioListener,
     Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
-    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color, ColorManagement, LinearEncoding, PMREMGenerator, BoxGeometry, LinearToneMapping,
+    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, Euler, Cache, Color,
     LinearFilter
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
-import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from './OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -381,6 +375,18 @@ export default class Manager extends EventTarget {
                             mat.alphaTest = 0.5;
                         } else {
                             mat.transparent = true;
+                        }
+                        if (child.name == 'Eyes') {
+                            function blink() {
+                                child.scale.set(1,0.05,1);
+                                child.material.color = new Color(0x000000);
+                                setTimeout(() => {
+                                    child.scale.set(1,1,1);
+                                    child.material.color = new Color(0xffffff);
+                                }, 200);
+                                setTimeout(blink, (Math.random() * 4 + 6) * 1000);
+                            }
+                            blink();
                         }
                         child.material.dispose();
                         child.material = mat;
