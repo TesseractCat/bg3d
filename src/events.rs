@@ -8,9 +8,12 @@ use crate::lobby::{GameInfo, LobbySettings};
 use crate::physics::CollisionAudioInfo;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct CursorUpdate {
+pub struct UserStatusUpdate {
     pub id: UserId,
-    pub position: Vec3,
+
+    pub cursor: Vec3,
+    pub head: Vec3,
+    pub look: Vec3
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -63,8 +66,7 @@ pub enum Event<'a> {
     RegisterAssets { assets: HashMap<String, String> },
     ClearAssets {},
 
-    SendCursor { position: Vec3 },
-    RelayCursors { cursors: Vec<CursorUpdate> },
+    UpdateUserStatuses { updates: Vec<UserStatusUpdate> },
 
     Chat { id: Option<UserId>, content: Cow<'a, String> },
 }

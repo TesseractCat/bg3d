@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
 use data_url::DataUrl;
+use futures::io::Cursor;
 use tokio::time::Instant;
 
 use gltf::Gltf;
@@ -148,14 +149,6 @@ impl Lobby {
         }
 
         Ok(())
-    }
-    pub fn relay_cursors(&self) -> Result<(), Box<dyn Error>> {
-        self.users.values().send_event(&Event::RelayCursors {
-            cursors: self.users.iter().map(|(k, v)| CursorUpdate {
-                id: *k,
-                position: v.cursor_position,
-            }).collect()
-        })
     }
 
     // Cursed lifetime workaround, third argument to FnOnce is just to imply lifetime bounds :|
@@ -707,13 +700,31 @@ impl Lobby {
         self.add_pawn(Cow::Owned(taken_pawn))
     }
 
-    // -- CURSOR EVENTS --
+    // -- USER STATUS EVENTS --
 
-    pub fn update_cursor(&mut self, user_id: UserId, position: Vec3) -> Result<(), Box<dyn Error>> {
+    pub fn update_user(&mut self, user_id: UserId, updates: Vec<UserStatusUpdate>) -> Result<(), Box<dyn Error>> {
         let mut user = self.users.get_mut(&user_id).ok_or("Invalid user id")?;
 
-        user.cursor_position = position;
+        // Users can only update themselves
+        if let Some(update) = updates.first() {
+            if update.id == user.id {
+                user.cursor_position = update.cursor;
+                user.head_position = update.head;
+                user.head_direction = update.look;
+            }
+        }
+
         Ok(())
+    }
+    pub fn relay_user_statuses(&self) -> Result<(), Box<dyn Error>> {
+        self.users.values().send_event(&Event::UpdateUserStatuses { 
+            updates: self.users.iter().map(|(k, v)| UserStatusUpdate {
+                id: *k,
+                cursor: v.cursor_position,
+                head: v.head_position,
+                look: v.head_direction
+            }).collect()
+        })
     }
 
     // --- GAME REGISTRATION EVENTS ---

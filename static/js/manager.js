@@ -1,7 +1,8 @@
 import {
-    SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Raycaster, AudioListener,
+    SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Matrix4, Raycaster, AudioListener,
     Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
-    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color, ColorManagement, LinearEncoding, PMREMGenerator, BoxGeometry, LinearToneMapping
+    WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, sRGBEncoding, Euler, Cache, Color, ColorManagement, LinearEncoding, PMREMGenerator, BoxGeometry, LinearToneMapping,
+    LinearFilter
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
@@ -12,32 +13,53 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { GammaCorrectionShader } from 'three/addons/shaders/GammaCorrectionShader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { OrbitControls } from './OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
 import { unpack, Packr } from 'msgpackr';
 
-class Cursor {
-    mesh;
-    networkTransform;
-    
-    constructor(color) {
-        const cursorGeometry = new SphereGeometry(0.32, 12, 12);
-        const cursorMaterial = new MeshBasicMaterial( {color: color} );
-        const cursorObject = new Mesh(cursorGeometry, cursorMaterial);
+class User {
+    id;
+
+    color;
+    cardTextElement;
+
+    cursorObject;
+    cursorTransform;
+    headObject;
+    headTransform;
+
+    constructor(id, color, cursor, cardTextElement, headObject) {
+        this.id = id;
+        this.color = color;
+        this.cursor = cursor;
+        this.cardTextElement = cardTextElement;
         
-        this.mesh = cursorObject;
-        this.networkTransform = new NetworkedTransform(new Vector3(), new Quaternion());
+        this.headObject = headObject;
+        this.headTransform = new NetworkedTransform(new Vector3(), new Quaternion());
+
+        if (cursor) {
+            const cursorGeometry = new SphereGeometry(0.32, 12, 12);
+            const cursorMaterial = new MeshBasicMaterial( {color: color} );
+            this.cursorObject = new Mesh(cursorGeometry, cursorMaterial);
+        }
+        this.cursorTransform = new NetworkedTransform(new Vector3(), new Quaternion());
     }
     animate() {
-        this.networkTransform.animate();
-        this.mesh.position.copy(this.networkTransform.position);
-        this.mesh.quaternion.copy(this.networkTransform.rotation);
+        this.cursorTransform.animate();
+        this.cursorObject?.position.copy(this.cursorTransform.position);
+        this.cursorObject?.quaternion.copy(this.cursorTransform.rotation);
+
+        this.headTransform.animate();
+        this.headObject?.position.copy(this.headTransform.position);
+        this.headObject?.quaternion.copy(this.headTransform.rotation);
     }
 }
 
 export default class Manager extends EventTarget {
+
     scene;
     camera;
     audioListener;
@@ -63,7 +85,6 @@ export default class Manager extends EventTarget {
         position: new Vector3(),
         dirty: false
     };
-    lobbyCursors = new Map();
     
     pawns = new Map();
     host = false;
@@ -308,28 +329,25 @@ export default class Manager extends EventTarget {
         this.sendSocket({type: "update_pawns", pawns: [pawn.serialize()]});
     }
     
+    static gltfLoader = new GLTFLoader()
+        .setPath(window.location.origin + '/static/');
     addUser(id, color) {
-        // Create element
+        // Create elements
         let playerElement = document.createElement("div");
         playerElement.classList.add("player");
         playerElement.dataset.id = id;
         playerElement.style.color = color;
-        let playerText = document.createElement("h3");
-        playerText.classList.add("text");
-        playerText.innerText = "";//id;
-        playerElement.appendChild(playerText);
-        let cardText = document.createElement("h3");
-        cardText.classList.add("cards");
-        cardText.innerText = "[0 cards]";
-        playerElement.appendChild(cardText);
+        let playerTextElement = document.createElement("h3");
+        playerTextElement.classList.add("text");
+        playerTextElement.innerText = "";//id;
+        playerElement.appendChild(playerTextElement);
+        let cardTextElement = document.createElement("h3");
+        cardTextElement.classList.add("cards");
+        cardTextElement.innerText = "[0 cards]";
+        playerElement.appendChild(cardTextElement);
 
-        this.users.set(id, {
-            color: color,
-            cardText: cardText
-        });
-        
         if (id == this.id)
-            playerText.innerText += " (You)";
+            playerTextElement.innerText += " (You)";
         
         let playerList = document.querySelector("#player-entries");
         for (let entryNode of playerList.children) {
@@ -341,26 +359,62 @@ export default class Manager extends EventTarget {
         if (playerElement.parentNode != playerList)
             playerList.appendChild(playerElement);
         
-        // Create cursor entry/object
+        // Create user object
+        let user = new User(id, color, id != this.id, cardTextElement, null);
+        this.users.set(id, user);
+        if (user.cursorObject)
+            this.scene.add(user.cursorObject);
+
+        // Create head
         if (id != this.id) {
-            let cursor = new Cursor(new Color(color));
-            this.scene.add(cursor.mesh);
-            this.lobbyCursors.set(id, cursor);
+            Manager.gltfLoader.load("head/head.glb", (gltf) => {
+                gltf.scene.traverse((child) => {
+                    if (child instanceof Mesh) {
+                        let mat = new MeshBasicMaterial();
+                        if (child.material.name == 'Tex') {
+                            mat.color = new Color(color);
+                        } else {
+                            mat.color = child.material.emissive;
+                        }
+                        mat.map = child.material.emissiveMap;
+                        if (child.material.name == 'Eye') {
+                            mat.alphaTest = 0.5;
+                        } else {
+                            mat.transparent = true;
+                        }
+                        child.material.dispose();
+                        child.material = mat;
+                    }
+                });
+                gltf.scene.scale.set(1.5,1.5,1.5);
+                this.scene.add(gltf.scene);
+                user.headObject = gltf.scene;
+            });
         }
     }
     removeUser(id) {
         document.querySelector(`.player[data-id="${id}"]`).remove();
-        this.scene.remove(this.lobbyCursors.get(id).mesh);
-        this.lobbyCursors.delete(id);
+        this.scene.remove(this.users.get(id).cursorObject);
+        this.scene.remove(this.users.get(id).headObject);
         this.users.delete(id);
     }
     
-    sendCursor() {
+    sendUserStatus() {
+        let forward = this.camera.getWorldDirection(new Vector3());
         this.sendSocket({
-            type:"send_cursor",
-            position:{x:this.localCursor.position.x,
-                      y:this.localCursor.position.y,
-                      z:this.localCursor.position.z}
+            type: "update_user_statuses",
+            updates: [{
+                id: this.id,
+                cursor: {x: this.localCursor.position.x,
+                         y: this.localCursor.position.y,
+                         z: this.localCursor.position.z},
+                head: {x: this.camera.position.x,
+                       y: this.camera.position.y,
+                       z: this.camera.position.z},
+                look: {x: forward.x,
+                       y: forward.y,
+                       z: forward.z},
+            }],
         });
     }
     tick() {
@@ -371,7 +425,7 @@ export default class Manager extends EventTarget {
             to_update.forEach(p => p.dirty.clear());
         }
         if (this.localCursor.dirty) {
-            this.sendCursor();
+            this.sendUserStatus();
             this.localCursor.dirty = false;
         }
     }
@@ -456,8 +510,7 @@ export default class Manager extends EventTarget {
             }
         }
         
-        // Lerp all cursors
-        this.lobbyCursors.forEach((c) => { c.animate(); });
+        this.users.forEach((u) => { u.animate(); });
     }
     resize() {
         // Update camera aspect ratio
@@ -534,12 +587,6 @@ export default class Manager extends EventTarget {
 
         const ambientLight = new AmbientLight(0x808080, 1.5);
         this.scene.add(ambientLight);
-
-        // Setup environment
-        // const pmremGenerator = new PMREMGenerator(this.renderer);
-        // let environment = new Scene();
-        // environment.add(new Mesh(new BoxGeometry(), new MeshBasicMaterial()));
-        // this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
         
         // Setup ground plane
         const geom = new PlaneGeometry(160, 160);
@@ -752,7 +799,7 @@ export default class Manager extends EventTarget {
                 if (!this.hand.cards.has(msg.pawn.id))
                     this.hand.pushCard(deserializePawn(msg.pawn), false);
             } else if (type == "hand_count") {
-                this.users.get(msg.id).cardText.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
+                this.users.get(msg.id).cardTextElement.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
             }
             
             if (type == "connect") {
@@ -771,14 +818,24 @@ export default class Manager extends EventTarget {
                 }
             }
             
-            if (type == "relay_cursors") {
-                msg.cursors.forEach((cursor) => {
-                    if (cursor.id == this.id)
+            if (type == "update_user_statuses") {
+                msg.updates.forEach((update) => {
+                    if (update.id == this.id)
                         return;
                     
-                    let newPosition = new Vector3().copy(cursor.position).add(new Vector3(0, 0.25, 0));
-                    if (this.lobbyCursors.has(cursor.id))
-                        this.lobbyCursors.get(cursor.id).networkTransform.tick(newPosition);
+                    let newPosition = new Vector3().copy(update.cursor).add(new Vector3(0, 0.25, 0));
+                    
+                    this.users.get(update.id).cursorTransform.tick(newPosition);
+
+                    let from = new Vector3().copy(update.head);
+                    let target =
+                        new Vector3().copy(update.look).add(update.cursor).multiplyScalar(0.5)
+                        .sub(from);
+                    let lookAtMatrix = new Matrix4().lookAt(new Vector3(0,0,0), target.negate(), new Vector3(0,1,0));
+                    this.users.get(update.id).headTransform?.tick(
+                        new Vector3().copy(update.head),
+                        new Quaternion().setFromRotationMatrix(lookAtMatrix)
+                    );
                 });
             }
 

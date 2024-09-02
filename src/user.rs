@@ -42,8 +42,13 @@ pub struct User {
     pub hand: HashMap<PawnId, Pawn>,
     #[serde(skip)]
     pub tx: mpsc::UnboundedSender<Message>,
+
     #[serde(skip)]
-    pub cursor_position: Vec3
+    pub cursor_position: Vec3,
+    #[serde(skip)]
+    pub head_position: Vec3,
+    #[serde(skip)]
+    pub head_direction: Vec3
 }
 
 impl User {
@@ -53,7 +58,10 @@ impl User {
             tx,
             hand: HashMap::new(),
             color: RandomColor::new().hue(color).luminosity(Luminosity::Dark).to_hex(),
-            cursor_position: Vec3 {x:0.0,y:0.0,z:0.0}
+
+            cursor_position: Vec3 {x:0.0,y:0.0,z:0.0},
+            head_position: Vec3 {x:0.0,y:0.0,z:0.0},
+            head_direction: Vec3 {x:0.0,y:0.0,z:0.0}
         }
     }
 

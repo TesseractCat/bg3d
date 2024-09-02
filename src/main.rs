@@ -117,7 +117,7 @@ async fn main() {
         .nest("/:lobby", lobby_routes)
         .layer(CompressionLayer::new());
     
-    // Relay cursors
+    // Relay user statuses (cursors, head, etc)
     let lobbies_clone = lobbies.clone();
     tokio::task::spawn(async move  {
         let mut interval = interval(Duration::from_secs_f32(CURSOR_RATE));
@@ -126,7 +126,7 @@ async fn main() {
                 let lobbies_rl = lobbies_clone.read().await;
                 for lobby in lobbies_rl.values() {
                     let lobby = lobby.lock().await;
-                    lobby.relay_cursors().ok();
+                    lobby.relay_user_statuses().ok();
                 }
             }
             interval.tick().await;
@@ -305,7 +305,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                     Event::ClearAssets { } => lobby.lock().await.deref_mut().clear_assets(user_id),
                     Event::Settings(s) => lobby.lock().await.deref_mut().settings(user_id, s),
 
-                    Event::SendCursor { position } => lobby.lock().await.deref_mut().update_cursor(user_id, position),
+                    Event::UpdateUserStatuses { updates } => lobby.lock().await.deref_mut().update_user(user_id, updates),
 
                     Event::Chat { content, .. } => lobby.lock().await.deref_mut().chat(user_id, content),
                     Event::Ping { idx } => lobby.lock().await.deref().ping(user_id, idx),
