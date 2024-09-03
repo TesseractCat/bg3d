@@ -7,14 +7,16 @@
     --icon-hover: #dddbd5;
     --context-menu: aliceblue;
 
-    --accent-button: hsl(0 70% 94% / 1);
-    --accent-button-hovered: hsl(0 100% 84% / 1);
+    --accent-button: hsl(0 70% 94%);
+    --accent-button-2: hsl(0, 100%, 88%);
+    --accent-button-hovered: hsl(0 100% 84%);
 
     --radius: 10px;
     --half-radius: calc(var(--radius)/2);
     --kbd-radius: 3px;
 
     --panel-width: 280px;
+    --edge-offset: 15px;
 
     --shadow: rgb(0 0 0 / 10%) 0px 0px 5px;
 

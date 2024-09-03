@@ -11,62 +11,70 @@
 
         <link rel="preload" href="static/fonts/Lora/Lora-Regular.ttf" as="font" crossorigin>
         <link rel="stylesheet" href="static/index.css?v={{version}}">
+        <link rel="icon" type="image/x-icon" href="static/icons/favicon.ico">
     </head>
     <body>
         <canvas id="display" tabindex='0'></canvas>
 
         <template id="bird-icon">
-            <svg viewBox="0 0 35 25"><use href="static/bird-icon.svg#icon"></use></svg>
+            <svg viewBox="0 0 35 25"><use href="static/icons/bird-icon.svg#icon"></use></svg>
         </template>
 
-        <div id="overlay">
-            <div id="overlay-collapse">-</div>
-            <p><b>Share this link:</b></p>
-            <div id="link-panel">
-                <a id="game-link" href="#"></a>
-                <!-- <div id="link-divider"></div>
-                <button><img src="static/qr-code.svg" class="icon" draggable="false"></img></button> -->
-            </div>
-            <div id="control-panel" data-hidden>
-                <hr>
-                <div id="choose-game" data-host-only data-hidden>
-                    <label for="games">Game:</label>
-                    <select name="games" id="games"></select>
+        <bird-tabbar>
+            <img src="static/icons/minus.svg" slot="0-icon" />
+            <img src="static/icons/info.svg" slot="1-icon" />
+            <img src="static/icons/question.svg" slot="2-icon" />
+            <img src="static/icons/gear.svg" slot="3-icon" />
+            <img src="static/icons/dice-d6.svg" slot="4-icon" />
+            <div class="overlay-panel" slot="1" selected>
+                <p><b>Share this link:</b></p>
+                <div id="link-panel">
+                    <a id="game-link" href="#"></a>
+                    <!-- <div id="link-divider"></div>
+                    <button><img src="static/qr-code.svg" class="icon" draggable="false"></img></button> -->
                 </div>
-                <form id="add-pawn" autocomplete="off">
-                    <datalist id="pawn-list"></datalist>
-                    <input placeholder="Search for a piece..." list="pawn-list" name="pawn"></input>
-                    <button>Spawn</button>
-                </form>
-            </div>
-            <!--<div id="controls">
+                <div id="control-panel" data-hidden>
+                    <hr>
+                    <div id="choose-game" data-host-only data-hidden>
+                        <label for="games">Game:</label>
+                        <select name="games" id="games"></select>
+                    </div>
+                </div>
                 <hr>
-                <details open>
-                    <summary><b>Controls</b></summary>
-                    <div id="instructions">
-                        <p><kbd><img src="static/left-click.svg" class="icon" draggable="false"></img> + drag</kbd> to look</p>
+                <h2>Players</h2>
+                <div id="player-entries" data-hide-card-counts></div>
+            </div>
+            <div class="overlay-panel" slot="2">
+                <p><b>Controls:</b></p>
+                <div style="text-align: left;">
+                    <fieldset>
+                        <legend><p>Look around:</p></legend>
+                        <p><kbd><img src="static/icons/left-click.svg" class="icon" draggable="false"></img> + drag</kbd> to look</p>
                         <p>
-                            <kbd>⇧ + <img src="static/left-click.svg" class="icon" draggable="false"></img> + drag</kbd>, 
-                            <kbd><img src="static/right-click.svg" class="icon" draggable="false"></img> + drag</kbd>, 
+                            <kbd>⇧ + <img src="static/icons/left-click.svg" class="icon" draggable="false"></img> + drag</kbd>, 
+                            <kbd><img src="static/icons/right-click.svg" class="icon" draggable="false"></img> + drag</kbd>, 
                             <kbd>WASD</kbd> to pan
                         </p>
-                        <fieldset>
-                            <legend>
-                                <p><kbd><img src="static/left-click.svg" class="icon" draggable="false"></img> + drag</kbd> to move pieces:</p>
-                            </legend>
-                            <p><kbd><img src="static/right-click.svg" class="icon" draggable="false"></img></kbd> for more options</p>
-                            <p><kbd>F</kbd> to flip, and <kbd>Q/E</kbd> to rotate</p>
-                            <p><kbd>T</kbd> to take from a bag/deck</p>
-                            <p><kbd>G</kbd> to add a card to your hand</p>
-                        </fieldset>
-                    </div>
-                </details>
+                    </fieldset>
+                    <fieldset>
+                        <legend>Pieces:</legend>
+                        <p><kbd><img src="static/icons/left-click.svg" class="icon" draggable="false"></img> + drag</kbd> to move pieces</p>
+                        <p><kbd><img src="static/icons/right-click.svg" class="icon" draggable="false"></img></kbd> for more options</p>
+                        <p><kbd>F</kbd> to flip, and <kbd>Q/E</kbd> to rotate</p>
+                        <p>
+                            <kbd>⇧ + <img src="static/icons/left-click.svg" class="icon" draggable="false"></img> + drag</kbd>, 
+                            <kbd>T</kbd> to take from a bag/deck
+                        </p>
+                        <p><kbd>G</kbd> to add a card to your hand</p>
+                    </fieldset>
+                </div>
             </div>
-            <div>
-                <details>
-                    <summary><b>Settings</b></summary>
+            <div class="overlay-panel" slot="3">
+                <p><b>Settings:</b></p>
+                <div style="text-align: left;">
                     <form id="settings">
                         <fieldset disabled>
+                            <legend><p>Lobby settings</p></legend>
                             <div>
                                 <input type="checkbox" value="true" name="spawnPermission" id="spawnPermission">
                                 <label for="spawnPermission">Allow users to spawn pieces</label>
@@ -80,13 +88,14 @@
                                 <label for="hideChat">Hide chat</label>
                             </div>
                         </fieldset>
+                        <fieldset disabled>
+                            <legend><p>Plugin settings</p></legend>
+                            <p>This plugin has no settings</p>
+                        </fieldset>
                     </form>
-                </details>
-            </div>-->
-            <hr>
-            <h2>Players</h2>
-            <div id="player-entries" data-hide-card-counts></div>
-        </div>
+                </div>
+            </div>
+        </bird-tabbar>
 
         <bird-chat></bird-chat>
         <bird-hand></bird-hand>
@@ -94,7 +103,7 @@
         <bird-context-menu></bird-context-menu>
 
         <a href="https://github.com/TesseractCat/bg3d" target="_blank">
-            <img id="icon" src="static/small_icon.png" alt=""></img>
+            <img id="icon" src="static/icons/small_icon.png" alt=""></img>
         </a>
         <div id="shade">
             <h1>CONNECTION LOST</h1>

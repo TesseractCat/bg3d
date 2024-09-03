@@ -10,6 +10,7 @@ import ContextMenu from './contextmenu.js';
 import Tooltip from './tooltip.js';
 import Chat from './chat.js';
 import Hand from './hand.js';
+import Tabbar from './tabbar.js';
 
 import { Pawn } from './pawns.js';
 
@@ -83,7 +84,7 @@ window.onload = () => {
     });
 
     // Spawn menu
-    let spawnables = [
+    /*let spawnables = [
         new Pawn({
             name: "Bird Statue", mesh: 'generic/bird.glb'
         }),
@@ -91,7 +92,6 @@ window.onload = () => {
             name: "Mini Bird", mesh: 'generic/minibird.gltf', tint: 0xdd2222
         })
     ];
-    
     const createOption = (name) => {
         let elem = document.createElement("option");
         elem.setAttribute("value", name);
@@ -118,7 +118,7 @@ window.onload = () => {
                 position: new Vector3(0, 5, 0),
             }));
         }
-    });
+    });*/
     
     // Show link
     // - Itch doesn't support clipboard
@@ -153,12 +153,6 @@ window.onload = () => {
         gameLinkElem.target = "_blank";
     }
     
-    // Overlay functionality
-    document.getElementById("overlay-collapse").addEventListener("click", (e) => {
-        e.target.innerText = e.target.innerText == "-" ? "+" : "-";
-        document.getElementById("overlay").classList.toggle("minimized");
-    });
-        
     // Allow plugins to be dropped
     document.body.addEventListener("dragenter", (e) => e.preventDefault());
     document.body.addEventListener("dragleave", (e) => e.preventDefault());

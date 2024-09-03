@@ -65,16 +65,28 @@ fieldset {
 
 /* MAIN PANEL */
 
-#overlay {
+bird-tabbar {
     position: absolute;
     box-sizing: border-box;
 
-    top: 20px;
-    right: 20px;
+    top: var(--edge-offset);
+    right: var(--edge-offset);
+}
+bird-tabbar img {
+    filter: invert(1) brightness(0.1);
+}
+
+.overlay-panel {
+    position: relative;
+    box-sizing: border-box;
 
     text-align: center;
     width: var(--panel-width);
-    padding: 20px;
+    padding: var(--edge-offset);
+
+    display: flex;
+    flex-direction: column;
+    white-space: normal;
 
     background-image: linear-gradient(180deg, var(--bg-top), var(--bg-bottom) 200%);
     background-color: #F8F8F8;
@@ -88,35 +100,28 @@ fieldset {
     white-space: nowrap;
     
     transition: width 0.2s, max-height 0.2s;
+
+    max-height: 50%;
+    overflow-y: auto;
 }
-#overlay.minimized {
-    width: 10px;
-    max-height: 10px;
-}
-#overlay h1 {
+.overlay-panel h1 {
     font-size: 2.3em;
 }
-#overlay h1, h2, h3, a, p {
+.overlay-panel h1, h2, h3, a, p {
     margin: 0px;
 }
-#overlay hr {
+.overlay-panel hr {
     border: none;
     border-top: 1px solid var(--overlay-gray);
+    width: 100%;
 }
-#overlay a {
-    white-space:nowrap;
+.overlay-panel a {
+    white-space: nowrap;
 }
-#instructions {
-    margin:auto;
-    text-align: left;
-    padding-bottom:5px;
-    font-size: 0.9em;
-}
-#instructions p {
-    line-height:20px;
-}
-#instructions fieldset {
-    display: block;
+.overlay-panel fieldset {
+    display: flex;
+    flex-direction: column;
+    white-space: normal;
     margin-top: 0.2em;
     padding: 0.5em;
 
@@ -124,13 +129,21 @@ fieldset {
     border-radius: var(--half-radius);
 }
 
+#instructions {
+    margin: auto;
+    text-align: left;
+    padding-bottom: 5px;
+    font-size: 0.9em;
+}
+#instructions p {
+    line-height: 20px;
+}
+
 #control-panel {
     text-align: left;
 }
 #player-entries {
-    max-height: 100px;
     margin-top: 5px;
-    overflow-y: auto;
     display: flex;
     flex-wrap: wrap;
     gap: 1em;
@@ -148,9 +161,6 @@ fieldset {
     width: 25px;
     height: 25px;
 }
-/* #player-entries .player .text:before {
-    content:"⬤";
-} */
 #player-entries .player .cards:before {
     content: "|";
     margin: 0.5em;
@@ -172,20 +182,6 @@ fieldset {
 }
 #add-piece {
     border-radius: 0px var(--half-radius) var(--half-radius) 0px;
-}
-
-#overlay-collapse {
-    position:absolute;
-    top:0px;
-    right:0px;
-    width:25px;
-    height:25px;
-    line-height:25px;
-    background:rgba(0,0,0,0.75);
-    color: white;
-    border-radius: 0px 0px 0px var(--radius);
-    cursor:pointer;
-    text-align:center;
 }
 
 .tree {
@@ -299,8 +295,8 @@ bird-chat {
     /* --shadow: var(--shadow); */
 
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: var(--edge-offset);
+    right: var(--edge-offset);
     width: var(--panel-width);
     z-index: 1;
 }
@@ -308,14 +304,10 @@ bird-context-menu {
     --background: var(--context-menu);
 }
 
-#settings {
-    text-align: left;
-}
-
 #icon {
     position:absolute;
-    left:20px;
-    bottom:20px;
+    left:var(--edge-offset);
+    bottom:var(--edge-offset);
     width:60px;
     height:60px;
     cursor:pointer;
@@ -340,12 +332,21 @@ bird-context-menu {
     }
     bird-chat {
         width: auto;
-        right:5%;
-        left:5%;
+        right: 5%;
+        left: 5%;
     }
-    /* #stats {
+    bird-tabbar {
+        width: auto;
+        right: 5%;
+        left: 5%;
+        align-items: center;
+    }
+    .overlay-panel {
+        width: 100%;
+    }
+    #stats {
         display: none;
-    } */
+    }
 }
 
 a, a:visited {

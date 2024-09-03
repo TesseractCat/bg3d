@@ -50,6 +50,8 @@ export default class Chat extends HTMLElement {
             cursor: pointer;
             transition: opacity 0.2s;
             opacity: 0.2;
+
+            -webkit-tap-highlight-color: transparent;
         }
         #entries {
             max-height: 150px;

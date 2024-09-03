@@ -842,6 +842,10 @@ export default class Manager extends EventTarget {
                 msg.updates.forEach((update) => {
                     if (update.id == this.id)
                         return;
+                    if (!this.users.has(update.id)) {
+                        console.warn("Attempted to update status of non-existent user");
+                        return;
+                    }
                     
                     let newPosition = new Vector3().copy(update.cursor).add(new Vector3(0, 0.25, 0));
                     
