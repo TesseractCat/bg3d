@@ -415,7 +415,7 @@ export default class Manager extends EventTarget {
                          y: this.localCursor.position.y,
                          z: this.localCursor.position.z},
                 head: {x: this.camera.position.x,
-                       y: this.camera.position.y,
+                       y: Math.min(this.camera.position.y, 8), // Set a ceiling of 8 for the head, helps keeps other heads in view
                        z: this.camera.position.z},
                 look: {x: forward.x,
                        y: forward.y,
@@ -832,6 +832,7 @@ export default class Manager extends EventTarget {
             if (type == "chat") {
                 if (msg.id == 0) {
                     this.chat.addSystemEntry(msg.content);
+                    console.log(`SYS: ${msg.content}`);
                 } else {
                     this.chat.addChatEntry(msg.content, this.users.get(msg.id).color);
                 }

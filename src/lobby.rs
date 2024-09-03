@@ -263,7 +263,7 @@ impl mlua::UserData for Lobby {
         });
         method!(update_pawn: |this, lua, params: mlua::Table| {
             let update = PawnUpdate {
-                id: PawnId(params.get("id").unwrap()),
+                id: PawnId(params.get("id")?),
                 name: params.get("name").ok(),
                 mesh: params.get("mesh").ok(),
                 tint: params.get("tint").ok(),
@@ -330,7 +330,7 @@ impl Lobby {
                 "prelude" => include_str!("prelude.lua"),
                 _ => panic!("Attempted to require undefined library '{}' during lua startup", path),
             };
-            lua.load(text).eval::<mlua::Value>()
+            lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
         }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
         lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
 
@@ -801,7 +801,10 @@ impl Lobby {
             if let Err(e) = self.lua_scope(|lua, scope, _| {
                 lua.globals().set("require", scope.create_function(|lua, path: String| {
                     Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
-                        lua.load(String::from_utf8(asset.data.clone()).unwrap()).eval()?
+                        let chunk =
+                            lua.load(String::from_utf8(asset.data.clone()).unwrap())
+                            .set_name(format!("/{}.lua", path));
+                        chunk.eval()?
                     } else { mlua::Value::Nil })
                 })?)?;
                 lua.load("require(\"main\")").exec()?;

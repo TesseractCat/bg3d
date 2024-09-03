@@ -45,11 +45,11 @@ impl<'lua> mlua::IntoLua<'lua> for Vec3 {
 }
 impl<'lua> mlua::FromLua<'lua> for Vec3 {
     fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(if let Some(table) = value.as_table() {
-            Self { x: table.get("x")?, y: table.get("y")?, z: table.get("z")? }
+        if let Some(table) = value.as_table() {
+            Ok(Self { x: table.get("x")?, y: table.get("y")?, z: table.get("z")? })
         } else {
-            Self::default()
-        })
+            Err(mlua::Error::FromLuaConversionError { from: "value", to: "Vec3", message: None })
+        }
     }
 }
 
@@ -65,11 +65,11 @@ impl<'lua> mlua::IntoLua<'lua> for Vec2 {
 }
 impl<'lua> mlua::FromLua<'lua> for Vec2 {
     fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(if let Some(table) = value.as_table() {
-            Self { x: table.get("x")?, y: table.get("y")? }
+        if let Some(table) = value.as_table() {
+            Ok(Self { x: table.get("x")?, y: table.get("y")? })
         } else {
-            Self::default()
-        })
+            Err(mlua::Error::FromLuaConversionError { from: "value", to: "Vec2", message: None })
+        }
     }
 }
 
@@ -87,13 +87,13 @@ impl<'lua> mlua::IntoLua<'lua> for Quat {
 }
 impl<'lua> mlua::FromLua<'lua> for Quat {
     fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(if let Some(table) = value.as_table() {
-            Self {
+        if let Some(table) = value.as_table() {
+            Ok(Self {
                 x: table.get("x")?, y: table.get("y")?, z: table.get("z")?, w: table.get("w")?,
-            }
+            })
         } else {
-            Self::default()
-        })
+            Err(mlua::Error::FromLuaConversionError { from: "value", to: "Vec2", message: None })
+        }
     }
 }
 impl From<&Rotation<f32>> for Quat {

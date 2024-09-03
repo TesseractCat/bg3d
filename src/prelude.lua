@@ -9,33 +9,81 @@ quat = vmath.quat
 
 Pawn = {
     __index = function(self, key)
-        local val = rawget(self, key)
-        if val ~= nil then
-            return val
+        if key == "id" then
+            return rawget(self, key)
+        end
+
+        if Pawn[key] ~= nil then
+            return Pawn[key] -- Pawn class methods
         else
-            if Pawn[key] ~= nil then
-                return Pawn[key] -- Pawn class methods
-            else
-                local field = lobby:get_pawn(self.id, key) -- Pawn get fields
-                return field
+            if key:sub(1, 4) == "get_" then
+                local key = key:sub(5, -1)
+                return function(self)
+                    if self:spawned() then
+                        return self:get(key)
+                    else
+                        return rawget(self, key)
+                    end
+                end
+            elseif key:sub(1,4) == "set_" then
+                local key = key:sub(5, -1)
+                return function(self, value)
+                    if self:spawned() then
+                        local update = {}
+                        update[key] = value
+                        self:update(update)
+                    else
+                        rawset(self, key, value)
+                    end
+                end
             end
         end
+
+        return nil
     end,
     __newindex = function(self, key, value)
-        local update = {}
-        update[key] = value
-        self:update(update)
+        error("Pawns cannot be directly modified")
     end
 }
+function Pawn:spawned()
+    return self.id ~= nil
+end
+function Pawn:get(key)
+    if self:spawned() then
+        return lobby:get_pawn(self.id, key)
+    else
+        error("Attempted to update not-yet-spawned pawn")
+    end
+end
 function Pawn:update(table)
-    table.id = self.id
-    lobby:update_pawn(table)
+    if self:spawned() then
+        table.id = self.id
+        lobby:update_pawn(table)
+    else
+        error("Attempted to update not-yet-spawned pawn")
+    end
 end
 function Pawn:destroy()
-    lobby:destroy_pawn(self.id)
+    if self:spawned() then
+        lobby:destroy_pawn(self.id)
+    else
+        error("Attempted to destroy not-yet-spawned pawn")
+    end
 end
-function Pawn:new(id)
-    local o = {id = id}
+function Pawn:new(options)
+    if options["id"] ~= nil then
+        error("Attempted to create pawn with manually assigned id")
+    end
+
+    local o
+    if type(options) == "number" then
+        o = {id = options}
+    else
+        options.position = options.position or vec3(0,0,0)
+        options.rotation = options.rotation or quat(0,0,0,0)
+        options.select_rotation = options.select_rotation or quat(0,0,0,0)
+        o = options
+    end
     setmetatable(o, self)
     return o
 end

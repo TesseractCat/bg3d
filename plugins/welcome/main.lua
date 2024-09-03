@@ -10,7 +10,7 @@ function game.start()
     local stand = lobby:create_pawn{
         name = "Stand",
         tint = 0xf1ede1,
-        position = vec3(bird.position.x, 0, bird.position.z),
+        position = vec3(bird:get_position().x, 0, bird:get_position().z),
         mesh = 'generic/stand.gltf',
         moveable = false
     }
@@ -48,7 +48,7 @@ function game.start()
 
     local deck = lobby:create_pawn{
         name = 'Cards',
-        position = vec3(bird.position.x + 3.25, 1, bird.position.z),
+        position = bird:get_position() + vec3(3.25, 1, 0),
         rotation = quat.from_euler(0, -math.pi/2 - math.pi/32, 0),
 
         data = DeckData:new{
@@ -60,7 +60,7 @@ function game.start()
     }
 
     local bird_snap = lobby:create_pawn{
-        position = vec3(bird.position.x, 1, bird.position.z),
+        position = vec3(bird:get_position().x, 1, bird:get_position().z),
         data = SnapPointData:new{}
     }
 

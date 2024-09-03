@@ -146,7 +146,7 @@ impl<'lua> mlua::FromLua<'lua> for Pawn {
 impl<'lua> mlua::IntoLua<'lua> for Pawn {
     fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
         let table = lua.create_table()?;
-        table.set("id", self.id.0)?;
+        table.raw_set("id", self.id.0)?;
         table.set_metatable(lua.globals().get("Pawn")?);
         Ok(mlua::Value::Table(table))
     }
