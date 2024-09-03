@@ -495,7 +495,7 @@ export class Dice extends Pawn {
     roll() {
         this.selectAndRun(() => {
             let value = Math.floor(Math.random() * this.data.rollRotations.length);
-            this.selectRotation = this.data.rollRotations[value];
+            this.selectRotation.copy(this.data.rollRotations[value]);
             this.dirty.add("selectRotation");
         });
     }
