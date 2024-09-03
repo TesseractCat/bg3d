@@ -412,7 +412,7 @@ export class Deck extends Pawn {
         this.shuffle();
     }
     flipped() {
-        return Math.abs(this.selectRotation.x - Math.PI) < 0.01;
+        return new Vector3(0,1,0).applyQuaternion(this.selectRotation).y < 0;
     }
     
     static className() { return "Deck"; };

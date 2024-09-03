@@ -6,20 +6,29 @@ use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor, color_dictionary::ColorDictionary};
 
 use crate::events::Event;
-use crate::pawn::{Vec3, Pawn, PawnId};
+use crate::pawn::{Pawn, PawnId};
+use crate::math::Vec3;
 
 pub trait Sender {
     fn send_event(&mut self, content: &Event) -> Result<(), Box<dyn Error>>;
     fn send_binary(&mut self, content: &[u8]) -> Result<(), Box<dyn Error>>;
+    fn send_text(&mut self, content: &str) -> Result<(), Box<dyn Error>>;
 }
 impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     fn send_event(&mut self, content: &Event)  -> Result<(), Box<dyn Error>> {
-        let content = rmp_serde::to_vec_named(content)?;
-        self.send_binary(&content)
+        // let content = rmp_serde::to_vec_named(content)?;
+        let content = serde_json::to_string(content)?;
+        self.send_text(&content)
     }
     fn send_binary(&mut self, content: &[u8])  -> Result<(), Box<dyn Error>> {
         for user in self {
             user.send_binary(content)?;
+        }
+        Ok(())
+    }
+    fn send_text(&mut self, content: &str)  -> Result<(), Box<dyn Error>> {
+        for user in self {
+            user.send_text(content.to_string())?;
         }
         Ok(())
     }
@@ -39,6 +48,9 @@ pub struct User {
     pub color: String,
 
     #[serde(skip)]
+    pub color_idx: usize,
+
+    #[serde(skip)]
     pub hand: HashMap<PawnId, Pawn>,
     #[serde(skip)]
     pub tx: mpsc::UnboundedSender<Message>,
@@ -52,12 +64,13 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(id: UserId, tx: mpsc::UnboundedSender<Message>, color: Color) -> User {
+    pub fn new(id: UserId, tx: mpsc::UnboundedSender<Message>, color: Color, color_idx: usize) -> User {
         User {
             id,
             tx,
             hand: HashMap::new(),
             color: RandomColor::new().dictionary(ColorDictionary::new()).hue(color).luminosity(Luminosity::Dark).to_hex(),
+            color_idx,
 
             cursor_position: Vec3 {x:0.0,y:0.0,z:0.0},
             head_position: Vec3 {x:0.0,y:0.0,z:0.0},
@@ -66,9 +79,13 @@ impl User {
     }
 
     pub fn send_event(&self, content: &Event) -> Result<(), SendError<Message>> {
-        self.send_binary(&rmp_serde::to_vec_named(content).unwrap())
+        // self.send_binary(&rmp_serde::to_vec_named(content).unwrap())
+        self.send_text(serde_json::to_string(content).unwrap())
     }
     pub fn send_binary(&self, content: &[u8]) -> Result<(), SendError<Message>> {
         self.tx.send(Message::Binary(content.to_vec()))
+    }
+    pub fn send_text(&self, content: String) -> Result<(), SendError<Message>> {
+        self.tx.send(Message::Text(content))
     }
 }

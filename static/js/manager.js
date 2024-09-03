@@ -341,9 +341,7 @@ export default class Manager extends EventTarget {
                 // This pawn has been grabbed/released, reset the network buffer and update position
                 if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
                     pawn.setPosition(new Vector3().copy(serializedPawn.position));
-                    pawn.setRotation(new Quaternion().setFromEuler(
-                        new Euler().setFromVector3(serializedPawn.rotation, 'ZYX')
-                    ));
+                    pawn.setRotation(new Quaternion().copy(serializedPawn.rotation));
                 }
             }
             pawn.networkSelected = serializedPawn.selected;
@@ -351,9 +349,7 @@ export default class Manager extends EventTarget {
         if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
             pawn.networkTransform.tick(
                 new Vector3().copy(serializedPawn.position),
-                new Quaternion().setFromEuler(
-                    new Euler().setFromVector3(serializedPawn.rotation, 'ZYX')
-                )
+                new Quaternion().copy(serializedPawn.rotation)
             );
         }
         if (serializedPawn.hasOwnProperty('selectRotation')) {
@@ -375,14 +371,7 @@ export default class Manager extends EventTarget {
         playerElement.dataset.id = id;
         playerElement.style.setProperty("--bird-fill-color", color);
         playerElement.style.setProperty("--bird-stroke-color", color);
-        {
-            let playerIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            playerIcon.setAttribute("viewBox", "0 0 35 25");
-            let useSvg = document.createElementNS("http://www.w3.org/2000/svg", "use");
-            useSvg.setAttribute("href", "static/bird-icon.svg#icon");
-            playerIcon.appendChild(useSvg);
-            playerElement.appendChild(playerIcon);
-        }
+        playerElement.appendChild(document.getElementById("bird-icon").content.cloneNode(true));
         let playerTextElement = document.createElement("h3");
         playerTextElement.classList.add("text");
         playerTextElement.innerText = "";//id;
@@ -572,8 +561,19 @@ export default class Manager extends EventTarget {
         }
         if (this.socket.readyState == 1)
             this.socket.send(json);*/
-        if (this.socket.readyState == 1)
-            this.socket.send(this.packer.pack(obj));
+        // if (this.socket.readyState == 1)
+        //     this.socket.send(this.packer.pack(obj));
+        if (this.socket.readyState == 1) {
+            this.socket.send(JSON.stringify(obj, (key, value) => {
+                if (value?.isVector3) {
+                    return {x: value.x, y: value.y, z: value.z}
+                } else if (value?.isQuaternion) {
+                    return {x: value._x, y: value._y, z: value._z, w: value._w}
+                } else {
+                    return value;
+                }
+            }));
+        }
     }
     
     buildScene() {
@@ -717,8 +717,8 @@ export default class Manager extends EventTarget {
             shade.style.display = 'block';
         });
         this.socket.addEventListener('message', (e) => {
-            //let msg = JSON.parse(e.data);
-            let msg = unpack(e.data);
+            let msg = JSON.parse(e.data);
+            // let msg = unpack(e.data);
             let type = msg.type;
             
             if (type == "start") {

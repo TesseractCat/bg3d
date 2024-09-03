@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
 use serde::{Serialize, Deserialize};
 
-use crate::pawn::Vec3;
+use crate::math::Vec3;
 
 const PHYSICS_SCALE: f32 = 1.0/8.0;
 

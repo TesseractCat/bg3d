@@ -69,9 +69,17 @@ export default class Chat extends HTMLElement {
             overflow-x: hidden;
             margin: 0px;
             margin-bottom: 3px;
+
+            display: flex;
+            gap: 0.2em;
+            align-items: flex-start;
         }
         .entry span:first-child {
             margin-right: 0.25em;
+        }
+        .entry svg {
+            height: 20px;
+            flex-shrink: 0;
         }
         @media only screen and (max-width: 768px) {
             #entries {
@@ -149,9 +157,13 @@ export default class Chat extends HTMLElement {
     }
 
     #fadeTimeout;
-    #addEntry(name, color, content, className = null) {
+    #addEntry(name, color, content, className = null, bird = false) {
         let entry = document.createElement("p");
         entry.classList.add("entry");
+        entry.style.setProperty("--bird-fill-color", color);
+        entry.style.setProperty("--bird-stroke-color", color);
+        if (bird)
+            entry.appendChild(document.getElementById("bird-icon").content.cloneNode(true));
         
         let prefix = document.createElement("span");
         prefix.style.color = color;
@@ -176,7 +188,7 @@ export default class Chat extends HTMLElement {
 
     }
     addChatEntry(content, color) {
-        this.#addEntry("⬤", color, content);
+        this.#addEntry("", color, content, "", true);
     }
     addSystemEntry(content) {
         this.#addEntry("SYS", "white", content, "system");

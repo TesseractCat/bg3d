@@ -147,7 +147,6 @@ fieldset {
     display: inline-block;
     width: 25px;
     height: 25px;
-    --bird-stroke-width: 0.5;
 }
 /* #player-entries .player .text:before {
     content:"⬤";

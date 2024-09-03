@@ -5,6 +5,7 @@ use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
 use data_url::DataUrl;
 use futures::io::Cursor;
+use random_color::Color;
 use tokio::time::Instant;
 
 use gltf::Gltf;
@@ -22,6 +23,7 @@ use crate::user::*;
 use crate::physics::*;
 use crate::events::*;
 use crate::pawn::*;
+use crate::math::{Quat, Vec3};
 use crate::PHYSICS_RATE;
 
 pub struct Asset {
@@ -66,6 +68,7 @@ pub struct Lobby {
     pub lua: Option<Lua>,
     pub scheduled_lua_funcs: HashMap<mlua::RegistryKey, u64>,
 
+    pub color_allocations: [u32; 7],
     next_user_id: AtomicU64,
     next_pawn_id: AtomicU64,
 }
@@ -89,6 +92,7 @@ impl Lobby {
             lua: None,
             scheduled_lua_funcs: HashMap::new(),
 
+            color_allocations: [0; 7],
             next_user_id: AtomicU64::new(1),
             next_pawn_id: AtomicU64::new(1),
         };
@@ -101,6 +105,25 @@ impl Lobby {
     }
     pub fn next_pawn_id(&self) -> PawnId {
         PawnId(self.next_pawn_id.fetch_add(1, Ordering::Relaxed))
+    }
+    pub fn next_color(&mut self) -> (Color, usize) {
+        let color_idx = self.color_allocations
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| a.cmp(b))
+            .map(|(i, _)| i)
+            .unwrap();
+        self.color_allocations[color_idx] += 1;
+        (match color_idx {
+            0 => Color::Red,
+            1 => Color::Blue,
+            2 => Color::Pink,
+            3 => Color::Green,
+            4 => Color::Monochrome,
+            5 => Color::Orange, // Orange/purple are easy ish to confuse with red/blue
+            6 => Color::Purple,
+            _ => unreachable!(),
+        }, color_idx)
     }
 
     pub fn step(&mut self, send_update_pawns: bool) -> Result<(), Box<dyn Error>> {
@@ -115,7 +138,7 @@ impl Lobby {
             let rb_handle = pawn.rigid_body.ok_or("A pawn must have a rigid body handle")?;
             let rb = self.world.rigid_body_set.get(rb_handle).ok_or("Invalid rigidbody handle")?;
             pawn.position = Vec3::from(rb.translation());
-            pawn.rotation = Vec3::from(rb.rotation());
+            pawn.rotation = Quat::from(rb.rotation());
             if !rb.is_sleeping() && rb.is_moving() {
                 dirty_pawns.push(pawn);
             }

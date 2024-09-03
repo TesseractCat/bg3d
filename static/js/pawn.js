@@ -24,11 +24,11 @@ export class Pawn {
 
     // Serialized
     position = new Vector3(0,0,0);
-    rotation = new Quaternion();
+    rotation = new Quaternion(0,0,0,0);
     data = {};
     
     selected = false;
-    selectRotation = new Vector3();
+    selectRotation = new Quaternion();
     
     id;
     name;
@@ -65,7 +65,7 @@ export class Pawn {
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
-        this.selectRotation.copy(new Euler().setFromQuaternion(this.rotation));
+        this.selectRotation.copy(this.rotation);
 
         this.name = name;
         this.moveable = moveable;
@@ -196,9 +196,7 @@ export class Pawn {
                 ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
-                newRotation.slerp(new Quaternion().setFromEuler(
-                    new Euler().setFromVector3(this.selectRotation, 'ZYX')
-                ), Math.clamp01(dt * 10));
+                newRotation.slerp(this.selectRotation, Math.clamp01(dt * 10));
 
                 this.setPosition(newPosition);
                 this.setRotation(newRotation);
@@ -350,16 +348,14 @@ export class Pawn {
     }
     flip() {
         this.selectAndRun(() => {
-            let tau = Math.PI * 2;
-            let modRot = ((this.selectRotation.x % tau) + tau) % tau;
-            this.selectRotation.x = modRot < Math.PI/2 ? Math.PI : 0;
+            this.selectRotation.normalize().multiply(new Quaternion().setFromAxisAngle(new Vector3(1,0,0), Math.PI));
             this.dirty.add("selectRotation");
         });
     }
     rotate(m) {
         this.selectAndRun(() => {
             let increment = window.manager.info?.rotationIncrement || Math.PI/8;
-            this.selectRotation.y += m * increment;
+            this.selectRotation.normalize().premultiply(new Quaternion().setFromAxisAngle(new Vector3(0,1,0), m * increment));
             this.dirty.add("selectRotation");
         });
     }
@@ -392,40 +388,22 @@ export class Pawn {
     serialize() {
         let out = structuredClone(this);
         out.class = this.constructor.className();
-        out.rotation = new Vector3().setFromEuler(
-            new Euler().setFromQuaternion(this.rotation, 'ZYX')
-        );
         return out;
     }
     serializeDirty() {
         let out = {id:this.id};
         for (let dirtyParam of this.dirty) {
-            if (dirtyParam == "rotation") {
-                out[dirtyParam] = new Vector3().setFromEuler(
-                    new Euler().setFromQuaternion(this.rotation, 'ZYX')
-                );
-            } else {
-                out[dirtyParam] = structuredClone(this[dirtyParam]);
-            }
+            out[dirtyParam] = structuredClone(this[dirtyParam]);
         }
         if (this.dirty.has("data"))
             out.class = this.constructor.className();
         return out;
     }
     static deserialize(serializedPawn) {
-        let rotation = new Quaternion();
-        if (serializedPawn.rotation)
-            rotation.setFromEuler(new Euler().setFromVector3(serializedPawn.rotation, 'ZYX'));
-
         let pawn = new this({
             ...serializedPawn,
             ...serializedPawn.data,
-            rotation: rotation,
         });
-        // FIXME: Why do I have to do this?
-        // - Fixes issue where sometimes a harbor piece is black in Catan.
-        //   because of invalid/weird selectRotation.
-        pawn.selectRotation.setFromEuler(new Euler().setFromVector3(serializedPawn.rotation, 'ZYX'));
 
         if (serializedPawn.selected)
             pawn.networkSelected = serializedPawn.selected;

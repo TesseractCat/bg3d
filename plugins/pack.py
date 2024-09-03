@@ -34,7 +34,7 @@ def main():
 
                     result.writestr(os.path.splitext(os.path.relpath(path, f"./{folder}"))[0] + ".webp", output.getvalue())
                     print(f" - {file} => webp, {original_kb:.1f} KiB -> {compressed_kb:.1f} KiB | {(compressed_kb/original_kb)*100:.1f}%")
-            elif has_ending(file, [".gltf", ".glb", ".js", ".json", ".svg"]):
+            elif has_ending(file, [".gltf", ".glb", ".lua", ".json", ".svg"]):
                 result.write(path, os.path.relpath(path, f"./{folder}"))
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 {
-    "name": "Lobby",
-    "description": "Pick a game.",
-    "author": "Built-in",
-    "script": "welcome.js"
+    "name": "Welcome",
+    "description": "Welcome/tutorial plugin",
+    "author": "Built-in"
 }

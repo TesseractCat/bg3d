@@ -31,6 +31,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use random_color::Color;
 use rapier3d::prelude::*;
 
+mod math;
 mod pawn;
 mod lobby;
 mod user;
@@ -238,17 +239,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
-        let color: Color = match (user_id.0) % 7 {
-            1 => Color::Red,
-            2 => Color::Blue,
-            3 => Color::Purple,
-            4 => Color::Green,
-            5 => Color::Orange,
-            6 => Color::Monochrome,
-            0 => Color::Pink,
-            _ => Color::Monochrome,
-        };
-        lobby.users.insert(user_id, User::new(user_id, buffer_tx, color));
+        let (color, color_idx) = lobby.next_color();
+        lobby.users.insert(user_id, User::new(user_id, buffer_tx, color, color_idx));
 
         user_id
     };
@@ -275,7 +267,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
             println!("Websocket connection closed, user <{user_id:?}> left");
             break;
         }
-        if !matches!(message, Message::Binary(_)) {
+        if !matches!(message, Message::Text(_)) {
             if matches!(message, Message::Pong(_)) { continue; } else {
                 println!("Received non-binary/non-pong message");
                 continue;
@@ -285,8 +277,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
-        let message_bytes = message.into_data();
-        match rmp_serde::from_slice(&message_bytes) {
+        // let message_bytes = message.into_data();
+        // match serde_json::from_slice(&message_bytes) {
+        match serde_json::from_str(&message.into_text().unwrap()) {
             Ok(event_data) => {
                 let event_result = match event_data {
                     Event::Join { referrer } => user_joined(user_id, lobby.lock().await.deref(), referrer, headers.clone()), 
@@ -315,7 +308,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
                 if let Err(err) = event_result {
                     println!("Error encountered while handling event:");
-                    println!(" - Event: {:?}", rmp_serde::from_slice::<Event>(&message_bytes)?);
+                    // println!(" - Event: {:?}", rmp_serde::from_slice::<Event>(&message_bytes)?);
                     println!(" - Error: {:?}", err);
                 }
             },
@@ -384,12 +377,15 @@ async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies)
         .send_event(&Event::Disconnect {
             id: user_id,
         })?;
+
+    let lobby_mut_ref: &mut Lobby = &mut *lobby;
     
     // Remove user from lobby
-    lobby.users.remove(&user_id);
+    let color_idx = lobby_mut_ref.users[&user_id].color_idx;
+    lobby_mut_ref.color_allocations[color_idx] = lobby_mut_ref.color_allocations[color_idx].saturating_sub(1);
+    lobby_mut_ref.users.remove(&user_id);
 
     // Deselect all pawns selected by this user
-    let lobby_mut_ref: &mut Lobby = &mut *lobby;
     let mut deselected_pawns: Vec<PawnUpdate> = Vec::new();
     for pawn in lobby_mut_ref.pawns.values_mut() {
         if pawn.selected_user == Some(user_id) {

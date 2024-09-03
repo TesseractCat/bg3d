@@ -5,76 +5,7 @@ use rapier3d::prelude::*;
 use mlua::TableExt;
 
 use crate::user::*;
-
-#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
-pub struct Vec3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-}
-impl From<&Vector<f32>> for Vec3 {
-	fn from(v: &Vector<f32>) -> Self {
-		Vec3 {
-			x: v.x as f64,
-			y: v.y as f64,
-			z: v.z as f64,
-		}
-	}
-}
-impl From<&Vec3> for Vector<f32> {
-	fn from(v: &Vec3) -> Self {
-		vector![v.x as f32, v.y as f32, v.z as f32]
-	}
-}
-impl From<&Rotation<f32>> for Vec3 {
-	fn from(v: &Rotation<f32>) -> Self {
-		let euler = v.euler_angles();
-		Vec3 {
-			x: euler.0 as f64,
-			y: euler.1 as f64,
-			z: euler.2 as f64,
-		}
-	}
-}
-impl From<&Vec3> for Rotation<f32> {
-	fn from(v: &Vec3) -> Self {
-		Rotation::from_euler_angles(v.x as f32, v.y as f32, v.z as f32)
-	}
-}
-impl<'lua> mlua::IntoLua<'lua> for Vec3 {
-    fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
-        lua.globals().get::<_, mlua::Table>("vec3")?.call((self.x, self.y, self.z))
-    }
-}
-impl<'lua> mlua::FromLua<'lua> for Vec3 {
-    fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(if let Some(table) = value.as_table() {
-            Self { x: table.get("x")?, y: table.get("y")?, z: table.get("z")? }
-        } else {
-            Self::default()
-        })
-    }
-}
-
-#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
-pub struct Vec2 {
-        pub x: f64,
-        pub y: f64,
-}
-impl<'lua> mlua::IntoLua<'lua> for Vec2 {
-    fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
-        lua.globals().get::<_, mlua::Table>("vec2")?.call((self.x, self.y))
-    }
-}
-impl<'lua> mlua::FromLua<'lua> for Vec2 {
-    fn from_lua(value: mlua::Value<'lua>, _: &'lua mlua::Lua) -> mlua::Result<Self> {
-        Ok(if let Some(table) = value.as_table() {
-            Self { x: table.get("x")?, y: table.get("y")? }
-        } else {
-            Self::default()
-        })
-    }
-}
+use crate::math::*;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(tag = "class", content = "data")]
@@ -87,7 +18,7 @@ pub enum PawnData {
     SnapPoint { radius: f64, size: Vec2, scale: f64, snaps: Vec<String> },
     Container { holds: Box<Pawn>, capacity: Option<u64> },
     #[serde(rename_all = "camelCase")]
-    Dice { roll_rotations: Vec<Vec3> },
+    Dice { roll_rotations: Vec<Quat> },
     Pawn {},
 }
 impl<'lua> mlua::FromLua<'lua> for PawnData {
@@ -174,8 +105,8 @@ pub struct Pawn {
     pub moveable: bool, // Physics properties
     
     pub position: Vec3, // Mutable Properties
-    pub rotation: Vec3,
-    pub select_rotation: Vec3,
+    pub rotation: Quat,
+    pub select_rotation: Quat,
     
     #[serde(flatten)]
     pub data: PawnData, // Misc
@@ -233,9 +164,9 @@ pub struct PawnUpdate {
     pub moveable: Option<bool>,
     
     pub position: Option<Vec3>,
-    pub rotation: Option<Vec3>,
+    pub rotation: Option<Quat>,
     pub selected: Option<bool>,
-    pub select_rotation: Option<Vec3>,
+    pub select_rotation: Option<Quat>,
     
     #[serde(flatten)]
     pub data: Option<PawnData>,

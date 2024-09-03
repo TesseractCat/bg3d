@@ -37,16 +37,7 @@ window.onload = () => {
 
     manager.init((host) => {
         let games = [
-            ['Test', 'plugins/test.zip'],
-            ['Welcome', 'plugins/welcome'],
-            ['Cards', 'plugins/cards'],
-            ['Chess', 'plugins/chess'],
-            ['Checkers', 'plugins/checkers'],
-            ['Go', 'plugins/go'],
-            ['Uno', 'plugins/uno.zip'],
-            ['Sorry', 'plugins/sorry.zip'],
-            ['Carcassonne', 'plugins/carcassonne.zip'],
-            ['Catan', 'plugins/catan.zip'],
+            ['Welcome', 'plugins/welcome.zip'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
@@ -61,24 +52,16 @@ window.onload = () => {
         gameOption.setAttribute("hidden", "");
         document.querySelector("#games").appendChild(gameOption);
 
-        async function loadGame(index) {
-            let game = games[index];
-            let url = game[1];
-
-            if (url.endsWith("zip")) {
-                let blob = await ((await fetch(`${url}?v=${window.version}`)).blob());
-                let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
-                await pluginLoader.loadFromFile(file);
-            } else {
-                let manifest = await (await fetch(`${url}/manifest.json?v=${window.version}`)).json();
-                await pluginLoader.loadManifest(manifest, {path: url});
-            }
+        async function loadGame(url) {
+            let blob = await ((await fetch(`${url}?v=${window.version}`)).blob());
+            let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
+            await pluginLoader.loadFromFile(file);
         }
         document.querySelector("#games").addEventListener("change", async (e) => {
             e.target.blur();
             
             e.target.setAttribute("disabled", "");
-            await loadGame(e.target.selectedIndex);
+            await loadGame(games[e.target.selectedIndex][1]);
             e.target.removeAttribute("disabled");
         });
 
@@ -94,7 +77,7 @@ window.onload = () => {
         });*/
         
         if (host)
-            loadGame(0);
+            loadGame(games[0][1]);
         
         animate();
     });
