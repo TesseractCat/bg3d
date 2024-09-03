@@ -25,10 +25,10 @@ export class Pawn {
     // Serialized
     position = new Vector3(0,0,0);
     rotation = new Quaternion(0,0,0,0);
+    selectRotation = new Quaternion();
     data = {};
     
     selected = false;
-    selectRotation = new Quaternion();
     
     id;
     name;
@@ -57,7 +57,7 @@ export class Pawn {
     }
     
     constructor({
-        position = new Vector3(), rotation = new Quaternion(),
+        position = new Vector3(), rotation = new Quaternion(), selectRotation = new Quaternion(),
         mesh = null, tint = 0xffffff, texture = null,
         moveable = true, id = null, name = null
     }) {
@@ -65,7 +65,7 @@ export class Pawn {
         
         this.position.copy(position); // Apply transform
         this.rotation.copy(rotation);
-        this.selectRotation.copy(this.rotation);
+        this.selectRotation.copy(selectRotation);
 
         this.name = name;
         this.moveable = moveable;
@@ -196,7 +196,7 @@ export class Pawn {
                 ), Math.clamp01(dt * 10));
 
                 let newRotation = this.rotation.clone();
-                newRotation.slerp(this.selectRotation, Math.clamp01(dt * 10));
+                newRotation.slerp(this.selectRotation.normalize(), Math.clamp01(dt * 10));
 
                 this.setPosition(newPosition);
                 this.setRotation(newRotation);
@@ -407,8 +407,6 @@ export class Pawn {
 
         if (serializedPawn.selected)
             pawn.networkSelected = serializedPawn.selected;
-        if (serializedPawn.selectRotation)
-            pawn.selectRotation.copy(serializedPawn.selectRotation);
         return pawn;
     }
     clone(parameters) {

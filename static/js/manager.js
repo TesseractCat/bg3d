@@ -353,7 +353,7 @@ export default class Manager extends EventTarget {
             );
         }
         if (serializedPawn.hasOwnProperty('selectRotation')) {
-            pawn.selectRotation = serializedPawn.selectRotation;
+            pawn.selectRotation.copy(serializedPawn.selectRotation);
         }
         if (serializedPawn.hasOwnProperty('data')) {
             pawn.data = serializedPawn.data;
