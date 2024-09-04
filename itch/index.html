@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html lang="en">
+    <head>
+        <script>
+            let referrer = document.referrer;
+            let found = referrer.match(/\?lobby=(.+)/);
+            if (found) {
+                let lobby = found[1];
+                window.location.href = `https://birdga.me/${lobby}`;
+            } else {
+                window.location.href = `https://birdga.me/`;
+            }
+        </script>
+    </head>
+</html>
