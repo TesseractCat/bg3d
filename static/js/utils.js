@@ -26,3 +26,13 @@ export function UniqueId() {
     // let [upper, lower] = crypto.getRandomValues(new Uint32Array(2));
     // return (BigInt(upper) << BigInt(32)) | BigInt(lower);
 }
+
+export function serializationReplacer(key, value) {
+    if (value?.isVector3) {
+        return {x: value.x, y: value.y, z: value.z}
+    } else if (value?.isQuaternion) {
+        return {x: value._x, y: value._y, z: value._z, w: value._w}
+    } else {
+        return value;
+    }
+}

@@ -279,7 +279,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
         // let message_bytes = message.into_data();
         // match serde_json::from_slice(&message_bytes) {
-        match serde_json::from_str(&message.into_text().unwrap()) {
+        let message_text = message.into_text().unwrap();
+        match serde_json::from_str(&message_text) {
             Ok(event_data) => {
                 let event_result = match event_data {
                     Event::Join { referrer } => user_joined(user_id, lobby.lock().await.deref(), referrer, headers.clone()), 
@@ -309,11 +310,13 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                 if let Err(err) = event_result {
                     println!("Error encountered while handling event:");
                     // println!(" - Event: {:?}", rmp_serde::from_slice::<Event>(&message_bytes)?);
+                    println!(" - Message: {:?}", message_text);
                     println!(" - Error: {:?}", err);
                 }
             },
             Err(err) => {
                 println!("User <{user_id:?}> sent malformed message: {:?}", err);
+                println!(" - Message: {:?}", message_text);
             }
         };
     }

@@ -97,7 +97,6 @@ bird-tabbar img {
 
     user-select: none;
     overflow: hidden;
-    white-space: nowrap;
     
     transition: width 0.2s, max-height 0.2s;
 
@@ -146,7 +145,7 @@ bird-tabbar img {
     margin-top: 5px;
     display: flex;
     flex-wrap: wrap;
-    gap: 1em;
+    gap: 0.4em 0.8em;
     justify-content: center;
 }
 #player-entries .player {
@@ -162,8 +161,8 @@ bird-tabbar img {
     height: 25px;
 }
 #player-entries .player .cards:before {
-    content: "|";
-    margin: 0.5em;
+    content: "•";
+    margin: 0.2em;
 }
 #player-entries[data-hide-card-counts] .player .cards {
     display: none;

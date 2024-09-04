@@ -13,6 +13,7 @@ import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawn
 import { NetworkedTransform } from './transform';
 
 import { unpack, Packr } from 'msgpackr';
+import { serializationReplacer } from './utils.js';
 
 class User {
     static gltfLoader = new GLTFLoader()
@@ -318,11 +319,7 @@ export default class Manager extends EventTarget {
         }
     }
     sendRemovePawn(id) {
-        console.log("Removing pawn with ID: " + id);
-        this.sendSocket({
-            type:"remove_pawns",
-            pawns:[id],
-        });
+        this.sendSocket({ type:"remove_pawns", pawns:[id] });
     }
     updatePawn(serializedPawn) {
         if (!this.pawns.has(serializedPawn.id)) {
@@ -561,15 +558,7 @@ export default class Manager extends EventTarget {
         // if (this.socket.readyState == 1)
         //     this.socket.send(this.packer.pack(obj));
         if (this.socket.readyState == 1) {
-            this.socket.send(JSON.stringify(obj, (key, value) => {
-                if (value?.isVector3) {
-                    return {x: value.x, y: value.y, z: value.z}
-                } else if (value?.isQuaternion) {
-                    return {x: value._x, y: value._y, z: value._z, w: value._w}
-                } else {
-                    return value;
-                }
-            }));
+            this.socket.send(JSON.stringify(obj, serializationReplacer));
         }
     }
     
