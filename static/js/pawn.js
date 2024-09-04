@@ -1,4 +1,4 @@
-import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color, TextureLoader, MeshPhongMaterial } from 'three';
+import { Vector3, Quaternion, Object3D, Euler, Vector2, Mesh, Box3, Color, TextureLoader, MeshPhongMaterial, DoubleSide } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import Manager from './manager';
@@ -107,6 +107,8 @@ export class Pawn {
                         mat.normalMap = child.material.normalMap;
                         mat.shininess = (1 - child.material.roughness) * 60;
                         mat.transparent = true;
+                        mat.side = DoubleSide;
+                        mat.forceSinglePass = true;
                         child.material.dispose();
                         child.material = mat;
 
