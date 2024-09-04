@@ -73,7 +73,7 @@ bird-tabbar {
     right: var(--edge-offset);
 }
 bird-tabbar img {
-    filter: invert(1) brightness(0.1);
+    filter: invert(1) brightness(0.15);
 }
 
 .overlay-panel {
@@ -119,8 +119,8 @@ bird-tabbar img {
     white-space: nowrap;
 }
 .overlay-panel fieldset {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    /* flex-direction: column; */
     white-space: normal;
     margin-top: 0.2em;
     padding: 0.5em;

@@ -72,9 +72,16 @@
             <div class="overlay-panel" slot="3">
                 <p><b>Settings:</b></p>
                 <div style="text-align: left;">
+                    <form id="app-settings">
+                        <fieldset style="display: block;">
+                            <legend><p>General</p></legend>
+                            <input type="checkbox" value="true" name="showStats" id="showStats">
+                            <label for="showStats">Show performance stats</label>
+                        </fieldset>
+                    </form>
                     <form id="settings">
-                        <fieldset disabled>
-                            <legend><p>Lobby settings</p></legend>
+                        <fieldset id="lobby-settings" disabled>
+                            <legend><p>Lobby</p></legend>
                             <div>
                                 <input type="checkbox" value="true" name="spawnPermission" id="spawnPermission">
                                 <label for="spawnPermission">Allow users to spawn pieces</label>
@@ -88,8 +95,8 @@
                                 <label for="hideChat">Hide chat</label>
                             </div>
                         </fieldset>
-                        <fieldset disabled>
-                            <legend><p>Plugin settings</p></legend>
+                        <fieldset id="plugin-settings" disabled>
+                            <legend><p>Plugin</p></legend>
                             <p>This plugin has no settings</p>
                         </fieldset>
                     </form>

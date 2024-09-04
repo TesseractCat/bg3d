@@ -347,10 +347,7 @@ export default class Manager extends EventTarget {
             pawn.networkSelected = serializedPawn.selected;
         }
         if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
-            pawn.networkTransform.tick(
-                new Vector3().copy(serializedPawn.position),
-                new Quaternion().copy(serializedPawn.rotation)
-            );
+            pawn.tick(serializedPawn.position, serializedPawn.rotation);
         }
         if (serializedPawn.hasOwnProperty('selectRotation')) {
             pawn.selectRotation.copy(serializedPawn.selectRotation);
@@ -683,6 +680,7 @@ export default class Manager extends EventTarget {
         this.stats = Stats();
         this.pingPanel = this.stats.addPanel(new Stats.Panel('ping', '#ff8', '#221'));
         this.stats.dom.id = "stats";
+        this.stats.dom.style.display = "none";
         document.body.appendChild(this.stats.dom);
     }
     buildControls() {
@@ -765,7 +763,8 @@ export default class Manager extends EventTarget {
                 if (msg.id == this.id) {
                     delete document.querySelector("#control-panel").dataset.hidden;
                     delete document.querySelector("[data-host-only]").dataset.hidden;
-                    //document.querySelector("#settings fieldset").removeAttribute("disabled");
+                    document.querySelector("#settings #lobby-settings").removeAttribute("disabled");
+                    document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
                     this.host = true;
                     this.users.get(msg.id).playerTextElement.innerText = "(You/Host)";
                 } else {
@@ -777,7 +776,7 @@ export default class Manager extends EventTarget {
                 this.info = msg;
                 delete this.info.type;
             }
-            /*if (type == "settings") {
+            if (type == "settings") {
                 let settingsForm = document.querySelector("#settings");
                 for (let elem of settingsForm.elements) {
                     if (elem.type == "checkbox") {
@@ -786,16 +785,16 @@ export default class Manager extends EventTarget {
                         elem.value = msg[elem.id];
                     }
                 }
-                if (!this.host) {
-                    let controlPanelElem = document.querySelector("#control-panel");
-                    msg.spawnPermission ? delete controlPanelElem.dataset.hidden : controlPanelElem.dataset.hidden = '';
-                }
+                // if (!this.host) {
+                //     let controlPanelElem = document.querySelector("#control-panel");
+                //     msg.spawnPermission ? delete controlPanelElem.dataset.hidden : controlPanelElem.dataset.hidden = '';
+                // }
                 let playerEntriesElem = document.querySelector("#player-entries");
                 msg.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
 
                 let chatElem = document.querySelector("bird-chat");
                 !msg.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
-            }*/
+            }
             
             if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);

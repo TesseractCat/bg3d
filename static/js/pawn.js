@@ -51,6 +51,9 @@ export class Pawn {
 
     hovered = false;
     selectStaticPosition;
+
+    #predicting = false;
+    #velocity = new Vector3();
     
     static nextId() {
         return UniqueId();
@@ -141,10 +144,21 @@ export class Pawn {
             }
         });
     }
+
+    tick(position, rotation) {
+        if (this.#predicting) {
+            this.#predicting = false;
+        }
+        position = new Vector3().copy(position);
+        rotation = new Quaternion().copy(rotation);
+        this.networkTransform.tick(position, rotation);
+    }
     
     // grabSpring = new Vector3Spring(new Vector3(0,0,0), 500, 40, 2);
     grabSpring = new Spring(0, 500, 15);
+    #dt = 1/60;
     animate(dt) {
+        this.#dt = dt;
         if (this.selected) {
             let grabPoint = this.selectStaticPosition;
             let snapped = false;
@@ -204,15 +218,26 @@ export class Pawn {
         }
         
         // Handle network interpolation
-        this.networkTransform.animate();
-        this.setPosition(
-            this.position.clone().lerp(this.networkTransform.position, Math.clamp01(dt * 40)),
-            false
-        );
-        this.setRotation(
-            this.rotation.clone().slerp(this.networkTransform.rotation, Math.clamp01(dt * 40)),
-            false
-        );
+        if (this.#predicting) {
+            // Incredibly basic "physics" for simple client side prediction
+            // Predict at half (dt/2) speed, because the server will only start simulating after RTT/2
+            // ideally once we're done predicting we'll be exactly matched with the server
+            this.#velocity.multiplyScalar(0.9); // Drag
+            this.#velocity.add(new Vector3(0, -9.8 * 8, 0).multiplyScalar(dt/2)); // Gravity
+            this.position.add(this.#velocity.clone().multiplyScalar(dt/2));
+            this.networkTransform.tick(this.position, this.rotation);
+            this.updateMeshTransform();
+        } else {
+            this.networkTransform.animate();
+            this.setPosition(
+                this.position.clone().lerp(this.networkTransform.position, Math.clamp01(dt * 40)),
+                false
+            );
+            this.setRotation(
+                this.rotation.clone().slerp(this.networkTransform.rotation, Math.clamp01(dt * 40)),
+                false
+            );
+        }
         
         // When to mark pawn as 'dirty' (needs to be synced on the network)
         if (!this.dirty.has("position") && this.selected) {
@@ -284,6 +309,8 @@ export class Pawn {
     }
     release(tryMerge = true) {
         this.selected = false;
+        this.#predicting = true;
+        this.#velocity = this.position.clone().sub(this.#lastPosition).divideScalar(this.#dt).divideScalar(2);
         
         // Locally apply position as networked position
         this.networkTransform.flushBuffer(this.position, this.rotation);
@@ -291,7 +318,7 @@ export class Pawn {
         this.dirty.add("position");
         this.dirty.add("rotation");
         this.dirty.add("selected");
-        
+
         window.manager.hand.minimize(false, this.constructor.className() == "Deck");
 
         // Fire merge event if applicable

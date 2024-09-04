@@ -55,9 +55,9 @@ export class NetworkedTransform {
     }
     pushBuffer(time, position, rotation) {
         this.buffer.push({
-            time:time,
-            position:new Vector3().copy(position),
-            rotation:new Quaternion().copy(rotation)
+            time: time,
+            position: new Vector3().copy(position),
+            rotation: new Quaternion().copy(rotation)
         });
         if (this.buffer.length > 2)
             this.buffer.shift();

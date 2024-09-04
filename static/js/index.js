@@ -37,6 +37,7 @@ window.onload = () => {
     pluginLoader = new PluginLoader(manager);
 
     manager.init((host) => {
+        // Games selection box
         let games = [
             ['Welcome', 'plugins/welcome.zip'],
         ];
@@ -66,7 +67,8 @@ window.onload = () => {
             e.target.removeAttribute("disabled");
         });
 
-        /*document.querySelector("#settings").addEventListener("change", (e) => {
+        // Settings
+        document.querySelector("#settings").addEventListener("change", (e) => {
             window.manager.sendSocket({
                 "type": "settings",
                 ...Object.fromEntries([...new FormData(e.target.form).entries()].map(([k, v]) => {
@@ -75,13 +77,42 @@ window.onload = () => {
                     return [k, v];
                 }))
             });
-        });*/
+        });
         
         if (host)
             loadGame(games[0][1]);
         
         animate();
     });
+
+    // Local settings
+    let appSettingsForm = document.querySelector("#app-settings");
+    function applyAppSettings(settings) {
+        document.querySelector("#stats").style.display = settings.showStats ? "block" : "none";
+    }
+    appSettingsForm.addEventListener("change", (e) => {
+        localStorage.setItem("app-settings",
+            JSON.stringify(Object.fromEntries([...new FormData(e.target.form).entries()].map(([k, v]) => {
+                if (v == "true")
+                    v = true;
+                return [k, v];
+            })))
+        );
+        applyAppSettings(JSON.parse(localStorage.getItem("app-settings")));
+    });
+    let appSettings = JSON.parse(localStorage.getItem("app-settings"));
+    if (appSettings) {
+        for (let elem of appSettingsForm.elements) {
+            if (appSettings[elem.id] !== undefined) {
+                if (elem.type == "checkbox") {
+                    elem.checked = appSettings[elem.id];
+                } else {
+                    elem.value = appSettings[elem.id];
+                }
+            }
+        }
+        applyAppSettings(appSettings);
+    }
 
     // Spawn menu
     /*let spawnables = [
