@@ -12,8 +12,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
-import { unpack, Packr } from 'msgpackr';
-import { serializationReplacer } from './utils.js';
+import { serializationFixedFloatMixin, serializationReplacer, serializationThreeTypesMixin } from './utils.js';
+
+import { deflateSync, inflateSync } from 'fflate';
+
+const COMPRESSED = true;
+const BENCHMARK = true;
 
 class User {
     static gltfLoader = new GLTFLoader()
@@ -417,6 +421,10 @@ export default class Manager extends EventTarget {
             }],
         });
     }
+
+    benchmarkTime = 0;
+    benchmarkBytesSent = 0;
+    benchmarkBytesRecv = 0;
     tick() {
         // Send all dirty pawns (even the ones selected by a client)
         let to_update = [...this.pawns.values()].filter(p => p.dirty.size != 0);
@@ -427,6 +435,16 @@ export default class Manager extends EventTarget {
         if (this.localCursor.dirty) {
             this.sendUserStatus();
             this.localCursor.dirty = false;
+        }
+        // Network benchmark info
+        if (BENCHMARK) {
+            if (performance.now() - this.benchmarkTime > 1000) {
+                console.log("Sent: " + ((this.benchmarkBytesSent/1024)*8).toString() +  " Kb/s");
+                console.log("Recv: " + ((this.benchmarkBytesRecv/1024)*8).toString() +  " Kb/s");
+                this.benchmarkBytesSent = 0;
+                this.benchmarkBytesRecv = 0;
+                this.benchmarkTime = performance.now();
+            }
         }
     }
     raycastHover() {
@@ -533,32 +551,18 @@ export default class Manager extends EventTarget {
         // this.composer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    benchmark = false;
-    benchmarkTime = 0;
-    benchmarkBytes = 0;
-    packer = new Packr({ encodeUndefinedAsNil: true, useRecords: false });
     sendSocket(obj) {
-        /*let json = JSON.stringify(obj, function(k,v) {
-            if (typeof v === "number") {
-                //FIXME: Is this enough precision?
-                return parseFloat(v.toFixed(2));
-            }
-            return v;
-        });
-        if (this.benchmark) {
-            this.benchmarkBytes += new TextEncoder().encode(json).length;
-            if (performance.now() - this.benchmarkTime > 1000) {
-                console.log((this.benchmarkBytes/1000).toString() +  " KB/s");
-                this.benchmarkBytes = 0;
-                this.benchmarkTime = performance.now();
-            }
-        }
-        if (this.socket.readyState == 1)
-            this.socket.send(json);*/
-        // if (this.socket.readyState == 1)
-        //     this.socket.send(this.packer.pack(obj));
         if (this.socket.readyState == 1) {
-            this.socket.send(JSON.stringify(obj, serializationReplacer));
+            let jsonText = JSON.stringify(obj, (k, v) => serializationFixedFloatMixin(k, serializationThreeTypesMixin(k, v)));
+            if (COMPRESSED) {
+                let buffer = new TextEncoder().encode(jsonText);
+                let compressedBuffer = deflateSync(buffer, null);
+                this.socket.send(compressedBuffer);
+
+                this.benchmarkBytesSent += compressedBuffer.length;
+            } else {
+                this.socket.send(jsonText);
+            }
         }
     }
     
@@ -704,8 +708,14 @@ export default class Manager extends EventTarget {
             shade.style.display = 'block';
         });
         this.socket.addEventListener('message', (e) => {
-            let msg = JSON.parse(e.data);
-            // let msg = unpack(e.data);
+            if (COMPRESSED) {
+                console.assert(typeof e.data === 'object');
+                this.benchmarkBytesRecv += new Uint8Array(e.data).length;
+            } else {
+                console.assert(typeof e.data === 'string');
+                this.benchmarkBytesRecv += e.data.length;
+            }
+            let msg = JSON.parse(COMPRESSED ? new TextDecoder().decode(inflateSync(new Uint8Array(e.data))) : e.data);
             let type = msg.type;
             
             if (type == "start") {

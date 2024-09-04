@@ -1,13 +1,31 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::io::{self, Write};
 use tokio::sync::{mpsc, mpsc::error::SendError};
 use serde::{Serialize, Deserialize};
 use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor, color_dictionary::ColorDictionary};
 
+use flate2::Compression;
+use flate2::write::DeflateEncoder;
+
 use crate::events::Event;
 use crate::pawn::{Pawn, PawnId};
 use crate::math::Vec3;
+
+struct FixedFormatter;
+impl serde_json::ser::Formatter for FixedFormatter {
+    fn write_f64<W>(&mut self, writer: &mut W, value: f64) -> io::Result<()>
+        where
+            W: ?Sized + io::Write, {
+        write!(writer, "{:.4}", value)
+    }
+    fn write_f32<W>(&mut self, writer: &mut W, value: f32) -> io::Result<()>
+        where
+            W: ?Sized + io::Write, {
+        write!(writer, "{:.4}", value)
+    }
+}
 
 pub trait Sender {
     fn send_event(&mut self, content: &Event) -> Result<(), Box<dyn Error>>;
@@ -16,9 +34,13 @@ pub trait Sender {
 }
 impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
     fn send_event(&mut self, content: &Event)  -> Result<(), Box<dyn Error>> {
-        // let content = rmp_serde::to_vec_named(content)?;
-        let content = serde_json::to_string(content)?;
-        self.send_text(&content)
+        let mut ser = serde_json::Serializer::with_formatter(Vec::new(), FixedFormatter);
+        content.serialize(&mut ser)?;
+        let content = String::from_utf8(ser.into_inner())?;
+
+        let mut deflate_compressor = DeflateEncoder::new(Vec::new(), Compression::fast());
+        deflate_compressor.write_all(content.as_bytes())?;
+        self.send_binary(deflate_compressor.finish()?.as_slice())
     }
     fn send_binary(&mut self, content: &[u8])  -> Result<(), Box<dyn Error>> {
         for user in self {
@@ -79,8 +101,13 @@ impl User {
     }
 
     pub fn send_event(&self, content: &Event) -> Result<(), SendError<Message>> {
-        // self.send_binary(&rmp_serde::to_vec_named(content).unwrap())
-        self.send_text(serde_json::to_string(content).unwrap())
+        let mut ser = serde_json::Serializer::with_formatter(Vec::new(), FixedFormatter);
+        content.serialize(&mut ser).unwrap();
+        let content = String::from_utf8(ser.into_inner()).unwrap();
+
+        let mut deflate_compressor = DeflateEncoder::new(Vec::new(), Compression::fast());
+        deflate_compressor.write_all(content.as_bytes()).unwrap();
+        self.send_binary(deflate_compressor.finish().unwrap().as_slice())
     }
     pub fn send_binary(&self, content: &[u8]) -> Result<(), SendError<Message>> {
         self.tx.send(Message::Binary(content.to_vec()))

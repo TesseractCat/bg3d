@@ -7,7 +7,7 @@ import { NetworkedTransform } from './transform';
 import { Spring, Vector3Spring } from './spring';
 import { AudioLoader, Audio as GlobalAudio } from 'three';
 
-import { serializationReplacer, UniqueId } from './utils';
+import { serializationReplacer, serializationThreeTypesMixin, UniqueId } from './utils';
 
 Math.clamp = function(x, min, max) {
     return Math.min(Math.max(x, min), max);
@@ -416,7 +416,7 @@ export class Pawn {
         let out = structuredClone(this);
         out.class = this.constructor.className();
         // Probably should just write a function to apply this replacement
-        return JSON.parse(JSON.stringify(out, serializationReplacer));
+        return JSON.parse(JSON.stringify(out, serializationThreeTypesMixin));
     }
     serializeDirty() {
         let out = {id:this.id};
@@ -426,7 +426,7 @@ export class Pawn {
         if (this.dirty.has("data"))
             out.class = this.constructor.className();
 
-        return JSON.parse(JSON.stringify(out, serializationReplacer));
+        return JSON.parse(JSON.stringify(out, serializationThreeTypesMixin));
     }
     static deserialize(serializedPawn) {
         let pawn = new this({

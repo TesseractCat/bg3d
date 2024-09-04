@@ -27,7 +27,7 @@ export function UniqueId() {
     // return (BigInt(upper) << BigInt(32)) | BigInt(lower);
 }
 
-export function serializationReplacer(key, value) {
+export function serializationThreeTypesMixin(key, value) {
     if (value?.isVector3) {
         return {x: value.x, y: value.y, z: value.z}
     } else if (value?.isQuaternion) {
@@ -35,4 +35,10 @@ export function serializationReplacer(key, value) {
     } else {
         return value;
     }
+}
+export function serializationFixedFloatMixin(key, value) {
+    if (typeof value === "number") {
+        return parseFloat(value.toFixed(2));
+    }
+    return value;
 }

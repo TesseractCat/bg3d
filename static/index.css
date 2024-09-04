@@ -46,6 +46,7 @@ canvas {
     image-rendering: pixelated;
     outline: none;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 .iframe #display {
     border: 1px solid gray;

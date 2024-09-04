@@ -5,7 +5,7 @@
   "dependencies": {
     "@zip.js/zip.js": "2.4.12",
     "three": "^0.152.0",
-    "msgpackr": "1.9.2"
+    "fflate": "0.8.2"
   },
   "devDependencies": {
     "esbuild": "^0.17.6",

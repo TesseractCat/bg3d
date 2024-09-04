@@ -1,7 +1,8 @@
 #![allow(non_snake_case)]
 
-use std::env;
+use std::{env, io};
 use std::collections::HashMap;
+use std::io::Read;
 use std::sync::Arc;
 use std::ops::{Deref, DerefMut};
 use std::error::Error;
@@ -28,7 +29,8 @@ use tokio::time::{interval, timeout, Duration, Instant};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use random_color::Color;
+use flate2::read::DeflateDecoder;
+
 use rapier3d::prelude::*;
 
 mod math;
@@ -267,7 +269,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
             println!("Websocket connection closed, user <{user_id:?}> left");
             break;
         }
-        if !matches!(message, Message::Text(_)) {
+        if !matches!(message, Message::Binary(_)) {
             if matches!(message, Message::Pong(_)) { continue; } else {
                 println!("Received non-binary/non-pong message");
                 continue;
@@ -277,9 +279,11 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         let lobbies_rl = lobbies.read().await;
         let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
-        // let message_bytes = message.into_data();
-        // match serde_json::from_slice(&message_bytes) {
-        let message_text = message.into_text().unwrap();
+        let message_bytes = message.into_data();
+        let mut deflate_decompressor = DeflateDecoder::new(message_bytes.as_slice());
+        let mut message_text = String::new();
+        deflate_decompressor.read_to_string(&mut message_text).unwrap();
+
         match serde_json::from_str(&message_text) {
             Ok(event_data) => {
                 let event_result = match event_data {
@@ -309,7 +313,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
                 if let Err(err) = event_result {
                     println!("Error encountered while handling event:");
-                    // println!(" - Event: {:?}", rmp_serde::from_slice::<Event>(&message_bytes)?);
                     println!(" - Message: {:?}", message_text);
                     println!(" - Error: {:?}", err);
                 }
