@@ -23,7 +23,7 @@ function game.start()
     }
 
     for x=0,7 do
-        for y=0,3 do
+        for y=0,2 do
             if (x + y) % 2 == 0 then
                 lobby:create_pawn{
                     name = "red",
