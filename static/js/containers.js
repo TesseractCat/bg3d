@@ -335,6 +335,8 @@ export class Deck extends Pawn {
         if (this.#updateDeckPromise) {
             this.#updateDeckPromise.cancel();
         }
+
+        let fadeInOpacity = 0.0;
         
         // Load textures
         if ( // Show placeholder materials if we haven't loaded in the front/back
@@ -343,6 +345,21 @@ export class Deck extends Pawn {
         ) {
             let alphaTexture = await this.#loadTexture("generic/alpha.png");
             this.#updateMaterials(alphaTexture, alphaTexture);
+            if (fadeIn) {
+                for (let material of this.#box.material) {
+                    material.opacity = fadeInOpacity;
+                    material.transparent = true;
+                    let fadeInInterval = setInterval(() => {
+                        fadeInOpacity += 6.0/60.0;
+                        material.opacity = fadeInOpacity;
+                        if (material.opacity >= 1) {
+                            material.opacity = 1;
+                            material.transparent = false;
+                            clearInterval(fadeInInterval);
+                        }
+                    }, 1000.0/60.0);
+                }
+            }
         }
 
         let abort = false;
@@ -370,7 +387,7 @@ export class Deck extends Pawn {
         this.#updateMaterials(faceTexture, backTexture);
         if (fadeIn) {
             for (let material of this.#box.material) {
-                material.opacity = 0.0;
+                material.opacity = fadeInOpacity;
                 material.transparent = true;
                 let fadeInInterval = setInterval(() => {
                     material.opacity += 6.0/60.0;
