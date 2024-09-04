@@ -1,4 +1,4 @@
-@import url('/static/variables.css?v=3858d90');
+@import url('/static/variables.css?v={{version}}');
 
 @font-face {
     font-family: 'Lora';
