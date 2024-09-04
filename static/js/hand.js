@@ -83,24 +83,6 @@ div:not(#hidden) {
 
     get src() { this.#image.src; }
     set src(newSrc) {
-        // Defer loading image
-        // - Don't remember why I did this, probably should remove this code...
-        /*let newImage = this.#imageContainer.cloneNode(true);
-        newImage.firstChild.src = newSrc;
-
-        newImage.firstChild.addEventListener('load', () => {
-            this.#imageContainer.replaceWith(newImage);
-            this.#imageContainer = newImage;
-            this.#image = newImage.firstChild;
-
-            let newHiddenImage = this.#image.cloneNode();
-            newHiddenImage.id = 'hidden';
-            this.#hiddenImage.replaceWith(newHiddenImage);
-            this.#hiddenImage = newHiddenImage;
-
-            // Hack to update grabbed
-            this.grabbed = this.grabbed;
-        });*/
         this.#image.src = newSrc;
     }
 
@@ -181,24 +163,30 @@ export default class Hand extends HTMLElement {
     cards = new Map();
     shadowRoot;
     element;
+    tip;
     
     constructor() {
         super();
 
         this.shadowRoot = this.attachShadow({ mode: 'open' });
+
+        this.tip = document.createElement("h1");
+        this.tip.innerText = "Drag cards here";
+        this.shadowRoot.appendChild(this.tip);
+
         this.element = document.createElement("div");
         this.shadowRoot.appendChild(this.element);
 
         const style = document.createElement('style');
         style.textContent = `
         :host {
-            pointer-events:none;
+            pointer-events: none;
         }
         bird-card {
-            cursor:pointer;
+            cursor: pointer;
             height: 200px;
 
-            display:inline-block;
+            display: inline-block;
 
             margin-left: calc(-1 * var(--offset));
             pointer-events:auto;
@@ -227,6 +215,19 @@ export default class Hand extends HTMLElement {
         :host([minimized]) div {
             margin-bottom: calc(-3 * var(--offset));
             pointer-events: none;
+        }
+
+        h1 {
+            display: none;
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, 0);
+            top: 0px;
+            user-select: none;
+            color: rgba(0,0,0,0.5);
+        }
+        :host([indicate]) h1 {
+            display: block;
         }
         `;
         this.shadowRoot.appendChild(style);

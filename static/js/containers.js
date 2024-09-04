@@ -337,14 +337,12 @@ export class Deck extends Pawn {
         }
         
         // Load textures
-        if (!fadeIn) { // Show placeholder when loading, but not for the first load
-            if (
-                !Deck.textureCache.has(this.data.contents[0]) ||
-                !Deck.textureCache.has(this.data.back ? this.data.back : this.#loadTexture(this.data.contents[this.data.contents.length - 1]))
-            ) {
-                let alphaTexture = await this.#loadTexture("generic/alpha.png");
-                this.#updateMaterials(alphaTexture, alphaTexture);
-            }
+        if ( // Show placeholder materials if we haven't loaded in the front/back
+            !Deck.textureCache.has(this.data.contents[0]) ||
+            !Deck.textureCache.has(this.data.back ? this.data.back : this.#loadTexture(this.data.contents[this.data.contents.length - 1]))
+        ) {
+            let alphaTexture = await this.#loadTexture("generic/alpha.png");
+            this.#updateMaterials(alphaTexture, alphaTexture);
         }
 
         let abort = false;
