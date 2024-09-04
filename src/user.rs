@@ -6,8 +6,8 @@ use serde::{Serialize, Deserialize};
 use axum::extract::ws::Message;
 use random_color::{Color, Luminosity, RandomColor, color_dictionary::ColorDictionary};
 
-use flate2::Compression;
-use flate2::write::DeflateEncoder;
+use flate2::{Compress, Compression};
+use flate2::write::ZlibEncoder;
 
 use crate::events::Event;
 use crate::pawn::{Pawn, PawnId};
@@ -38,7 +38,9 @@ impl<'a, T> Sender for T where T: Iterator<Item=&'a User> {
         content.serialize(&mut ser)?;
         let content = String::from_utf8(ser.into_inner())?;
 
-        let mut deflate_compressor = DeflateEncoder::new(Vec::new(), Compression::fast());
+        let mut c = Compress::new(Compression::best(), false);
+        c.set_dictionary(include_bytes!("dictionary.txt")).expect("Failed to set DEFLATE dictionary");
+        let mut deflate_compressor = ZlibEncoder::new_with_compress(Vec::new(), c);
         deflate_compressor.write_all(content.as_bytes())?;
         self.send_binary(deflate_compressor.finish()?.as_slice())
     }
@@ -105,7 +107,9 @@ impl User {
         content.serialize(&mut ser).unwrap();
         let content = String::from_utf8(ser.into_inner()).unwrap();
 
-        let mut deflate_compressor = DeflateEncoder::new(Vec::new(), Compression::fast());
+        let mut c = Compress::new(Compression::best(), false);
+        c.set_dictionary(include_bytes!("dictionary.txt")).expect("Failed to set DEFLATE dictionary");
+        let mut deflate_compressor = ZlibEncoder::new_with_compress(Vec::new(), c);
         deflate_compressor.write_all(content.as_bytes()).unwrap();
         self.send_binary(deflate_compressor.finish().unwrap().as_slice())
     }

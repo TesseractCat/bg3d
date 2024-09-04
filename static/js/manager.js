@@ -16,8 +16,9 @@ import { serializationFixedFloatMixin, serializationReplacer, serializationThree
 
 import { deflateSync, inflateSync } from 'fflate';
 
+import dictionary from '../../src/dictionary.txt';
+
 const COMPRESSED = true;
-const BENCHMARK = true;
 
 class User {
     static gltfLoader = new GLTFLoader()
@@ -103,6 +104,10 @@ class User {
 }
 
 export default class Manager extends EventTarget {
+
+    static deflateOpts = {
+        dictionary: new Uint8Array(new TextEncoder().encode(dictionary))
+    };
 
     scene;
     camera;
@@ -422,6 +427,7 @@ export default class Manager extends EventTarget {
         });
     }
 
+    benchmark = false;
     benchmarkTime = 0;
     benchmarkBytesSent = 0;
     benchmarkBytesRecv = 0;
@@ -437,7 +443,7 @@ export default class Manager extends EventTarget {
             this.localCursor.dirty = false;
         }
         // Network benchmark info
-        if (BENCHMARK) {
+        if (this.benchmark) {
             if (performance.now() - this.benchmarkTime > 1000) {
                 console.log("Sent: " + ((this.benchmarkBytesSent/1024)*8).toString() +  " Kb/s");
                 console.log("Recv: " + ((this.benchmarkBytesRecv/1024)*8).toString() +  " Kb/s");
@@ -556,7 +562,7 @@ export default class Manager extends EventTarget {
             let jsonText = JSON.stringify(obj, (k, v) => serializationFixedFloatMixin(k, serializationThreeTypesMixin(k, v)));
             if (COMPRESSED) {
                 let buffer = new TextEncoder().encode(jsonText);
-                let compressedBuffer = deflateSync(buffer, null);
+                let compressedBuffer = deflateSync(buffer, Manager.deflateOpts);
                 this.socket.send(compressedBuffer);
 
                 this.benchmarkBytesSent += compressedBuffer.length;
@@ -708,14 +714,16 @@ export default class Manager extends EventTarget {
             shade.style.display = 'block';
         });
         this.socket.addEventListener('message', (e) => {
+            let msg;
             if (COMPRESSED) {
                 console.assert(typeof e.data === 'object');
                 this.benchmarkBytesRecv += new Uint8Array(e.data).length;
+                msg = JSON.parse(new TextDecoder().decode(inflateSync(new Uint8Array(e.data), Manager.deflateOpts)));
             } else {
                 console.assert(typeof e.data === 'string');
                 this.benchmarkBytesRecv += e.data.length;
+                msg = JSON.parse(e.data);
             }
-            let msg = JSON.parse(COMPRESSED ? new TextDecoder().decode(inflateSync(new Uint8Array(e.data))) : e.data);
             let type = msg.type;
             
             if (type == "start") {

@@ -1,6 +1,5 @@
 {
     "name": "Chess",
-    "description": "The class game of Chess.",
-    "author": "Built-in",
-    "script": "chess.js"
+    "description": "The classic game of chess",
+    "author": "Built-in"
 }

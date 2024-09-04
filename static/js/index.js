@@ -40,6 +40,8 @@ window.onload = () => {
         // Games selection box
         let games = [
             ['Welcome', 'plugins/welcome.zip'],
+            ['Chess', 'plugins/chess.zip'],
+            ['Checkers', 'plugins/checkers.zip'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
@@ -89,6 +91,7 @@ window.onload = () => {
     let appSettingsForm = document.querySelector("#app-settings");
     function applyAppSettings(settings) {
         document.querySelector("#stats").style.display = settings.showStats ? "block" : "none";
+        window.manager.benchmark = settings.showStats;
     }
     appSettingsForm.addEventListener("change", (e) => {
         localStorage.setItem("app-settings",

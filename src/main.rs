@@ -29,7 +29,7 @@ use tokio::time::{interval, timeout, Duration, Instant};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-use flate2::read::DeflateDecoder;
+use flate2::{Decompress, read::ZlibDecoder};
 
 use rapier3d::prelude::*;
 
@@ -280,7 +280,9 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
         let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
         let message_bytes = message.into_data();
-        let mut deflate_decompressor = DeflateDecoder::new(message_bytes.as_slice());
+        let mut d = Decompress::new(false);
+        d.set_dictionary(include_bytes!("dictionary.txt")).expect("Failed to set DEFLATE dictionary");
+        let mut deflate_decompressor = ZlibDecoder::new_with_decompress(message_bytes.as_slice(), d);
         let mut message_text = String::new();
         deflate_decompressor.read_to_string(&mut message_text).unwrap();
 
