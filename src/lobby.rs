@@ -800,14 +800,20 @@ impl Lobby {
             self.reset_lua();
             if let Err(e) = self.lua_scope(|lua, scope, _| {
                 lua.globals().set("require", scope.create_function(|lua, path: String| {
-                    Ok(if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
-                        let chunk =
-                            lua.load(String::from_utf8(asset.data.clone()).unwrap())
-                            .set_name(format!("/{}.lua", path));
-                        chunk.eval()?
-                    } else { mlua::Value::Nil })
+                    let chunk = if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
+                        Some(String::from_utf8(asset.data.clone()).unwrap())
+                    } else {
+                        match path.as_str() {
+                            _ => None
+                        }
+                    }.map(|c| lua.load(c).set_name(format!("/{}.lua", path)));
+                    if let Some(chunk) = chunk {
+                        Ok(chunk.eval()?)
+                    } else {
+                        Ok(mlua::Value::Nil)
+                    }
                 })?)?;
-                lua.load("require(\"main\")").exec()?;
+                lua.load("require(\"main\")").set_name("load").exec()?;
     
                 if let Some(res) = Self::run_lua_callback(lua, "start", ()) {
                     res?;

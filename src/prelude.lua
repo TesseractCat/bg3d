@@ -81,7 +81,7 @@ function Pawn:new(options)
     else
         options.position = options.position or vec3(0,0,0)
         options.rotation = options.rotation or quat(0,0,0,0)
-        options.select_rotation = options.select_rotation or quat(0,0,0,0)
+        options.select_rotation = options.select_rotation or options.rotation
         o = options
     end
     setmetatable(o, self)
@@ -151,6 +151,7 @@ function table.extend(tbl, rhs)
     for i=1,#rhs do
         table.insert(tbl, rhs[i])
     end
+    return tbl
 end
 function table.map(tbl, f)
     local t = {}
@@ -165,4 +166,11 @@ function table.flat_map(tbl, f)
         table.extend(t, f(v))
     end
     return t
+end
+function table.shuffle(tbl)
+    for i = #tbl, 2, -1 do
+        local j = math.random(i)
+        tbl[i], tbl[j] = tbl[j], tbl[i]
+    end
+    return tbl
 end

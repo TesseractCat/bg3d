@@ -42,6 +42,8 @@ window.onload = () => {
             ['Welcome', 'plugins/welcome.zip'],
             ['Chess', 'plugins/chess.zip'],
             ['Checkers', 'plugins/checkers.zip'],
+            ['Uno', 'plugins/uno.zip'],
+            ['Carcassonne', 'plugins/carcassonne.zip'],
         ];
         games.forEach((g, i) => {
             let name = g[0];
