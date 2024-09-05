@@ -17,7 +17,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "esbuild static/js/index.js --bundle --minify --sourcemap --target=chrome80 --outfile=static/bundle.js",
-    "prelude": "esbuild static/js/prelude.js --bundle --minify --target=chrome80 --outfile=static/prelude.bundle.js",
     "no_minify": "esbuild static/js/index.js --bundle --sourcemap --target=chrome80 --outfile=static/bundle.js",
     "watch": "esbuild static/js/index.js --watch --bundle --minify --sourcemap --target=chrome80 --outfile=static/bundle.js"
   },
