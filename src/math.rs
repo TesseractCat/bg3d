@@ -3,7 +3,7 @@ use nalgebra::Quaternion;
 use serde::{Serialize, Deserialize};
 use rapier3d::prelude::*;
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -53,7 +53,7 @@ impl<'lua> mlua::FromLua<'lua> for Vec3 {
     }
 }
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Vec2 {
         pub x: f64,
         pub y: f64,
@@ -73,7 +73,7 @@ impl<'lua> mlua::FromLua<'lua> for Vec2 {
     }
 }
 
-#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Quat {
         pub x: f64,
         pub y: f64,

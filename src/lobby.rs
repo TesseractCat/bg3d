@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
+use std::sync::Arc;
 use data_url::DataUrl;
 use futures::io::Cursor;
 use random_color::Color;
@@ -257,13 +258,15 @@ impl mlua::UserData for Lobby {
 
             let mut pawn = Pawn::from_lua(mlua::Value::Table(params), lua)?;
             pawn.id = id;
-            this.add_pawn(Cow::Owned(pawn.clone()))?;
+            this.add_pawn(pawn)?;
 
-            Ok(pawn)
+            let pawn_proxy_table = lua.globals().get::<_, mlua::Table>("PawnProxy")?;
+            Ok(pawn_proxy_table.get::<_, mlua::Function>("new")?.call::<_, mlua::Table>((pawn_proxy_table, id.0)))
         });
         method!(update_pawn: |this, lua, params: mlua::Table| {
+            let id = PawnId(params.get("id")?);
             let update = PawnUpdate {
-                id: PawnId(params.get("id")?),
+                id,
                 name: params.get("name").ok(),
                 mesh: params.get("mesh").ok(),
                 tint: params.get("tint").ok(),
@@ -276,20 +279,16 @@ impl mlua::UserData for Lobby {
                 selected: None,
                 data: params.get("data").ok()
             };
+            if let Ok(callback) = params.get::<_, mlua::Function>("on_grab") {
+                this.pawns.get_mut(&id).unwrap().on_grab_callback = Some(Arc::new(
+                    lua.create_registry_value(callback)?
+                ));
+            }
             this.update_pawns(None, Vec::from([update]))?;
             Ok(())
         });
-        method!(get_pawn: |this, lua, id: u64, key: String| {
-            let pawn = this.pawns.get(&PawnId(id)).unwrap();
-            Ok::<mlua::Value, _>(match key.as_str() {
-                "name" => pawn.name.clone().into_lua(lua)?,
-                "moveable" => pawn.moveable.into_lua(lua)?,
-
-                "position" => pawn.position.into_lua(lua)?,
-                "rotation" => pawn.rotation.into_lua(lua)?,
-                "select_rotation" => pawn.select_rotation.into_lua(lua)?,
-                _ => mlua::Value::Nil
-            })
+        method!(get_pawn: |this, lua, id: u64| {
+            Ok(this.pawns.get(&PawnId(id)).cloned())
         });
         method!(destroy_pawn: |this, _lua, id: u64| {
             this.remove_pawns(Vec::from([PawnId(id)]))?;
@@ -363,7 +362,7 @@ impl Lobby {
 
     // -- PAWN EVENTS --
 
-    pub fn add_pawn(&mut self, mut pawn: Cow<'_, Pawn>) -> Result<(), Box<dyn Error>> {
+    pub fn add_pawn(&mut self, mut pawn: Pawn) -> Result<(), Box<dyn Error>> {
         if self.pawns.len() >= 1024 { return Err("Failed to add pawn".into()); }
 
         if self.pawns.get(&pawn.id).is_some() { return Err("Pawn ID collision".into()); }
@@ -376,7 +375,7 @@ impl Lobby {
             .linear_damping(1.0).angular_damping(0.5)
             .ccd_enabled(/*matches!(pawn.data, PawnData::Deck { .. }) ||*/true) // Enable CCD on everything for now...
             .build();
-        pawn.to_mut().rigid_body = Some(self.world.rigid_body_set.insert(rigid_body));
+        pawn.rigid_body = Some(self.world.rigid_body_set.insert(rigid_body));
 
         let colliders: Box<dyn Iterator<Item = Collider>> = match &pawn.data {
             PawnData::Deck { .. } => {
@@ -415,7 +414,7 @@ impl Lobby {
         self.users.values().send_event(&Event::AddPawn { pawn: Cow::Borrowed(&pawn) })?;
         
         // Add pawn to lobby
-        self.pawns.insert(pawn.id, pawn.into_owned());
+        self.pawns.insert(pawn.id, pawn);
 
         Ok(())
     }
@@ -462,7 +461,7 @@ impl Lobby {
         //  - Discard position and rotation changes on updates to immovable pawns
         updates = updates.into_iter().map(|mut update| {
             let pawn_id = update.id;
-            let pawn: &mut Pawn = self.pawns.get_mut(&pawn_id).ok_or("Trying to update invalid pawn")?;
+            let mut pawn: Pawn = self.pawns.remove(&pawn_id).ok_or("Trying to update invalid pawn")?;
 
             if let Some(user_id) = user_id {
                 match pawn.selected_user {
@@ -480,13 +479,14 @@ impl Lobby {
             }
             
             // Update struct values
-            pawn.patch(&update);
-            if let Some(user_id) = user_id {
-                pawn.selected_user = if update.selected.unwrap_or(true) {
-                    Some(user_id)
-                } else {
-                    None
-                };
+            let update = pawn.patch(update, user_id);
+            if update.selected.filter(|x| *x).is_some() {
+                self.lua_scope(|lua, scope, _| {
+                    if let Some(callback) = pawn.on_grab_callback.as_ref() {
+                        lua.registry_value::<mlua::Function>(callback)?.call::<(), ()>(());
+                    }
+                    Ok(())
+                });
             }
             
             // Update physics
@@ -535,6 +535,7 @@ impl Lobby {
 
             // Refresh last updated
             pawn.last_updated = Instant::now();
+            self.pawns.insert(pawn_id, pawn);
 
             Ok(update)
         }).collect::<Result<Vec<_>, Box<dyn Error>>>()?;
@@ -620,7 +621,7 @@ impl Lobby {
                 self.pawns.insert(new_id, to);
                 self.store_pawn(new_id, PawnOrUser::User(into_id))
             },
-            None => self.add_pawn(Cow::Owned(to)),
+            None => self.add_pawn(to),
         }
     }
     pub fn store_pawn(&mut self, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
@@ -720,7 +721,7 @@ impl Lobby {
             taken_pawn.position = position_hint;
         }
 
-        self.add_pawn(Cow::Owned(taken_pawn))
+        self.add_pawn(taken_pawn)
     }
 
     // -- USER STATUS EVENTS --

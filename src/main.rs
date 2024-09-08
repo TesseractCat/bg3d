@@ -291,7 +291,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                 let event_result = match event_data {
                     Event::Join { referrer } => user_joined(user_id, lobby.lock().await.deref(), referrer, headers.clone()), 
 
-                    Event::AddPawn { pawn } => lobby.lock().await.deref_mut().add_pawn(pawn),
+                    Event::AddPawn { pawn } => lobby.lock().await.deref_mut().add_pawn(pawn.into_owned()),
                     Event::RemovePawns { ids } => lobby.lock().await.deref_mut().remove_pawns(ids),
                     Event::ClearPawns { } => lobby.lock().await.deref_mut().clear_pawns(),
                     Event::UpdatePawns { updates, .. } => lobby.lock().await.deref_mut().update_pawns(Some(user_id), updates),

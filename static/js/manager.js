@@ -336,12 +336,15 @@ export default class Manager extends EventTarget {
                 console.warn("Updating card already in hand!");
                 this.hand.updateCard(serializedPawn);
             } else {
-                console.warn("Attempting to update non-existent pawn");
+                console.warn(`Attempting to update non-existent pawn [${serializedPawn.id}]`);
             }
             return;
         }
         let pawn = this.pawns.get(serializedPawn.id);
 
+        if (serializedPawn.hasOwnProperty('name')) {
+            pawn.name = serializedPawn.name;
+        }
         if (serializedPawn.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !serializedPawn.selected) {
                 // This pawn has been grabbed/released, reset the network buffer and update position

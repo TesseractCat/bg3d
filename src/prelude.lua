@@ -7,86 +7,82 @@ quat = vmath.quat
 
 -- Pawns
 
-Pawn = {
+local function proxy(table, on_set)
+    local proxy_mt = {}
+    function proxy_mt.__index(table, key)
+        local field = table.__proxy[key]
+        if type(field) == "table" then
+            local proxy = {__proxy = table}
+            setmetatable(proxy, proxy_mt)
+            return proxy
+        end
+        return field
+    end
+    function proxy_mt.__newindex(table, key, value)
+        table.__proxy[key] = value
+        on_set()
+    end
+    local proxy = {__proxy = table}
+    setmetatable(proxy, proxy_mt)
+    return proxy
+end
+
+PawnProxy = {
     __index = function(self, key)
         if key == "id" then
             return rawget(self, key)
         end
 
-        if Pawn[key] ~= nil then
-            return Pawn[key] -- Pawn class methods
+        if PawnProxy[key] ~= nil then
+            return PawnProxy[key] -- Pawn class methods
         else
-            if key:sub(1, 4) == "get_" then
-                local key = key:sub(5, -1)
-                return function(self)
-                    if self:spawned() then
-                        return self:get(key)
-                    else
-                        return rawget(self, key)
-                    end
-                end
-            elseif key:sub(1,4) == "set_" then
-                local key = key:sub(5, -1)
-                return function(self, value)
-                    if self:spawned() then
-                        local update = {}
-                        update[key] = value
-                        self:update(update)
-                    else
-                        rawset(self, key, value)
-                    end
-                end
+            local table = self:get()
+            local field = table[key]
+            if type(field) == "table" then
+                -- Proxy all writes to ensure pawn:update() method is called
+                return proxy(field, function()
+                    self:update(table)
+                end)
+            else
+                return field
             end
         end
-
-        return nil
     end,
     __newindex = function(self, key, value)
-        error("Pawns cannot be directly modified")
+        local table = self:get()
+        table[key] = value
+        self:update(table)
+    end,
+    __eq = function(a, b)
+        return a.id == b.id
     end
 }
-function Pawn:spawned()
-    return self.id ~= nil
+function PawnProxy:get()
+    return lobby:get_pawn(self.id)
 end
-function Pawn:get(key)
-    if self:spawned() then
-        return lobby:get_pawn(self.id, key)
-    else
-        error("Attempted to update not-yet-spawned pawn")
-    end
+function PawnProxy:update(table)
+    lobby:update_pawn(table)
 end
-function Pawn:update(table)
-    if self:spawned() then
-        table.id = self.id
-        lobby:update_pawn(table)
-    else
-        error("Attempted to update not-yet-spawned pawn")
-    end
+function PawnProxy:destroy()
+    lobby:destroy_pawn(self.id)
 end
-function Pawn:destroy()
-    if self:spawned() then
-        lobby:destroy_pawn(self.id)
-    else
-        error("Attempted to destroy not-yet-spawned pawn")
-    end
-end
-function Pawn:new(options)
-    if options["id"] ~= nil then
-        error("Attempted to create pawn with manually assigned id")
-    end
-
-    local o
-    if type(options) == "number" then
-        o = {id = options}
-    else
-        options.position = options.position or vec3(0,0,0)
-        options.rotation = options.rotation or quat(0,0,0,0)
-        options.select_rotation = options.select_rotation or options.rotation
-        o = options
-    end
+function PawnProxy:new(id)
+    local o = {id = id}
     setmetatable(o, self)
     return o
 end
+
+Pawn = {}
+function PawnProxy:destroy()
+    error("Attempted to destroy a non-spawned pawn")
+end
+function Pawn:new(options)
+    local o = options
+    setmetatable(o, self)
+    return o
+end
+
+-- Pawn Data
 
 DeckData = {}
 SnapPointData = {}

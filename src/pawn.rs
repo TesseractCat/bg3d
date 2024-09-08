@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
 use tokio::time::Instant;
@@ -7,7 +9,7 @@ use mlua::TableExt;
 use crate::user::*;
 use crate::math::*;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "class", content = "data")]
 pub enum PawnData {
     #[serde(rename_all = "camelCase")]
@@ -117,6 +119,22 @@ pub struct Pawn {
 	pub rigid_body: Option<RigidBodyHandle>,
 	#[serde(skip, default = "Instant::now")]
     pub last_updated: Instant,
+    #[serde(skip)]
+    pub on_grab_callback: Option<Arc<mlua::RegistryKey>>
+}
+impl PartialEq for Pawn {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id &&
+            self.name == other.name && 
+            self.mesh == other.mesh &&
+            self.tint == other.tint &&
+            self.texture == other.texture &&
+            self.moveable == other.moveable &&
+            self.position == other.position &&
+            self.rotation == other.rotation &&
+            self.select_rotation == other.select_rotation &&
+            self.data == other.data
+    }
 }
 impl<'lua> mlua::FromLua<'lua> for Pawn {
     fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
@@ -136,7 +154,9 @@ impl<'lua> mlua::FromLua<'lua> for Pawn {
                 selected_user: None,
                 data: params.get::<_, Option<PawnData>>("data")?.unwrap_or(PawnData::Pawn { }),
                 rigid_body: None,
-                last_updated: Instant::now()
+                last_updated: Instant::now(),
+
+                on_grab_callback: None
             })
         } else {
             Err(mlua::Error::FromLuaConversionError { from: "table", to: "Pawn", message: None })
@@ -146,9 +166,21 @@ impl<'lua> mlua::FromLua<'lua> for Pawn {
 impl<'lua> mlua::IntoLua<'lua> for Pawn {
     fn into_lua(self, lua: &'lua mlua::Lua) -> mlua::Result<mlua::Value<'lua>> {
         let table = lua.create_table()?;
-        table.raw_set("id", self.id.0)?;
-        table.set_metatable(lua.globals().get("Pawn")?);
-        Ok(mlua::Value::Table(table))
+        table.set("id", self.id.0)?;
+        table.set("name", self.name)?;
+        table.set("mesh", self.mesh)?;
+        table.set("tint", self.tint)?;
+        table.set("texture", self.texture)?;
+
+        table.set("moveable", self.moveable)?;
+        table.set("position", self.position)?;
+        table.set("rotation", self.rotation)?;
+        table.set("select_rotation", self.select_rotation)?;
+
+        //table.set("data", self.data)?;
+
+        let pawn_table = lua.globals().get::<_, mlua::Table>("Pawn")?;
+        pawn_table.get::<_, mlua::Function>("new")?.call((pawn_table, table))
     }
 }
 #[skip_serializing_none]
@@ -180,14 +212,42 @@ impl Pawn {
             ..Default::default()
         }
     }
-    pub fn patch(&mut self, update: &PawnUpdate) {
-        update.data.as_ref().map(|v| self.data = v.clone());
-        update.moveable.map(|v| self.moveable = v);
-        if self.moveable {
-            update.position.map(|v| self.position = v);
-            update.rotation.map(|v| self.rotation = v);
-            update.select_rotation.map(|v| self.select_rotation = v);
+    pub fn patch(&mut self, mut update: PawnUpdate, user: Option<UserId>) -> PawnUpdate {
+        let mut diff = PawnUpdate::default();
+        diff.id = update.id;
+        macro_rules! p {
+            (option: $name:ident) => {
+                update.$name.take_if(|v| self.$name.as_ref() != Some(v)).map(|v| {
+                    self.$name = Some(v.clone());
+                    diff.$name = Some(v);
+                });
+            };
+            ($name:ident) => {
+                update.$name.take_if(|v| self.$name != *v).map(|v| {
+                    self.$name = v.clone();
+                    diff.$name = Some(v);
+                });
+            }
         }
+        p!(option: name);
+        p!(option: mesh);
+        p!(option: tint);
+        p!(moveable);
+        p!(position);
+        p!(rotation);
+        p!(select_rotation);
+        p!(data);
+        if let Some(selected) = update.selected.clone() {
+            if let Some(user) = user {
+                update.selected.take_if(|_|
+                    (selected && self.selected_user != Some(user)) || (!selected && self.selected_user.is_some())
+                ).map(|v| {
+                    self.selected_user = if v { Some(user) } else { None };
+                    diff.selected = Some(v);
+                });
+            }
+        }
+        diff
     }
     pub fn flipped(&self) -> bool {
         (self.select_rotation.x - std::f64::consts::PI).abs() < 0.01

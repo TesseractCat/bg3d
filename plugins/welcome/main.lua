@@ -7,10 +7,21 @@ function game.start()
         mesh = 'generic/bird.glb',
     }
 
+    bird.on_grab = function()
+        lobby:system_chat("GRABBED CAT")
+        lobby:schedule(coroutine.create(function()
+            while true do
+                coroutine.yield(20)
+                bird.position.y = bird.position.y + 1
+            end
+        end))
+    end
+
+
     local stand = lobby:create_pawn{
         name = "Stand",
         tint = 0xf1ede1,
-        position = vec3(bird:get_position().x, 0, bird:get_position().z),
+        position = vec3(bird.position.x, 0, bird.position.z),
         mesh = 'generic/stand.gltf',
         moveable = false
     }
@@ -48,7 +59,7 @@ function game.start()
 
     local deck = lobby:create_pawn{
         name = 'Cards',
-        position = bird:get_position() + vec3(3.25, 1, 0),
+        position = bird.position + vec3(3.25, 1, 0),
         rotation = quat.from_euler(0, -math.pi/2 - math.pi/32, 0),
 
         data = DeckData:new{
@@ -60,7 +71,7 @@ function game.start()
     }
 
     local bird_snap = lobby:create_pawn{
-        position = vec3(bird:get_position().x, 1, bird:get_position().z),
+        position = vec3(bird.position.x, 1, bird.position.z),
         data = SnapPointData:new{}
     }
 
@@ -124,6 +135,10 @@ function game.start()
             }
         }
     }
+end
+
+function game.settings()
+
 end
 
 -- local last_time
