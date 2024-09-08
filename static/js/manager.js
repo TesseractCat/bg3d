@@ -34,6 +34,7 @@ class User {
     cursorTransform;
     headObject;
     headTransform;
+    handObject;
 
     constructor(id, color, self, cardTextElement, playerTextElement) {
         this.id = id;
@@ -49,6 +50,7 @@ class User {
             const cursorGeometry = new SphereGeometry(0.32, 12, 12);
             const cursorMaterial = new MeshBasicMaterial( {color: color} );
             this.cursorObject = new Mesh(cursorGeometry, cursorMaterial);
+            this.cursorObject.visible = false;
             window.manager.scene.add(this.cursorObject);
 
             User.gltfLoader.load("head/head.glb", (gltf) => {
@@ -78,6 +80,11 @@ class User {
                             }
                             blink();
                         }
+                        if (child.name == 'Hand') {
+                            child.parent = null;
+                            this.handObject = child;
+                            this.handObject.visible = false;
+                        }
                         child.material.dispose();
                         child.material = mat;
                     }
@@ -99,6 +106,12 @@ class User {
             this.headObject.position.copy(this.headTransform.position);
             this.headObject.quaternion.copy(this.headTransform.rotation);
             this.headObject.visible = true;
+
+            if (this.handObject) {
+                this.handObject.position.copy(this.cursorTransform.position);
+                this.handObject.quaternion.copy(this.headTransform.rotation);
+                this.handObject.visible = true;
+            }
         }
     }
 }
@@ -355,7 +368,7 @@ export default class Manager extends EventTarget {
             }
             pawn.networkSelected = serializedPawn.selected;
         }
-        if (serializedPawn.hasOwnProperty('position') && serializedPawn.hasOwnProperty('rotation')) {
+        if (serializedPawn.hasOwnProperty('position') || serializedPawn.hasOwnProperty('rotation')) {
             pawn.tick(serializedPawn.position, serializedPawn.rotation);
         }
         if (serializedPawn.hasOwnProperty('selectRotation')) {

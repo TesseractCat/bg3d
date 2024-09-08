@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::default;
 use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
@@ -169,7 +170,7 @@ impl Lobby {
             }
             Ok(())
         }) {
-            self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
+            self.system_chat(Cow::Owned(format!("Lua error in game.physics: `{}`", e)))?;
         }
 
         Ok(())
@@ -349,7 +350,7 @@ impl Lobby {
             }
             Ok(())
         }) {
-            self.system_chat(Cow::Owned(format!("Lua error: `{}`", e)))?;
+            self.system_chat(Cow::Owned(format!("Lua error in game.chat: `{}`", e)))?;
         }
         Ok(())
     }
@@ -463,13 +464,27 @@ impl Lobby {
             let pawn_id = update.id;
             let mut pawn: Pawn = self.pawns.remove(&pawn_id).ok_or("Trying to update invalid pawn")?;
 
+            // If a user is updating this pawn
             if let Some(user_id) = user_id {
-                match pawn.selected_user {
-                    Some(selected_user_id) if selected_user_id != user_id => {
-                        return Err("User trying to update non-owned pawn".into());
-                    },
-                    _ => {},
-                };
+                if let Some(selected_user) = pawn.selected_user { // If a user has already selected this pawn
+                    if selected_user != user_id {
+                        // and if the selected users don't match
+                        println!("User <{user_id:?}> trying to update non-owned pawn");
+                        update = PawnUpdate {
+                            id: update.id,
+                            ..Default::default()
+                        };
+                    }
+                } else { // If a user hasn't selected this pawn
+                    if !update.selected.is_some_and(|x| x) {
+                        // and we try to update it without setting selected to true
+                        println!("User <{user_id:?}> trying to update non-owned pawn");
+                        update = PawnUpdate {
+                            id: update.id,
+                            ..Default::default()
+                        };
+                    }
+                }
             }
 
             if !pawn.moveable {
@@ -481,12 +496,14 @@ impl Lobby {
             // Update struct values
             let update = pawn.patch(update, user_id);
             if update.selected.filter(|x| *x).is_some() {
-                self.lua_scope(|lua, scope, _| {
+                if let Err(e) = self.lua_scope(|lua, scope, _| {
                     if let Some(callback) = pawn.on_grab_callback.as_ref() {
-                        lua.registry_value::<mlua::Function>(callback)?.call::<(), ()>(());
+                        lua.registry_value::<mlua::Function>(callback)?.call::<_, ()>((user_id.unwrap_or_default().0));
                     }
                     Ok(())
-                });
+                }) {
+                    self.system_chat(Cow::Owned(format!("Lua error in on_grab: `{}`", e)))?;
+                }
             }
             
             // Update physics

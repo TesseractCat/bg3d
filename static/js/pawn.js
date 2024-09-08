@@ -48,6 +48,7 @@ export class Pawn {
 
     #meshObject = new Object3D();
     getMesh() { return this.#meshObject }
+    getBoundingBox() { return new Box3().setFromObject(this.getMesh()); }
 
     hovered = false;
     selectStaticPosition;
@@ -148,11 +149,8 @@ export class Pawn {
     }
 
     tick(position, rotation) {
-        if (this.#predicting) {
+        if (this.#predicting)
             this.#predicting = false;
-        }
-        position = new Vector3().copy(position);
-        rotation = new Quaternion().copy(rotation);
         this.networkTransform.tick(position, rotation);
     }
     
@@ -270,7 +268,7 @@ export class Pawn {
             ["Clone", () => {
                 let tempClone = this.clone();
                 tempClone.position.add(new Vector3(
-                    0, new Box3().setFromObject(this.getMesh()).getSize(new Vector3()).y + 0.5, 0
+                    0, this.getBoundingBox().getSize(new Vector3()).y + 0.5, 0
                 ));
                 window.manager.sendAddPawn(tempClone);
             }],
@@ -417,7 +415,6 @@ export class Pawn {
     serialize() {
         let out = structuredClone(this);
         out.class = this.constructor.className();
-        // Probably should just write a function to apply this replacement
         return JSON.parse(JSON.stringify(out, serializationThreeTypesMixin));
     }
     serializeDirty() {

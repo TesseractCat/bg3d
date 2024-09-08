@@ -137,7 +137,7 @@ impl PartialEq for Pawn {
     }
 }
 impl<'lua> mlua::FromLua<'lua> for Pawn {
-    fn from_lua(value: mlua::Value<'lua>, _lua: &'lua mlua::Lua) -> mlua::Result<Self> {
+    fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
         if let Some(params) = value.as_table() {
             Ok(Pawn {
                 id: PawnId(params.get::<_, u64>("id").ok().unwrap_or(0)),
@@ -156,7 +156,8 @@ impl<'lua> mlua::FromLua<'lua> for Pawn {
                 rigid_body: None,
                 last_updated: Instant::now(),
 
-                on_grab_callback: None
+                on_grab_callback: params.get::<_, mlua::Function>("on_grab")
+                                        .ok().map(|cb| Arc::new(lua.create_registry_value(cb).unwrap()))
             })
         } else {
             Err(mlua::Error::FromLuaConversionError { from: "table", to: "Pawn", message: None })
@@ -237,8 +238,8 @@ impl Pawn {
         p!(rotation);
         p!(select_rotation);
         p!(data);
-        if let Some(selected) = update.selected.clone() {
-            if let Some(user) = user {
+        if let Some(user) = user {
+            if let Some(selected) = update.selected {
                 update.selected.take_if(|_|
                     (selected && self.selected_user != Some(user)) || (!selected && self.selected_user.is_some())
                 ).map(|v| {

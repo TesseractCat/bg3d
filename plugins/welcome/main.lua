@@ -7,14 +7,14 @@ function game.start()
         mesh = 'generic/bird.glb',
     }
 
-    bird.on_grab = function()
-        lobby:system_chat("GRABBED CAT")
-        lobby:schedule(coroutine.create(function()
-            while true do
-                coroutine.yield(20)
-                bird.position.y = bird.position.y + 1
-            end
-        end))
+    bird.on_grab = function(user)
+        lobby:system_chat("USER " .. user .. " GRABBED BIRD")
+        -- lobby:schedule(coroutine.create(function()
+        --     while true do
+        --         coroutine.yield(20)
+        --         bird.position.y = bird.position.y + 1
+        --     end
+        -- end))
     end
 
 

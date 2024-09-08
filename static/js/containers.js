@@ -380,8 +380,6 @@ export class Deck extends Pawn {
         // Resize
         let thickness = this.data.cardThickness * this.data.contents.length;
         this.getMesh().scale.setComponent(1, thickness);
-
-        this.dirty.add("selected");
         
         // Dispose of old materials
         this.#updateMaterials(faceTexture, backTexture);

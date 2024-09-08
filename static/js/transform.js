@@ -33,7 +33,7 @@ export class NetworkedTransform {
         this.position.copy(position);
         this.rotation.copy(rotation);
     }
-    tick(position, rotation = new Quaternion()) {
+    tick(position, rotation) {
         let now = performance.now();
         this.lastSynced = now;
         this.pushBuffer(now, position, rotation);
@@ -54,10 +54,16 @@ export class NetworkedTransform {
         this.pushBuffer(performance.now() + 1, position, rotation);
     }
     pushBuffer(time, position, rotation) {
+        let p = this.buffer.length > 0 ? this.buffer[this.buffer.length - 1].position.clone() : this.position.clone();
+        let r = this.buffer.length > 0 ? this.buffer[this.buffer.length - 1].rotation.clone() : this.rotation.clone();
+        if (position)
+            p.copy(position);
+        if (rotation)
+            r.copy(rotation);
         this.buffer.push({
             time: time,
-            position: new Vector3().copy(position),
-            rotation: new Quaternion().copy(rotation)
+            position: p,
+            rotation: r
         });
         if (this.buffer.length > 2)
             this.buffer.shift();
