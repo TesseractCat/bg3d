@@ -119,8 +119,11 @@ pub struct Pawn {
 	pub rigid_body: Option<RigidBodyHandle>,
 	#[serde(skip, default = "Instant::now")]
     pub last_updated: Instant,
+
     #[serde(skip)]
-    pub on_grab_callback: Option<Arc<mlua::RegistryKey>>
+    pub on_grab_callback: Option<Arc<mlua::RegistryKey>>,
+    #[serde(skip)]
+    pub on_release_callback: Option<Arc<mlua::RegistryKey>>,
 }
 impl PartialEq for Pawn {
     fn eq(&self, other: &Self) -> bool {
@@ -138,7 +141,14 @@ impl PartialEq for Pawn {
 }
 impl<'lua> mlua::FromLua<'lua> for Pawn {
     fn from_lua(value: mlua::Value<'lua>, lua: &'lua mlua::Lua) -> mlua::Result<Self> {
-        if let Some(params) = value.as_table() {
+        let pawn_mt = lua.globals().get::<_, mlua::Table>("Pawn")?;
+        if let mlua::Value::Table(params) = value {
+            // Call Pawn:new on provided table if not already of type Pawn
+            let params = if params.get_metatable().is_some_and(|mt| mt == pawn_mt) {
+                params
+            } else {
+                pawn_mt.get::<_, mlua::Function>("new")?.call((pawn_mt, params))?
+            };
             Ok(Pawn {
                 id: PawnId(params.get::<_, u64>("id").ok().unwrap_or(0)),
                 name: params.get("name").ok(),
@@ -157,7 +167,9 @@ impl<'lua> mlua::FromLua<'lua> for Pawn {
                 last_updated: Instant::now(),
 
                 on_grab_callback: params.get::<_, mlua::Function>("on_grab")
-                                        .ok().map(|cb| Arc::new(lua.create_registry_value(cb).unwrap()))
+                                        .ok().map(|cb| Arc::new(lua.create_registry_value(cb).unwrap())),
+                on_release_callback: params.get::<_, mlua::Function>("on_release")
+                                           .ok().map(|cb| Arc::new(lua.create_registry_value(cb).unwrap()))
             })
         } else {
             Err(mlua::Error::FromLuaConversionError { from: "table", to: "Pawn", message: None })

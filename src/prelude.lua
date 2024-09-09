@@ -60,6 +60,11 @@ PawnProxy = {
 function PawnProxy:get()
     return lobby:get_pawn(self.id)
 end
+function PawnProxy:clone()
+    local o = self:get()
+    o.id = nil
+    return o
+end
 function PawnProxy:update(table)
     lobby:update_pawn(table)
 end
@@ -73,11 +78,12 @@ function PawnProxy:new(id)
 end
 
 Pawn = {}
-function PawnProxy:destroy()
+function Pawn:destroy()
     error("Attempted to destroy a non-spawned pawn")
 end
 function Pawn:new(options)
     local o = options
+    o.select_rotation = o.select_rotation or o.rotation
     setmetatable(o, self)
     return o
 end
@@ -134,6 +140,10 @@ end
 lobby_ext = {}
 function lobby_ext:schedule(co)
     local alive, ticks = coroutine.resume(co)
+    if type(ticks) ~= "number" then
+        error(string.format("Expected number while running coroutine, got type %s with value: '%s'",
+                            type(ticks), tostring(ticks)))
+    end
     if ticks then
         lobby:timeout(function()
             lobby_ext:schedule(co)

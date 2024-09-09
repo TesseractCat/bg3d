@@ -50,7 +50,6 @@ class User {
             const cursorGeometry = new SphereGeometry(0.32, 12, 12);
             const cursorMaterial = new MeshBasicMaterial( {color: color} );
             this.cursorObject = new Mesh(cursorGeometry, cursorMaterial);
-            this.cursorObject.visible = false;
             window.manager.scene.add(this.cursorObject);
 
             User.gltfLoader.load("head/head.glb", (gltf) => {
@@ -110,7 +109,7 @@ class User {
             if (this.handObject) {
                 this.handObject.position.copy(this.cursorTransform.position);
                 this.handObject.quaternion.copy(this.headTransform.rotation);
-                this.handObject.visible = true;
+                // this.handObject.visible = true;
             }
         }
     }

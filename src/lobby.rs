@@ -5,6 +5,7 @@ use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
 use std::sync::Arc;
+use std::time::SystemTime;
 use data_url::DataUrl;
 use futures::io::Cursor;
 use random_color::Color;
@@ -280,10 +281,17 @@ impl mlua::UserData for Lobby {
                 selected: None,
                 data: params.get("data").ok()
             };
-            if let Ok(callback) = params.get::<_, mlua::Function>("on_grab") {
-                this.pawns.get_mut(&id).unwrap().on_grab_callback = Some(Arc::new(
-                    lua.create_registry_value(callback)?
-                ));
+            if let Some(pawn) = this.pawns.get_mut(&id) {
+                if let Ok(callback) = params.get::<_, mlua::Function>("on_grab") {
+                    pawn.on_grab_callback = Some(Arc::new(
+                        lua.create_registry_value(callback)?
+                    ));
+                }
+                if let Ok(callback) = params.get::<_, mlua::Function>("on_release") {
+                    pawn.on_release_callback = Some(Arc::new(
+                        lua.create_registry_value(callback)?
+                    ));
+                }
             }
             this.update_pawns(None, Vec::from([update]))?;
             Ok(())
@@ -333,6 +341,13 @@ impl Lobby {
             lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
         }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
         lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
+
+        // Seed random
+        lua.globals().get::<_, mlua::Table>("math").unwrap()
+            .get::<_, mlua::Function>("randomseed").unwrap().call::<_, ()>(
+                SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()
+            )
+            .expect("Failed to initialize random seed");
 
         self.lua = Some(lua);
     }
@@ -495,14 +510,23 @@ impl Lobby {
             
             // Update struct values
             let update = pawn.patch(update, user_id);
-            if update.selected.filter(|x| *x).is_some() {
-                if let Err(e) = self.lua_scope(|lua, scope, _| {
-                    if let Some(callback) = pawn.on_grab_callback.as_ref() {
-                        lua.registry_value::<mlua::Function>(callback)?.call::<_, ()>((user_id.unwrap_or_default().0));
+            if let Some(selected) = update.selected {
+                if selected {
+                    if let Err(e) = self.lua_scope(|lua, _scope, _| {
+                        if let Some(callback) = pawn.on_grab_callback.as_ref() {
+                            lua.registry_value::<mlua::Function>(callback)?.call::<_, ()>(user_id.unwrap_or_default().0)
+                        } else { Ok(()) }
+                    }) {
+                        self.system_chat(Cow::Owned(format!("Lua error in on_grab: `{}`", e)))?;
                     }
-                    Ok(())
-                }) {
-                    self.system_chat(Cow::Owned(format!("Lua error in on_grab: `{}`", e)))?;
+                } else {
+                    if let Err(e) = self.lua_scope(|lua, _scope, _| {
+                        if let Some(callback) = pawn.on_release_callback.as_ref() {
+                            lua.registry_value::<mlua::Function>(callback)?.call::<_, ()>(user_id.unwrap_or_default().0)
+                        } else { Ok(()) }
+                    }) {
+                        self.system_chat(Cow::Owned(format!("Lua error in on_release: `{}`", e)))?;
+                    }
                 }
             }
             
@@ -540,7 +564,11 @@ impl Lobby {
 
                     let rotation: Rotation<f32> = Rotation::from(&pawn.rotation);
                     let time_difference = (Instant::now() - pawn.last_updated).as_secs_f32();
-                    let velocity: Vector<f32> = (position - old_position)/time_difference.max(1.0/20.0);
+                    let velocity: Vector<f32> = if user_id.is_some() {
+                        (position - old_position)/time_difference.max(1.0/20.0)
+                    } else {
+                        vector![0.0, 0.0, 0.0]
+                    };
 
                     let wake = true;
                     rb.set_translation(position, wake);

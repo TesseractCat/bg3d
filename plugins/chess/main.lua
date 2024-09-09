@@ -19,10 +19,11 @@ function addPiece(name, positions)
     local pawns = table.flat_map(positions, function(p)
         local white, black = getPiece(name)
 
-        black:set_position(boardToWorldPos(p))
+        black.position = boardToWorldPos(p)
 
-        white:set_position(boardToWorldPos(vec2(p.x, 7 - p.y)))
-        white:set_rotation(quat.from_euler(0, math.pi, 0))
+        white.position = boardToWorldPos(vec2(p.x, 7 - p.y))
+        white.rotation = quat.from_euler(0, math.pi, 0)
+        white.select_rotation = white.rotation:clone()
 
         return {white, black}
     end)

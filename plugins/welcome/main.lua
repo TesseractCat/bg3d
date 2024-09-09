@@ -1,22 +1,31 @@
+local bird
+function game.chat(user, message)
+    --lobby:system_chat("ECHO: " .. user .. " said '" .. message .. "'")
+    if message == "/test" then
+        lobby:schedule(coroutine.create(function()
+            while true do
+                coroutine.yield(20)
+                bird.position.y = bird.position.y + 1
+            end
+        end))
+    end
+end
+
 local pawn
 function game.start()
-    local bird = lobby:create_pawn{
+    bird = lobby:create_pawn{
         name = "Bird Statue",
         position = vec3(-1.6,2.8,-1.8),
         rotation = quat.from_euler(0, math.pi/6, 0),
         mesh = 'generic/bird.glb',
+        on_release = function(user)
+            lobby:system_chat("USER " .. user .. " RELEASED BIRD")
+        end
     }
 
     bird.on_grab = function(user)
         lobby:system_chat("USER " .. user .. " GRABBED BIRD")
-        -- lobby:schedule(coroutine.create(function()
-        --     while true do
-        --         coroutine.yield(20)
-        --         bird.position.y = bird.position.y + 1
-        --     end
-        -- end))
     end
-
 
     local stand = lobby:create_pawn{
         name = "Stand",
@@ -148,8 +157,4 @@ end
 --         pawn.position = vec3(0, 1, 0) * (math.sin(lobby:time()) + 1)
 --         lobby:system_chat("Position: " .. tostring(pawn.position))
 --     end
--- end
-
--- function game.chat(user, message)
---     lobby:system_chat("ECHO: " .. user .. " said '" .. message .. "'")
 -- end
