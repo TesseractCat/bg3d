@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use std::borrow::Cow;
 use std::{env, io};
 use std::collections::HashMap;
 use std::io::Read;
@@ -8,6 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
 
+use axum::extract::OriginalUri;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{
@@ -54,11 +56,8 @@ type Lobbies = Arc<RwLock<HashMap<String, Arc<Mutex<Lobby>>>>>;
 
 #[tokio::main]
 async fn main() {
-    let default_port: u16 = 8080;
-    let port: u16 = match env::args().nth(1) {
-        Some(p) => p.parse::<u16>().unwrap_or(default_port),
-        None => default_port,
-    };
+    let base_uri: Uri = Uri::try_from(env::args().nth(1).unwrap_or("http://localhost:8080".to_string())).expect("Invalid Uri provided");
+    let port = base_uri.port_u16().unwrap_or(80);
     
     // Define our lobbies HashMap
     let lobbies = Lobbies::default();
@@ -66,6 +65,8 @@ async fn main() {
     let lobbies_index_clone = lobbies.clone();
     let lobbies_assets_clone = lobbies.clone();
     let lobbies_ws_clone = lobbies.clone();
+    let lobbies_page_clone = lobbies.clone();
+    let lobbies_page_path_clone = lobbies.clone();
     let lobbies_dashboard_clone = lobbies.clone();
 
     // Routing
@@ -94,6 +95,18 @@ async fn main() {
                 retrieve_asset(lobbies, lobby, uri)
             }
         )))
+        .route("/page/", get(
+            move |AxumPath(lobby): AxumPath<String>| {
+                let lobbies = lobbies_page_clone.clone();
+                serve_page(lobbies, lobby, "".to_string())
+            }
+        ))
+        .route("/page/*path", get(
+            move |AxumPath((lobby, path)): AxumPath<(String, String)>| {
+                let lobbies = lobbies_page_path_clone.clone();
+                serve_page(lobbies, lobby, path)
+            }
+        ))
         .route("/ws", get(
             |AxumPath(lobby): AxumPath<String>, ws: WebSocketUpgrade, headers: HeaderMap| async move {
                 let lobbies = lobbies_ws_clone.clone();
@@ -136,7 +149,7 @@ async fn main() {
         }
     });
 
-    println!("Starting BG3D on port [{port}]...");
+    println!("Starting BG3D at [{base_uri}]...");
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
@@ -169,6 +182,28 @@ async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::res
             ("Cache-Control", "no-cache, no-store, must-revalidate".to_string())
         ],
         asset.data.clone()
+    ))
+}
+async fn serve_page(lobbies: Lobbies, lobby: String, path: String) -> axum::response::Result<impl IntoResponse> {
+    let lobbies_rl = lobbies.read().await;
+
+    let mut lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.lock().await;
+
+    let content = lobby.lua_scope(|lua, _scope, _| { // Call physics callback
+        if let Some(Ok(res)) = Lobby::run_lua_callback::<_, String>(lua, "page", format!("/{path}")) {
+            Ok(Ok(res))
+        } else {
+            Ok(Err(StatusCode::NOT_FOUND))
+        }
+    }).unwrap();
+
+    axum::response::Result::Ok((
+        [
+            ("Content-Type", "text/html"),
+            ("Cache-Control", "no-cache, no-store, must-revalidate"),
+            ("Access-Control-Allow-Origin", "null")
+        ],
+        content
     ))
 }
 

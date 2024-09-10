@@ -201,7 +201,7 @@ impl Lobby {
 
         result
     }
-    fn run_lua_callback<'lua, R: mlua::FromLuaMulti<'lua>, A: mlua::IntoLuaMulti<'lua>>(lua: &'lua Lua, callback_name: &str, args: A) -> Option<mlua::Result<R>> {
+    pub fn run_lua_callback<'lua, A: mlua::IntoLuaMulti<'lua>, R: mlua::FromLuaMulti<'lua>>(lua: &'lua Lua, callback_name: &str, args: A) -> Option<mlua::Result<R>> {
         if let Some(game) = lua.globals().get::<_, mlua::Table>("game").ok() {
             if let Some(callback) = game.get::<_, mlua::Function>(callback_name).ok() {
                 Some(callback.call(args))

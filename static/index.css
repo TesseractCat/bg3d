@@ -1,4 +1,4 @@
-@import "variables.css?v=3858d90";
+@import "variables.css?v=226ee93";
 
 /* @font-face { */
 /*     font-family: 'Bayon'; */
@@ -64,6 +64,11 @@ fieldset {
     display: none !important;
 }
 
+iframe {
+    width: 100%;
+    border: none;
+}
+
 /* MAIN PANEL */
 
 bird-tabbar {
@@ -101,7 +106,7 @@ bird-tabbar img {
     
     transition: width 0.2s, max-height 0.2s;
 
-    max-height: 50%;
+    max-height: 50vh;
     overflow-y: auto;
 }
 .overlay-panel h1 {

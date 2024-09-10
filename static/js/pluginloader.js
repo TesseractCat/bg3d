@@ -18,7 +18,7 @@ export default class PluginLoader {
         this.manager = manager;
     }
 
-    async loadFromFile(file) {
+    async loadFromFile(file, onDone) {
         if (!this.manager.host) {
             console.warn("Attempted to load plugin on non-host client!");
             return;
@@ -41,6 +41,10 @@ export default class PluginLoader {
 
         await this.loadManifest(manifest, {entries: entries});
         await reader.close();
+
+        if (onDone !== undefined) {
+            onDone();
+        }
     }
     async loadManifest(manifest, {entries = [], path = ""}) {
         // Register everything

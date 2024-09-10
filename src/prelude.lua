@@ -180,3 +180,22 @@ function table.shuffle(tbl)
     end
     return tbl
 end
+
+-- Utility functions
+
+-- https://stackoverflow.com/a/28921280
+function urldecode(s)
+    s = s:gsub('+', ' ')
+       :gsub('%%(%x%x)', function(h)
+                           return string.char(tonumber(h, 16))
+                         end)
+    return s
+end
+function parseurl(s)
+    s = s:match('%s+(.+)')
+    local ans = {}
+    for k,v in s:gmatch('([^&=?]-)=([^&=?]+)' ) do
+        ans[ k ] = urldecode(v)
+    end
+    return ans
+end

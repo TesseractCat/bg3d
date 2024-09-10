@@ -61,7 +61,9 @@ window.onload = () => {
         async function loadGame(url) {
             let blob = await ((await fetch(`${url}?v=${window.version}`)).blob());
             let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
-            await pluginLoader.loadFromFile(file);
+            await pluginLoader.loadFromFile(file, () => {
+                document.querySelector("#plugin-frame").src = window.location.href + "/page/";
+            });
         }
         document.querySelector("#games").addEventListener("change", async (e) => {
             e.target.blur();
@@ -87,6 +89,11 @@ window.onload = () => {
             loadGame(games[0][1]);
         
         animate();
+    });
+
+    // Resize iframe
+    window.addEventListener("message", (e) => {
+        document.querySelector("#plugin-frame").style.height = e.data;
     });
 
     // Local settings
