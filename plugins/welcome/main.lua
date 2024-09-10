@@ -11,6 +11,56 @@ function game.chat(user, message)
     end
 end
 
+local test
+function game.page(path)
+    lobby:system_chat(tostring(path))
+    if path == "/" then
+        return string.format[[
+            <style>
+            html, body { height: fit-content; }
+            </style>
+            <script>
+            addEventListener("load", () => {
+                const onResize = () => {
+                    window.parent.postMessage(getComputedStyle(document.documentElement).height, "*");
+                };
+                new ResizeObserver(onResize).observe(document.documentElement);
+                onResize();
+
+                const process = (nodes) => {
+                    nodes.filter(n => n.tagName === 'FORM').forEach(n => n.addEventListener("submit", async (e) => {
+                        e.preventDefault();
+                        let url = new URL(e.target.action);
+                        url.search = new URLSearchParams(new FormData(e.target));
+                        console.log(new FormData(e.target));
+                        document.querySelector(URL.parse(e.target.action).hash).outerHTML =
+                            await (await fetch(url.toString())).text();
+                    }, true));
+                    nodes.filter(n => n.tagName === 'A').forEach(n => n.addEventListener("click", async (e) => {
+                        e.preventDefault();
+                        document.querySelector(URL.parse(e.target.href).hash).outerHTML = await (await fetch(e.target.href)).text();
+                    }, true));
+                };
+                process([...document.querySelectorAll("*")]);
+                new MutationObserver(ms => process(ms.flatMap(m => [...m.addedNodes]))).observe(document, { childList: true, subtree: true, characterData: true });
+            });
+            </script>
+
+            <h1>Testing!</h1>
+            <form id="form" action="form#form" onchange="this.requestSubmit()">
+                <input type="checkbox" id="test" name="test">
+            </form>
+        ]]
+    elseif path == "/form" then
+        return [[
+            <form id="form" action="form#form" onchange="this.requestSubmit()">
+                <input type="checkbox" id="test" name="test">
+            </form>
+        ]]
+    end
+    return "wow"
+end
+
 local pawn
 function game.start()
     bird = lobby:create_pawn{
