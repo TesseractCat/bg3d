@@ -21,11 +21,12 @@
         </template>
 
         <bird-tabbar>
-            <img src="static/icons/minus.svg" slot="0-icon" />
-            <img src="static/icons/info.svg" slot="1-icon" />
-            <img src="static/icons/question.svg" slot="2-icon" />
-            <img src="static/icons/gear.svg" slot="3-icon" />
-            <img src="static/icons/dice-d6.svg" slot="4-icon" />
+            <img alt="Hide" src="static/icons/minus.svg" slot="0-icon" />
+            <img alt="Info" src="static/icons/info.svg" slot="1-icon" />
+            <img alt="Controls" src="static/icons/question.svg" slot="2-icon" />
+            <img alt="Settings" src="static/icons/gear.svg" slot="3-icon" />
+            <img alt="Plugin Settings" src="static/icons/puzzle-piece.svg" slot="4-icon" />
+            <img alt="Spawn Object" src="static/icons/dice-d6.svg" slot="5-icon" />
             <div class="overlay-panel" slot="1" selected>
                 <p><b>Share this link:</b></p>
                 <div id="link-panel">
@@ -95,14 +96,18 @@
                                 <label for="hideChat">Hide chat</label>
                             </div>
                         </fieldset>
-                        <fieldset id="plugin-settings" disabled>
+                        <!-- <fieldset id="plugin-settings" disabled>
                             <legend><p>Plugin</p></legend>
                             <iframe sandbox="allow-scripts allow-forms" id="plugin-frame"></iframe>
-                        </fieldset>
+                        </fieldset> -->
                     </form>
                 </div>
             </div>
             <div class="overlay-panel" slot="4">
+                <p><b>Plugin Settings:</b></p>
+                <iframe sandbox="allow-scripts allow-forms" id="plugin-frame"></iframe>
+            </div>
+            <div class="overlay-panel" slot="5">
                 <p>Manually spawning pawns is under construction</p>
             </div>
         </bird-tabbar>

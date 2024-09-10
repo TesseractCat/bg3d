@@ -786,7 +786,7 @@ export default class Manager extends EventTarget {
                     delete document.querySelector("#control-panel").dataset.hidden;
                     delete document.querySelector("[data-host-only]").dataset.hidden;
                     document.querySelector("#settings #lobby-settings").removeAttribute("disabled");
-                    document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
+                    // document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
                     this.host = true;
                     this.users.get(msg.id).playerTextElement.innerText = "(You/Host)";
                 } else {

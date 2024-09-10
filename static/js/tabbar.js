@@ -46,6 +46,8 @@ export default class Tabbar extends HTMLElement {
             user-select: none;
         }
         #bar div {
+            position: relative;
+            
             height: 1.5em;
             width: 1.5em;
             cursor: pointer;
@@ -69,6 +71,36 @@ export default class Tabbar extends HTMLElement {
             width: 100%;
             height: 100%;
         }
+        #bar div span {
+            pointer-events: none;
+            position: absolute;
+            top: 120%;
+            left: 50%;
+            transform: translate(-50%, 0%);
+            z-index: 1;
+            white-space: nowrap;
+
+            padding: 5px;
+            border-radius: var(--radius);
+            background-color: black;
+            opacity: 0;
+            color: white;
+
+            transition: opacity 0.1s;
+        }
+        #bar div span::after {
+            content: " ";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent black transparent;
+        }
+        #bar div:hover span {
+            opacity: 1;
+        }
         `;
         this.shadowRoot.appendChild(style);
     }
@@ -85,13 +117,17 @@ export default class Tabbar extends HTMLElement {
     childrenChangedCallback() {
         this.bar.innerHTML = "";
         this.tabCount = Math.max(...[...this.children].map(e => parseInt(e.getAttribute("slot")))) + 1;
-        for (let i = 0; i < this.tabCount; i++) {
+        let icons = [...this.children].filter(e => e.getAttribute("slot").endsWith("-icon"));
+        for (const [i, icon] of icons.entries()) {
             let buttonElement = document.createElement("div");
             if (i == 0)
                 buttonElement.classList.add("selected");
             let iconSlot = document.createElement("slot");
             iconSlot.setAttribute("name", `${i}-icon`);
             buttonElement.appendChild(iconSlot);
+            let tooltip = document.createElement("span");
+            tooltip.innerText = icon.getAttribute("alt");
+            buttonElement.appendChild(tooltip);
             buttonElement.addEventListener("click", () => {
                 this.selectTab(i);
             });
