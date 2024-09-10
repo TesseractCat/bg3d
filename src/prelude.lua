@@ -180,6 +180,18 @@ function table.shuffle(tbl)
     end
     return tbl
 end
+function table.dump(o)
+   if type(o) == 'table' then
+      local s = '{ '
+      for k,v in pairs(o) do
+         if type(k) ~= 'number' then k = '"'..k..'"' end
+         s = s .. '['..k..'] = ' .. table.dump(v) .. ','
+      end
+      return s .. '} '
+   else
+      return tostring(o)
+   end
+end
 
 -- Utility functions
 
@@ -192,10 +204,13 @@ function urldecode(s)
     return s
 end
 function parseurl(s)
-    s = s:match('%s+(.+)')
+    local url, query = s:match("(.+)%?(.+)")
+    if url == nil then url = s end
     local ans = {}
-    for k,v in s:gmatch('([^&=?]-)=([^&=?]+)' ) do
-        ans[ k ] = urldecode(v)
+    if query ~= nil then
+        for k,v in query:gmatch('([^&=?]-)=([^&=?]+)' ) do
+            ans[ k ] = urldecode(v)
+        end
     end
-    return ans
+    return url, ans
 end

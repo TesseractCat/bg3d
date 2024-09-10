@@ -13,7 +13,7 @@ end
 
 local test
 function game.page(path)
-    lobby:system_chat(tostring(path))
+    local path, query = parseurl(path)
     if path == "/" then
         return string.format[[
             <style>
@@ -31,8 +31,7 @@ function game.page(path)
                     nodes.filter(n => n.tagName === 'FORM').forEach(n => n.addEventListener("submit", async (e) => {
                         e.preventDefault();
                         let url = new URL(e.target.action);
-                        url.search = new URLSearchParams(new FormData(e.target));
-                        console.log(new FormData(e.target));
+                        url.search = new URLSearchParams(new FormData(e.target)).toString();
                         document.querySelector(URL.parse(e.target.action).hash).outerHTML =
                             await (await fetch(url.toString())).text();
                     }, true));
@@ -48,15 +47,17 @@ function game.page(path)
 
             <h1>Testing!</h1>
             <form id="form" action="form#form" onchange="this.requestSubmit()">
-                <input type="checkbox" id="test" name="test">
+                <input type="checkbox" name="test">
             </form>
         ]]
     elseif path == "/form" then
-        return [[
+        checkbox = query.test == "on"
+        lobby:system_chat(tostring(checkbox))
+        return string.format([[
             <form id="form" action="form#form" onchange="this.requestSubmit()">
-                <input type="checkbox" id="test" name="test">
+                <input type="checkbox" name="test" %s>
             </form>
-        ]]
+        ]], checkbox and "checked" or "")
     end
     return "wow"
 end

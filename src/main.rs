@@ -9,7 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
 
-use axum::extract::OriginalUri;
+use axum::extract::{OriginalUri, RawQuery};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{
@@ -96,15 +96,17 @@ async fn main() {
             }
         )))
         .route("/page/", get(
-            move |AxumPath(lobby): AxumPath<String>| {
+            move |AxumPath(lobby): AxumPath<String>, RawQuery(query): RawQuery| {
                 let lobbies = lobbies_page_clone.clone();
-                serve_page(lobbies, lobby, "".to_string())
+                let query = query.map(|q| format!("?{q}")).unwrap_or("".to_string());
+                serve_page(lobbies, lobby, format!("/{query}"))
             }
         ))
         .route("/page/*path", get(
-            move |AxumPath((lobby, path)): AxumPath<(String, String)>| {
+            move |AxumPath((lobby, path)): AxumPath<(String, String)>, RawQuery(query): RawQuery| {
                 let lobbies = lobbies_page_path_clone.clone();
-                serve_page(lobbies, lobby, path)
+                let query = query.map(|q| format!("?{q}")).unwrap_or("".to_string());
+                serve_page(lobbies, lobby, format!("/{path}{query}"))
             }
         ))
         .route("/ws", get(
@@ -189,13 +191,21 @@ async fn serve_page(lobbies: Lobbies, lobby: String, path: String) -> axum::resp
 
     let mut lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.lock().await;
 
-    let content = lobby.lua_scope(|lua, _scope, _| { // Call physics callback
-        if let Some(Ok(res)) = Lobby::run_lua_callback::<_, String>(lua, "page", format!("/{path}")) {
-            Ok(Ok(res))
+    let content: mlua::Result<Result<String, StatusCode>> = lobby.lua_scope(|lua, _scope, _| { // Call physics callback
+        if let Some(res) = Lobby::run_lua_callback::<_, String>(lua, "page", path) {
+            Ok(Ok(res?))
         } else {
             Ok(Err(StatusCode::NOT_FOUND))
         }
-    }).unwrap();
+    });
+
+    let content = match content {
+        Err(e) => {
+            let _ = lobby.system_chat(Cow::Owned(format!("Lua error in game.page: `{}`", e)));
+            Err(StatusCode::NOT_FOUND)
+        },
+        Ok(r) => r
+    };
 
     axum::response::Result::Ok((
         [
