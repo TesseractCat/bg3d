@@ -11,6 +11,7 @@ import Tooltip from './tooltip.js';
 import Chat from './chat.js';
 import Hand from './hand.js';
 import Tabbar from './tabbar.js';
+import SpawnMenu from './spawnmenu.js';
 
 import { Pawn } from './pawns.js';
 
@@ -63,6 +64,7 @@ window.onload = () => {
             let file = new File([blob], 'plugin.zip', { type: 'application/zip' });
             await pluginLoader.loadFromFile(file, () => {
                 document.querySelector("#plugin-frame").src = window.location.href + "/page/";
+                document.querySelector("#plugin-frame").style.height = null;
             });
         }
         document.querySelector("#games").addEventListener("change", async (e) => {

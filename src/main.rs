@@ -195,7 +195,8 @@ async fn serve_page(lobbies: Lobbies, lobby: String, path: String) -> axum::resp
         if let Some(res) = Lobby::run_lua_callback::<_, String>(lua, "page", path) {
             Ok(Ok(res?))
         } else {
-            Ok(Err(StatusCode::NOT_FOUND))
+            //Ok(Err(StatusCode::NOT_FOUND))
+            Ok(Ok("This plugin has no settings".to_string()))
         }
     });
 

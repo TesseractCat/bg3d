@@ -1,4 +1,4 @@
-@import "variables.css?v=15f619c";
+@import "variables.css?v=a6fe8aa";
 
 /* @font-face { */
 /*     font-family: 'Bayon'; */
@@ -38,22 +38,12 @@ body {
     
     font-family: Lora;
 }
-body.iframe {
-    border-radius: var(--half-radius);
-}
 
 canvas {
     image-rendering: pixelated;
     outline: none;
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
-}
-.iframe #display {
-    border: 1px solid gray;
-    border-radius: var(--half-radius);
-}
-.iframe #stats {
-    display: none;
 }
 
 fieldset {
@@ -66,6 +56,7 @@ fieldset {
 
 iframe {
     width: 100%;
+    height: 50px;
     border: none;
 }
 
@@ -108,6 +99,9 @@ bird-tabbar img {
 
     max-height: 50vh;
     overflow-y: auto;
+}
+.overlay-panel-wide {
+    width: calc(var(--panel-width) * 1.5);
 }
 .overlay-panel h1 {
     font-size: 2.3em;
