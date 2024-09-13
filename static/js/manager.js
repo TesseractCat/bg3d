@@ -138,6 +138,7 @@ export default class Manager extends EventTarget {
     chat;
     contextMenu;
     tooltip;
+    spawnMenu;
     
     raycaster = new Raycaster();
     mouse = new Vector2();
@@ -174,6 +175,7 @@ export default class Manager extends EventTarget {
         this.chat = document.querySelector("bird-chat");
         this.contextMenu = document.querySelector("bird-context-menu");
         this.tooltip = document.querySelector("bird-tooltip");
+        this.spawnMenu = document.querySelector("bird-spawn-menu");
 
         this.chat.addEventListener("chat", (e) => {
             this.sendSocket({
@@ -209,6 +211,9 @@ export default class Manager extends EventTarget {
                     position_hint: hint
                 });
             }
+        });
+        this.spawnMenu.addEventListener("spawn", (e) => {
+            this.sendAddPawn(e.detail);
         });
 
         // Enable cache
@@ -792,13 +797,12 @@ export default class Manager extends EventTarget {
                 } else {
                     this.users.get(msg.id).playerTextElement.innerText = "(Host)";
                 }
-            }
-
-            if (type == "register_game") {
+            } else if (type == "register_game") {
                 this.info = msg;
                 delete this.info.type;
-            }
-            if (type == "settings") {
+            } else if (type == "register_pawn") {
+                this.spawnMenu.registerPawn(msg.path, msg.pawn);
+            } else if (type == "settings") {
                 let settingsForm = document.querySelector("#settings");
                 for (let elem of settingsForm.elements) {
                     if (elem.type == "checkbox") {
@@ -816,14 +820,10 @@ export default class Manager extends EventTarget {
 
                 let chatElem = document.querySelector("bird-chat");
                 !msg.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
-            }
-            
-            if (type == "pong") {
+            } else if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
                 this.pingPanel.update(rtt, 200);
-            }
-            
-            if (type == "add_pawn") {
+            } else if (type == "add_pawn") {
                 this.addPawn(deserializePawn(msg.pawn));
             } else if (type == "remove_pawns") {
                 msg.pawns.forEach(id => this.removePawn(id));
@@ -833,33 +833,25 @@ export default class Manager extends EventTarget {
                 //     console.log(msg.collisions);
             } else if (type == "clear_pawns") {
                 this.clearPawns();
-            }
-
-            if (type == "add_pawn_to_hand") {
+            } else if (type == "add_pawn_to_hand") {
                 if (!this.hand.cards.has(msg.pawn.id))
                     this.hand.pushCard(deserializePawn(msg.pawn), false);
             } else if (type == "hand_count") {
                 this.users.get(msg.id).cardTextElement.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
-            }
-            
-            if (type == "connect") {
+            } else if (type == "connect") {
                 // Add the connected player to the player list
                 this.addUser(msg.id, msg.color);
             } else if (type == "disconnect") {
                 // Add the connected player to the player list
                 this.removeUser(msg.id);
-            }
-
-            if (type == "chat") {
+            } else if (type == "chat") {
                 if (msg.id == 0) {
                     this.chat.addSystemEntry(msg.content);
                     console.log(`SYS: ${msg.content}`);
                 } else {
                     this.chat.addChatEntry(msg.content, this.users.get(msg.id).color);
                 }
-            }
-            
-            if (type == "update_user_statuses") {
+            } else if (type == "update_user_statuses") {
                 msg.updates.forEach((update) => {
                     if (update.id == this.id)
                         return;
@@ -882,6 +874,8 @@ export default class Manager extends EventTarget {
                         new Quaternion().setFromRotationMatrix(lookAtMatrix)
                     );
                 });
+            } else {
+                console.warn("Received unhandled event: ", msg);
             }
 
             this.dispatchEvent(new CustomEvent(type, { detail: msg }));

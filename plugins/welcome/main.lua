@@ -40,7 +40,7 @@ end
 
 local pawn
 function game.start()
-    bird = lobby:create_pawn{
+    bird = Pawn:new{
         name = "Bird Statue",
         position = vec3(-1.6,2.8,-1.8),
         rotation = quat.from_euler(0, math.pi/6, 0),
@@ -49,6 +49,8 @@ function game.start()
             lobby:system_chat("USER " .. user .. " RELEASED BIRD")
         end
     }
+    lobby:register_pawn(bird, "Generic/")
+    bird = lobby:create_pawn(bird)
 
     bird.on_grab = function(user)
         lobby:system_chat("USER " .. user .. " GRABBED BIRD")

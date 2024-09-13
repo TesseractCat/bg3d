@@ -4,7 +4,6 @@ use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
 use tokio::time::Instant;
 use rapier3d::prelude::*;
-use mlua::TableExt;
 
 use crate::user::*;
 use crate::math::*;

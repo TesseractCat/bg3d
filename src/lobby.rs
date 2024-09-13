@@ -1,15 +1,14 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::default;
 use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
 use std::sync::Arc;
 use std::time::SystemTime;
 use data_url::DataUrl;
-use futures::io::Cursor;
 use random_color::Color;
 use tokio::time::Instant;
+use include_dir::{Dir, include_dir};
 
 use gltf::Gltf;
 use rapier3d::prelude::*;
@@ -19,7 +18,7 @@ use rapier3d::math::{Rotation, Vector};
 use rapier3d::pipeline::ActiveEvents;
 use serde::{Serialize, Deserialize};
 
-use mlua::{FromLua, HookTriggers, IntoLua, Lua};
+use mlua::{FromLua, HookTriggers, Lua};
 
 use crate::gltf_ext::GltfExt;
 use crate::user::*;
@@ -28,6 +27,8 @@ use crate::events::*;
 use crate::pawn::*;
 use crate::math::{Quat, Vec3};
 use crate::PHYSICS_RATE;
+
+static LUA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/src/lua");
 
 pub struct Asset {
     pub mime_type: String,
@@ -64,6 +65,7 @@ pub struct Lobby {
     pub users: HashMap<UserId, User>, // FIXME: Make these both u16
     pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
     pub assets: HashMap<String, Asset>,
+    pub registered_pawns: HashMap<String, Pawn>,
 
     pub world: PhysicsWorld,
     pub abort_token: Option<bool>,
@@ -88,6 +90,7 @@ impl Lobby {
             users: HashMap::new(),
             pawns: HashMap::new(),
             assets: HashMap::new(),
+            registered_pawns: HashMap::new(),
 
             world: PhysicsWorld::new(PHYSICS_RATE),
             abort_token: None,
@@ -248,12 +251,15 @@ impl mlua::UserData for Lobby {
             Ok(())
         });
         method!(system_chat: |this, _lua, message: String| {
-            this.system_chat(Cow::Owned(message))?;
-            Ok(())
+            this.system_chat(Cow::Owned(message))
         });
         method!(send_chat: |this, _lua, user_id: u64, message: String| {
-            this.chat(UserId(user_id), Cow::Owned(message))?;
-            Ok(())
+            this.chat(UserId(user_id), Cow::Owned(message))
+        });
+        method!(register_pawn: |this, lua, params: mlua::Table, path: String| {
+            let pawn = Pawn::from_lua(mlua::Value::Table(params), lua)?;
+
+            this.register_pawn(path, pawn)
         });
         method!(create_pawn: |this, lua, params: mlua::Table| {
             let id = this.next_pawn_id();
@@ -333,12 +339,11 @@ impl Lobby {
         lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
 
         lua.globals().set("require", lua.create_function(|lua, path: String| {
-            let text = match path.as_str() {
-                "math" => include_str!("math.lua"),
-                "prelude" => include_str!("prelude.lua"),
-                _ => panic!("Attempted to require undefined library '{}' during lua startup", path),
-            };
-            lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
+            if let Some(text) = LUA_DIR.get_file(format!("{path}.lua")).and_then(|file| file.contents_utf8()) {
+                lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
+            } else {
+                Ok(mlua::Value::Nil)
+            }
         }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
         lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
 
@@ -590,7 +595,7 @@ impl Lobby {
             .filter(|u| !user_id.is_some_and(|user_id| u.id == user_id))
             .send_event(&Event::UpdatePawns { updates, collisions: None })
     }
-    pub fn extract_pawns(&mut self, user_id: UserId, from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64>) -> Result<(), Box<dyn Error>> {
+    pub fn extract_pawns(&mut self, _user_id: UserId, from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64>) -> Result<(), Box<dyn Error>> {
         if self.pawns.contains_key(&new_id) { return Err("Attempting to extract with existing ID".into()); }
 
         let from = self.pawns.get_mut(&from_id).ok_or("Trying to extract from missing pawn")?;
@@ -772,7 +777,7 @@ impl Lobby {
     // -- USER STATUS EVENTS --
 
     pub fn update_user(&mut self, user_id: UserId, updates: Vec<UserStatusUpdate>) -> Result<(), Box<dyn Error>> {
-        let mut user = self.users.get_mut(&user_id).ok_or("Invalid user id")?;
+        let user = self.users.get_mut(&user_id).ok_or("Invalid user id")?;
 
         // Users can only update themselves
         if let Some(update) = updates.first() {
@@ -798,7 +803,7 @@ impl Lobby {
 
     // --- GAME REGISTRATION EVENTS ---
 
-    pub fn register_game(&mut self, user_id: UserId, info: Cow<'_, GameInfo>) -> Result<(), Box<dyn Error>> {
+    pub fn register_game(&mut self, user_id: UserId, info: Cow<'_, GameInfo>, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
         if user_id != self.host { return Err("Failed to register game".into()); }
 
         println!("User <{user_id:?}> registering game \"{}\" for lobby [{}]",
@@ -806,10 +811,13 @@ impl Lobby {
 
         self.info = Some(info.into_owned());
 
+        self.register_assets(user_id, assets)?;
+
         self.users.values()
-            .send_event(&Event::RegisterGame(
-                Cow::Borrowed(self.info.as_ref().ok_or("Lobby missing GameInfo")?)
-            ))
+            .send_event(&Event::RegisterGame {
+                info: Cow::Borrowed(self.info.as_ref().ok_or("Lobby missing GameInfo")?),
+                assets: HashMap::default()
+            })
     }
     pub fn register_assets(&mut self, user_id: UserId, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
         if user_id != self.host || self.assets.len() >= 256 { return Err("Failed to register asset".into()); }
@@ -849,9 +857,8 @@ impl Lobby {
                     let chunk = if let Some(asset) = processed_assets.get(&format!("/{}.lua", path)) {
                         Some(String::from_utf8(asset.data.clone()).unwrap())
                     } else {
-                        match path.as_str() {
-                            _ => None
-                        }
+                        LUA_DIR.get_file(format!("{path}.lua"))
+                            .and_then(|file| file.contents_utf8()).map(|text| text.to_string())
                     }.map(|c| lua.load(c).set_name(format!("/{}.lua", path)));
                     if let Some(chunk) = chunk {
                         Ok(chunk.eval()?)
@@ -872,17 +879,6 @@ impl Lobby {
         
         self.assets = processed_assets;
 
-        // Alert host that the assets have been registered
-        self.users.get(&user_id).ok_or("Failed to get host")?
-            .send_event(&Event::RegisterAssets { assets: HashMap::default() })?;
-        Ok(())
-    }
-    pub fn clear_assets(&mut self, user_id: UserId) -> Result<(), Box<dyn Error>> {
-        if user_id != self.host { return Err("Failed to clear assets".into()); }
-
-        self.assets = HashMap::new();
-
-        println!("User <{user_id:?}> clearing assets for lobby [{}]", self.name);
         Ok(())
     }
     pub fn settings(&mut self, user_id: UserId, settings: LobbySettings) -> Result<(), Box<dyn Error>> {
@@ -898,6 +894,14 @@ impl Lobby {
         }
 
         self.users.values().send_event(&Event::Settings(settings))
+    }
+    pub fn register_pawn(&mut self, path: String, pawn: Pawn) -> Result<(), Box<dyn Error>> {
+        self.users.values().send_event(
+            &Event::RegisterPawn { path: &path, pawn: Cow::Borrowed(&pawn) }
+        )?;
+
+        self.registered_pawns.insert(path, pawn);
+        Ok(())
     }
 
     // -- PING --

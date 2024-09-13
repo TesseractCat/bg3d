@@ -39,6 +39,9 @@ pub enum Event<'a> {
     Disconnect { id: UserId },
     Settings(LobbySettings),
 
+    RegisterGame { info: Cow<'a, GameInfo>, assets: HashMap<String, String> },
+    RegisterPawn { path: &'a str, pawn: Cow<'a, Pawn> },
+
     Ping { idx: u64 },
     Pong { idx: u64 },
 
@@ -62,10 +65,6 @@ pub enum Event<'a> {
     ExtractPawns { from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64> },
     StorePawn { from_id: PawnId, into_id: PawnOrUser },
     TakePawn { from_id: UserId, target_id: PawnId, position_hint: Option<Vec3> },
-
-    RegisterGame(Cow<'a, GameInfo>),
-    RegisterAssets { assets: HashMap<String, String> },
-    ClearAssets {},
 
     UpdateUserStatuses { updates: Vec<UserStatusUpdate> },
 

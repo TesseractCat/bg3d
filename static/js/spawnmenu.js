@@ -1,9 +1,13 @@
+import { deserializePawn } from "./pawns";
+import { UniqueId } from "./utils";
+
 export default class SpawnMenu extends HTMLElement {
     shadowRoot;
     search;
     results;
 
-    path = "";
+    #path = [];
+    #contents = new Map();
 
     constructor() {
         super();
@@ -25,7 +29,8 @@ export default class SpawnMenu extends HTMLElement {
         this.addResult("Cards", true);
         this.addResult("Go", true);
         this.addResult("Checkers", true);
-        this.addResult("Bird Statue", false);
+        this.addResult("Figures", true);
+        this.addResult("Standard Deck", false);
 
         const style = document.createElement('style');
         style.textContent = `
@@ -74,7 +79,7 @@ export default class SpawnMenu extends HTMLElement {
         }
         #results div span {
             flex-grow: 1;
-            word-break: break-all;
+            word-break: break-word;
         }
         #results div:hover {
             background-color: var(--bg-top);
@@ -86,7 +91,7 @@ export default class SpawnMenu extends HTMLElement {
     clearResults() {
         this.results.innerHTML = "";
     }
-    addResult(name, folder = false) {
+    addResult(name, folder, onClick) {
         let folderElem = document.createElement("div");
         folderElem.classList.add(folder ? "folder" : "pawn");
         let folderIcon = document.createElement("img");
@@ -95,7 +100,64 @@ export default class SpawnMenu extends HTMLElement {
         let folderText = document.createElement("span");
         folderText.innerText = name;
         folderElem.appendChild(folderText);
+        folderElem.addEventListener("click", onClick);
         this.results.appendChild(folderElem);
+    }
+
+    registerPawn(path, pawn) {
+        path = path.split("/").filter(seg => seg.length > 0);
+        pawn = deserializePawn(pawn);
+
+        let folder = this.#contents;
+        for (let segment of path) {
+            if (folder.has(segment)) {
+                if (folder.get(segment) instanceof Map) {
+                    folder = folder.get(segment);
+                } else {
+                    console.error("Failed to register pawn, path collision");
+                    return;
+                }
+            } else {
+                folder.set(segment, new Map());
+                folder = folder.get(segment);
+            }
+        }
+        if (pawn.name in folder) {
+            console.error("Failed to register pawn, path collision");
+            return;
+        } else {
+            folder.set(pawn.name, pawn);
+        }
+        this.render();
+    }
+    render() {
+        this.clearResults();
+        let folder = this.#contents;
+        for (let segment of this.#path) {
+            if (folder.get(segment) instanceof Map) {
+                folder = folder.get(segment);
+            }
+        }
+        if (this.#path.length > 0) {
+            this.addResult("Back", true, () => {
+                this.#path.splice(this.#path.length - 1);
+                this.render();
+            });
+        }
+        for (let [key, value] of folder.entries()) {
+            if (value instanceof Map) {
+                this.addResult(key, true, () => {
+                    this.#path.push(key);
+                    this.render();
+                });
+            } else {
+                this.addResult(key, false, () => {
+                    value.id = UniqueId();
+                    const event = new CustomEvent("spawn", { detail: value });
+                    this.dispatchEvent(event);
+                });
+            }
+        }
     }
 
     /*#mutationObserver;

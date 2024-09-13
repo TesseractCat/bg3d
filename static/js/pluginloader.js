@@ -39,39 +39,28 @@ export default class PluginLoader {
             return;
         }
 
-        await this.loadManifest(manifest, {entries: entries});
+        // Register all plugin assets
+        let nonDirEntries = entries.filter(entry => !entry.directory);
+        await this.registerGame(manifest, nonDirEntries);
+
+        // Wait until assets are complete
+        console.log("Waiting until assets complete...");
+        await new Promise(resolve =>
+            this.manager.addEventListener("register_game",
+                () => resolve(),
+                { once: true }
+            )
+        );
+        console.log("Done!");
+
         await reader.close();
 
         if (onDone !== undefined) {
             onDone();
         }
     }
-    async loadManifest(manifest, {entries = [], path = ""}) {
-        // Register everything
-        this.registerGame(manifest);
-        if (entries.length > 0) {
-            // Register all plugin assets
-            await this.registerAssets([...entries.entries()].map(([i, entry]) => entry).filter(entry => !entry.directory));
 
-            // Wait until assets are complete
-            console.log("Waiting until assets complete...");
-            await new Promise(resolve =>
-                this.manager.addEventListener("register_assets",
-                    () => resolve(),
-                    { once: true }
-                )
-            );
-            console.log("Done!");
-        }
-    }
-
-    registerGame(manifest) {
-        this.manager.sendSocket({
-            "type":"register_game",
-            ...manifest
-        });
-    }
-    async registerAssets(entries) {
+    async registerGame(manifest, entries) {
         let entriesWithData = await Promise.all(entries.map(async (entry) => {
             let extension = entry.filename.split('.')[1].toLowerCase();
 
@@ -118,14 +107,9 @@ export default class PluginLoader {
         entriesWithData = entriesWithData.filter(x => x);
 
         this.manager.sendSocket({
-            "type": "register_assets",
+            "type": "register_game",
+            "info": manifest,
             "assets": Object.fromEntries(entriesWithData)
         });
-    }
-    clear() {
-        this.manager.sendSocket({
-            "type": "clear_assets"
-        });
-        this.manager.sendClearPawns();
     }
 }

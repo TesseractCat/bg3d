@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use std::borrow::Cow;
-use std::{env, io};
+use std::env;
 use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Arc;
@@ -9,7 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::error::Error;
 use std::net::SocketAddr;
 
-use axum::extract::{OriginalUri, RawQuery};
+use axum::extract::RawQuery;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{
@@ -346,9 +346,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                     Event::StorePawn { from_id, into_id } => lobby.lock().await.deref_mut().store_pawn(from_id, into_id),
                     Event::TakePawn { from_id, target_id, position_hint } => lobby.lock().await.deref_mut().take_pawn(user_id, from_id, target_id, position_hint),
 
-                    Event::RegisterGame(info) => lobby.lock().await.deref_mut().register_game(user_id, info),
-                    Event::RegisterAssets { assets } => lobby.lock().await.deref_mut().register_assets(user_id, assets),
-                    Event::ClearAssets { } => lobby.lock().await.deref_mut().clear_assets(user_id),
+                    Event::RegisterGame { info, assets } => lobby.lock().await.deref_mut().register_game(user_id, info, assets),
                     Event::Settings(s) => lobby.lock().await.deref_mut().settings(user_id, s),
 
                     Event::UpdateUserStatuses { updates } => lobby.lock().await.deref_mut().update_user(user_id, updates),
