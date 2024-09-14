@@ -1,11 +1,11 @@
-require "utility"
-
--- Global vector math
+-- Imports
 
 local vmath = require "math"
 vec3 = vmath.vec3
 vec2 = vmath.vec2
 quat = vmath.quat
+
+require "utility"
 
 -- Pawns
 
@@ -139,7 +139,7 @@ end
 
 -- Lobby extensions
 
-lobby_ext = {}
+lobby_ext = lobby_ext or {}
 function lobby_ext:schedule(co)
     local alive, ticks = coroutine.resume(co)
     if type(ticks) ~= "number" then
@@ -152,3 +152,16 @@ function lobby_ext:schedule(co)
         end, ticks)
     end
 end
+lobby_ext.default_pawns = require "pawns"
+local function register_pawns(table, path)
+    for key, value in pairs(table) do
+        if type(value) == "table" then
+            if getmetatable(value) == Pawn then
+                lobby:register_pawn(path, value)
+            else
+                register_pawns(value, path .. "/" .. key:gsub("^%l", string.upper))
+            end
+        end
+    end
+end
+register_pawns(lobby_ext.default_pawns, "")

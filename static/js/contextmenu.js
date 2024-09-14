@@ -104,9 +104,11 @@ export default class ContextMenu extends HTMLElement {
             }
         }
 
-        this.style.left = event.clientX + "px";
-        this.style.top = event.clientY + "px";
         this.element.style.display = "block";
+        const height = this.element.getBoundingClientRect().height;
+        const bottomOverflow = Math.max((event.clientY + height) - document.body.clientHeight, 0);
+        this.style.left = event.clientX + "px";
+        this.style.top = (event.clientY - bottomOverflow) + "px";
 
         this.visible = true;
     }

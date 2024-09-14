@@ -92,14 +92,12 @@ export default class SpawnMenu extends HTMLElement {
         return folder.get(name);
     }
 
-    clearResults() {
-        this.results.innerHTML = "";
-    }
-    addResult(name, folder, onClick) {
+    createResult(name, folder, onClick) {
         let folderElem = document.createElement("div");
         folderElem.classList.add(folder ? "folder" : "pawn");
         let folderIcon = document.createElement("img");
         folderIcon.src = folder ? "static/icons/folder.svg" : "static/icons/pawn.svg";
+        folderIcon.setAttribute("draggable", "false");
         folderElem.appendChild(folderIcon);
         let folderText = document.createElement("span");
         folderText.innerText = name;
@@ -112,7 +110,7 @@ export default class SpawnMenu extends HTMLElement {
             });
         }
         folderElem.addEventListener("click", onClick);
-        this.results.appendChild(folderElem);
+        return folderElem;
     }
 
     registerPawn(path, pawn) {
@@ -142,7 +140,7 @@ export default class SpawnMenu extends HTMLElement {
         this.render();
     }
     render() {
-        this.clearResults();
+        let newResults = [];
         let folder = this.#contents;
         for (let segment of this.#path) {
             if (folder.get(segment) instanceof Map) {
@@ -150,24 +148,25 @@ export default class SpawnMenu extends HTMLElement {
             }
         }
         if (this.#path.length > 0) {
-            this.addResult("Back", true, () => {
+            newResults.push(this.createResult("Back", true, () => {
                 this.#path.splice(this.#path.length - 1);
                 this.render();
-            });
+            }));
         }
         for (let [key, value] of folder.entries()) {
             if (value instanceof Map) {
-                this.addResult(key, true, () => {
+                newResults.push(this.createResult(key, true, () => {
                     this.#path.push(key);
                     this.render();
-                });
+                }));
             } else {
-                this.addResult(key, false, () => {
+                newResults.push(this.createResult(key, false, () => {
                     const event = new CustomEvent("spawn", { detail: value });
                     this.dispatchEvent(event);
-                });
+                }));
             }
         }
+        this.results.replaceChildren(...newResults);
     }
 }
 

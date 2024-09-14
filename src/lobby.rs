@@ -219,7 +219,7 @@ impl Lobby {
 impl mlua::UserData for Lobby {
     fn add_fields<'lua, F: mlua::UserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_meta_field_with("__index", |lua| {
-            lua.globals().get::<_, mlua::Table>("lobby_ext")
+            lua.globals().get::<_, mlua::Value>("lobby_ext")
         });
     }
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
@@ -256,7 +256,7 @@ impl mlua::UserData for Lobby {
         method!(send_chat: |this, _lua, user_id: u64, message: String| {
             this.chat(UserId(user_id), Cow::Owned(message))
         });
-        method!(register_pawn: |this, lua, params: mlua::Table, path: String| {
+        method!(register_pawn: |this, lua, path: String, params: mlua::Table| {
             let pawn = Pawn::from_lua(mlua::Value::Table(params), lua)?;
 
             this.register_pawn(path, pawn)
@@ -338,15 +338,6 @@ impl Lobby {
 
         lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
 
-        lua.globals().set("require", lua.create_function(|lua, path: String| {
-            if let Some(text) = LUA_DIR.get_file(format!("{path}.lua")).and_then(|file| file.contents_utf8()) {
-                lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
-            } else {
-                Ok(mlua::Value::Nil)
-            }
-        }).expect("Failed while initializing globals")).expect("Failed while initializing globals");
-        lua.load("require(\"prelude\")").exec().expect("Error in lua prelude");
-
         // Seed random
         lua.globals().get::<_, mlua::Table>("math").unwrap()
             .get::<_, mlua::Function>("randomseed").unwrap().call::<_, ()>(
@@ -355,6 +346,17 @@ impl Lobby {
             .expect("Failed to initialize random seed");
 
         self.lua = Some(lua);
+
+        self.lua_scope(|lua, _scope, _| {
+            lua.globals().set("require", lua.create_function(|lua, path: String| {
+                if let Some(text) = LUA_DIR.get_file(format!("{path}.lua")).and_then(|file| file.contents_utf8()) {
+                    lua.load(text).set_name(format!("/{}.lua", path)).eval::<mlua::Value>()
+                } else {
+                    Ok(mlua::Value::Nil)
+                }
+            })?)?;
+            lua.load("require(\"prelude\")").exec()
+        }).expect("Error while resetting lua runtime");
     }
 
     // -- CHAT EVENTS --
