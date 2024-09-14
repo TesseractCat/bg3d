@@ -1,5 +1,4 @@
 import { deserializePawn } from "./pawns";
-import { UniqueId } from "./utils";
 
 export default class SpawnMenu extends HTMLElement {
     shadowRoot;
@@ -23,14 +22,6 @@ export default class SpawnMenu extends HTMLElement {
         this.results = document.createElement("div");
         this.results.id = "results";
         this.shadowRoot.appendChild(this.results);
-
-        this.clearResults();
-        this.addResult("Chess", true);
-        this.addResult("Cards", true);
-        this.addResult("Go", true);
-        this.addResult("Checkers", true);
-        this.addResult("Figures", true);
-        this.addResult("Standard Deck", false);
 
         const style = document.createElement('style');
         style.textContent = `
@@ -73,6 +64,9 @@ export default class SpawnMenu extends HTMLElement {
 
             transition: background-color 0.1s;
         }
+        #results .pawn {
+            cursor: grab;
+        }
         #results div img {
             height: 1em;
             width: 1em;
@@ -88,6 +82,16 @@ export default class SpawnMenu extends HTMLElement {
         this.shadowRoot.appendChild(style);
     }
 
+    getByName(name) {
+        let folder = this.#contents;
+        for (let segment of this.#path) {
+            if (folder.get(segment) instanceof Map) {
+                folder = folder.get(segment);
+            }
+        }
+        return folder.get(name);
+    }
+
     clearResults() {
         this.results.innerHTML = "";
     }
@@ -100,6 +104,13 @@ export default class SpawnMenu extends HTMLElement {
         let folderText = document.createElement("span");
         folderText.innerText = name;
         folderElem.appendChild(folderText);
+
+        if (!folder) {
+            folderElem.setAttribute("draggable", "true");
+            folderElem.addEventListener("dragstart", (e) => {
+                e.dataTransfer.setData("application/pawn", name);
+            });
+        }
         folderElem.addEventListener("click", onClick);
         this.results.appendChild(folderElem);
     }
@@ -152,25 +163,12 @@ export default class SpawnMenu extends HTMLElement {
                 });
             } else {
                 this.addResult(key, false, () => {
-                    value.id = UniqueId();
                     const event = new CustomEvent("spawn", { detail: value });
                     this.dispatchEvent(event);
                 });
             }
         }
     }
-
-    /*#mutationObserver;
-    connectedCallback() {
-        this.#mutationObserver = new MutationObserver(() => this.childrenChangedCallback());
-        this.#mutationObserver.observe(this, { childList: true });
-    }
-    disconnectedCallback() {
-        this.#mutationObserver.disconnect();
-    }
-
-    childrenChangedCallback() {
-    }*/
 }
 
 customElements.define('bird-spawn-menu', SpawnMenu);

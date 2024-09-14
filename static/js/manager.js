@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
-import { serializationFixedFloatMixin, serializationReplacer, serializationThreeTypesMixin } from './utils.js';
+import { serializationFixedFloatMixin, serializationReplacer, serializationThreeTypesMixin, UniqueId } from './utils.js';
 
 import { deflateSync, inflateSync } from 'fflate';
 
@@ -134,6 +134,7 @@ export default class Manager extends EventTarget {
     stats;
     pingPanel;
     
+    settingsForm;
     hand;
     chat;
     contextMenu;
@@ -171,6 +172,7 @@ export default class Manager extends EventTarget {
         this.resize();
 
         // Setup custom elements
+        this.settingsForm = document.querySelector("#settings");
         this.hand = document.querySelector("bird-hand");
         this.chat = document.querySelector("bird-chat");
         this.contextMenu = document.querySelector("bird-context-menu");
@@ -213,7 +215,18 @@ export default class Manager extends EventTarget {
             }
         });
         this.spawnMenu.addEventListener("spawn", (e) => {
+            e.detail.position.copy(new Vector3(0, 1, 0));
+            e.detail.id = UniqueId();
             this.sendAddPawn(e.detail);
+        });
+        display.addEventListener("drop", (e) => {
+            let name = e.dataTransfer.getData("application/pawn");
+            if (name !== null) {
+                let p = this.spawnMenu.getByName(name);
+                p.position.copy(this.localCursor.position).add(new Vector3(0, 1, 0));
+                p.id = UniqueId();
+                this.sendAddPawn(p);
+            }
         });
 
         // Enable cache
@@ -221,6 +234,10 @@ export default class Manager extends EventTarget {
         
         // Track mouse position
         display.addEventListener('pointermove', (e) => {
+            this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
+            this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
+        });
+        display.addEventListener('dragover', (e) => {
             this.mouse.x = (e.clientX / window.innerWidth)*2 - 1;
             this.mouse.y = -(e.clientY / window.innerHeight)*2 + 1;
         });
@@ -717,6 +734,36 @@ export default class Manager extends EventTarget {
         this.controls.listenToKeyEvents(this.renderer.domElement);
     }
     buildWebSocket(callback) {
+        const assignHost = (id) => {
+            if (id == this.id) {
+                delete document.querySelector("#control-panel").dataset.hidden;
+                delete document.querySelector("[data-host-only]").dataset.hidden;
+                document.querySelector("#settings #lobby-settings").removeAttribute("disabled");
+                // document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
+                this.host = true;
+                this.users.get(id).playerTextElement.innerText = "(You/Host)";
+            } else {
+                this.users.get(id).playerTextElement.innerText = "(Host)";
+            }
+        }
+        const updateSettings = (settings) => {
+            for (let elem of this.settingsForm.elements) {
+                if (elem.type == "checkbox") {
+                    elem.checked = settings[elem.id];
+                } else {
+                    elem.value = settings[elem.id];
+                }
+            }
+            if (!this.host) {
+                settings.spawnPermission ? this.spawnMenu.removeAttribute("disabled") : this.spawnMenu.setAttribute("disabled", "");
+            }
+            let playerEntriesElem = document.querySelector("#player-entries");
+            settings.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
+
+            let chatElem = document.querySelector("bird-chat");
+            !settings.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
+        }
+
         let lobby = window.location.pathname;
         this.socket =
             new WebSocket((location.protocol === "https:" ? "wss://" : "ws://")
@@ -748,11 +795,9 @@ export default class Manager extends EventTarget {
             
             if (type == "start") {
                 // We have initiated a connection
-                this.host = msg.host;
+                this.host = msg.host == msg.id;
                 this.id = msg.id;
                 this.info = msg.info;
-                
-                callback(this.host);
                 
                 // Start ticks
                 setInterval(() => this.tick(), Manager.networkTimestep);
@@ -786,40 +831,26 @@ export default class Manager extends EventTarget {
                 msg.users.forEach(u => {
                     this.addUser(u.id, u.color)
                 });
+                // Register pawns
+                Object.entries(msg.registered_pawns).forEach(([path, pawn]) => {
+                    this.spawnMenu.registerPawn(path, pawn);
+                });
+                // Assign host
+                assignHost(msg.host);
+                // Update settings
+                updateSettings(msg.settings);
+                
+                // Run connected callback
+                callback(this.id == this.host);
             } else if (type == "assign_host") {
-                if (msg.id == this.id) {
-                    delete document.querySelector("#control-panel").dataset.hidden;
-                    delete document.querySelector("[data-host-only]").dataset.hidden;
-                    document.querySelector("#settings #lobby-settings").removeAttribute("disabled");
-                    // document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
-                    this.host = true;
-                    this.users.get(msg.id).playerTextElement.innerText = "(You/Host)";
-                } else {
-                    this.users.get(msg.id).playerTextElement.innerText = "(Host)";
-                }
+                assignHost(msg.id);
             } else if (type == "register_game") {
                 this.info = msg;
                 delete this.info.type;
             } else if (type == "register_pawn") {
                 this.spawnMenu.registerPawn(msg.path, msg.pawn);
             } else if (type == "settings") {
-                let settingsForm = document.querySelector("#settings");
-                for (let elem of settingsForm.elements) {
-                    if (elem.type == "checkbox") {
-                        elem.checked = msg[elem.id];
-                    } else {
-                        elem.value = msg[elem.id];
-                    }
-                }
-                // if (!this.host) {
-                //     let controlPanelElem = document.querySelector("#control-panel");
-                //     msg.spawnPermission ? delete controlPanelElem.dataset.hidden : controlPanelElem.dataset.hidden = '';
-                // }
-                let playerEntriesElem = document.querySelector("#player-entries");
-                msg.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
-
-                let chatElem = document.querySelector("bird-chat");
-                !msg.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
+                updateSettings(msg);
             } else if (type == "pong") {
                 let rtt = Math.floor(performance.now() - this.lastPingSent);
                 this.pingPanel.update(rtt, 200);

@@ -30,14 +30,14 @@ pub enum Event<'a> {
     Join { referrer: &'a str },
     #[serde(skip_deserializing)]
     Start {
-        id: UserId, host: bool, color: &'a str, info: &'a Option<GameInfo>,
-        users: Vec<&'a User>, pawns: Vec<&'a Pawn>
+        id: UserId, host: UserId, color: &'a str, info: &'a Option<GameInfo>, settings: &'a LobbySettings,
+        users: Vec<&'a User>, pawns: Vec<&'a Pawn>, registered_pawns: &'a HashMap<String, Pawn>
     },
     AssignHost { id: UserId },
     #[serde(skip_deserializing)]
     Connect { id: UserId, color: &'a str },
     Disconnect { id: UserId },
-    Settings(LobbySettings),
+    Settings(Cow<'a, LobbySettings>),
 
     RegisterGame { info: Cow<'a, GameInfo>, assets: HashMap<String, String> },
     RegisterPawn { path: &'a str, pawn: Cow<'a, Pawn> },

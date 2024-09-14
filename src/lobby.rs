@@ -893,7 +893,7 @@ impl Lobby {
             }
         }
 
-        self.users.values().send_event(&Event::Settings(settings))
+        self.users.values().send_event(&Event::Settings(Cow::Borrowed(&settings)))
     }
     pub fn register_pawn(&mut self, path: String, pawn: Pawn) -> Result<(), Box<dyn Error>> {
         self.users.values().send_event(

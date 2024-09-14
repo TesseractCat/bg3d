@@ -209,8 +209,10 @@ window.onload = () => {
             let item = e.dataTransfer.items[0];
             let file = item.getAsFile();
 
-            await pluginLoader.loadFromFile(file);
-            document.querySelector("#games").value = "Custom";
+            if (file !== null) {
+                await pluginLoader.loadFromFile(file);
+                document.querySelector("#games").value = "Custom";
+            }
         }
     });
 

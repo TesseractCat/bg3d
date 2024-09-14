@@ -347,7 +347,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                     Event::TakePawn { from_id, target_id, position_hint } => lobby.lock().await.deref_mut().take_pawn(user_id, from_id, target_id, position_hint),
 
                     Event::RegisterGame { info, assets } => lobby.lock().await.deref_mut().register_game(user_id, info, assets),
-                    Event::Settings(s) => lobby.lock().await.deref_mut().settings(user_id, s),
+                    Event::Settings(s) => lobby.lock().await.deref_mut().settings(user_id, s.into_owned()),
 
                     Event::UpdateUserStatuses { updates } => lobby.lock().await.deref_mut().update_user(user_id, updates),
 
@@ -390,13 +390,14 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
     
     user.send_event(&Event::Start {
         id: user_id,
-        host: (lobby.users.len() == 1),
+        host: lobby.host,
         color: &user.color,
         info: &lobby.info,
+        settings: &lobby.settings,
         users: lobby.users.values().collect(),
         pawns: lobby.pawns.values().collect(),
+        registered_pawns: &lobby.registered_pawns,
     })?;
-    user.send_event(&Event::Settings(lobby.settings.clone()))?;
 
     if lobby.settings.show_card_counts {
         for (&id, other) in lobby.users.iter() {
@@ -404,11 +405,6 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
             lobby.users.values().send_event(&Event::HandCount { id, count })?;
         }
     }
-
-    lobby.users.values()
-        .send_event(&Event::AssignHost {
-            id: lobby.host,
-        })?;
     
     // Tell all other users that this user has joined
     lobby.users.values()
