@@ -150,7 +150,7 @@ export class Deck extends Pawn {
             if (this.flipped() && !this.#faceMaterial.color.equals(new Color(0x000000))) {
                 this.#faceMaterial.color = new Color(0x000000);
             } else if (!this.flipped() && this.#faceMaterial.color.equals(new Color(0x000000))) {
-                this.#faceMaterial.color = new Color(0xffffff);
+                this.#faceMaterial.color = new Color(0xffffff).multiply(new Color(this.tint));
             }
         }
     }

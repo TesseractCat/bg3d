@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use indexmap::IndexMap;
 use serde::{Serialize, Deserialize};
 
 use crate::user::{User, UserId};
@@ -31,7 +32,7 @@ pub enum Event<'a> {
     #[serde(skip_deserializing)]
     Start {
         id: UserId, host: UserId, color: &'a str, info: &'a Option<GameInfo>, settings: &'a LobbySettings,
-        users: Vec<&'a User>, pawns: Vec<&'a Pawn>, registered_pawns: &'a HashMap<String, Vec<Pawn>>
+        users: Vec<&'a User>, pawns: Vec<&'a Pawn>, registered_pawns: &'a IndexMap<String, Vec<Pawn>>
     },
     AssignHost { id: UserId },
     #[serde(skip_deserializing)]

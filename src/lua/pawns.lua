@@ -1,17 +1,22 @@
 require "utility"
 
-function standard_deck()
-    local suits = {'S','D','C','H'};
-    local ranks = {'A','2','3','4','5','6','7','8','9','10','J','Q','K'};
+function standard_deck(prefix, include_jokers)
+    local suits = {'S','D','C','H'}
+    local ranks = {'A','2','3','4','5','6','7','8','9','10','J','Q','K'}
 
-    return table.flat_map(
+    local results = table.flat_map(
         suits,
         function(suit)
             return table.map(
-                ranks, function(rank) return string.format("generic/cards/%s%s.webp", rank, suit) end
+                ranks, function(rank) return string.format(prefix .. "%s%s.webp", rank, suit) end
             )
         end
     )
+    if include_jokers then
+        table.insert(results, prefix .. "joker.webp")
+        table.insert(results, prefix .. "joker.webp")
+    end
+    return results
 end
 function get_chess_piece(name)
     local white = Pawn:new{
@@ -46,7 +51,27 @@ return {
             name = 'Cards',
             data = DeckData:new{
                 back = 'generic/cards/back.webp',
-                contents = standard_deck(),
+                contents = standard_deck("generic/cards/"),
+                corner_radius = 0.06,
+                size = vec2(2.5, 3.5),
+            }
+        },
+        Pawn:new{
+            name = 'Bird Cards',
+            tint = tonumber("0xf8f8f8"),
+            data = DeckData:new{
+                back = 'generic/cards/back.webp',
+                contents = standard_deck("generic/bird_cards/"),
+                corner_radius = 0.06,
+                size = vec2(2.5, 3.5),
+            }
+        },
+        Pawn:new{
+            name = 'Bird Cards (With Jokers)',
+            tint = tonumber("0xf8f8f8"),
+            data = DeckData:new{
+                back = 'generic/cards/back.webp',
+                contents = standard_deck("generic/bird_cards/", true),
                 corner_radius = 0.06,
                 size = vec2(2.5, 3.5),
             }

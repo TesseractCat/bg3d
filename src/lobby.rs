@@ -6,6 +6,7 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::SystemTime;
 use data_url::DataUrl;
+use indexmap::IndexMap;
 use random_color::Color;
 use tokio::time::Instant;
 use include_dir::{Dir, include_dir};
@@ -65,7 +66,7 @@ pub struct Lobby {
     pub users: HashMap<UserId, User>, // FIXME: Make these both u16
     pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
     pub assets: HashMap<String, Asset>,
-    pub registered_pawns: HashMap<String, Vec<Pawn>>,
+    pub registered_pawns: IndexMap<String, Vec<Pawn>>,
 
     pub world: PhysicsWorld,
     pub abort_token: Option<bool>,
@@ -90,7 +91,7 @@ impl Lobby {
             users: HashMap::new(),
             pawns: HashMap::new(),
             assets: HashMap::new(),
-            registered_pawns: HashMap::new(),
+            registered_pawns: IndexMap::new(),
 
             world: PhysicsWorld::new(PHYSICS_RATE),
             abort_token: None,
