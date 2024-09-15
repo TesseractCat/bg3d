@@ -31,7 +31,7 @@ pub enum Event<'a> {
     #[serde(skip_deserializing)]
     Start {
         id: UserId, host: UserId, color: &'a str, info: &'a Option<GameInfo>, settings: &'a LobbySettings,
-        users: Vec<&'a User>, pawns: Vec<&'a Pawn>, registered_pawns: &'a HashMap<String, Pawn>
+        users: Vec<&'a User>, pawns: Vec<&'a Pawn>, registered_pawns: &'a HashMap<String, Vec<Pawn>>
     },
     AssignHost { id: UserId },
     #[serde(skip_deserializing)]

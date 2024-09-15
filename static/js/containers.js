@@ -48,8 +48,6 @@ export class Deck extends Pawn {
     }
     static #shapeGeometryCache = new Map();
     async init() {
-        super.init();
-
         let geometry = null;
         let key = this.data.border ? this.data.border : this.data.cornerRadius;
         if (this.constructor.#shapeGeometryCache.has(key)) {
@@ -96,6 +94,9 @@ export class Deck extends Pawn {
         this.#updateDeck(true);
 
         display.addEventListener('pointermove', this.#mouseMove);
+
+        window.manager.scene.add(this.getMesh());
+        this.initialized = true;
     }
     #roundedSquare(radius) {
         let shape = new Shape();
@@ -120,6 +121,9 @@ export class Deck extends Pawn {
         if (this.#sideTexture)
             this.#sideTexture.dispose();
         // FIXME: Dispose of textures, if possible
+    }
+    processMesh() {
+        this.#updateDeck(true);
     }
 
     menu() {

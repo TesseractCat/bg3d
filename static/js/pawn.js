@@ -82,7 +82,28 @@ export class Pawn {
     }
     initialized = false;
     init() {
-        // Load mesh
+        // Process mesh...
+        this.processMesh();
+        // ...and then add to scene
+        window.manager.scene.add(this.getMesh());
+
+        this.initialized = true;
+    }
+    dispose() {
+        this.getMesh().traverse((child) => {
+            if (child instanceof Mesh) {
+                child.geometry.dispose();
+                for (let material of (Array.isArray(child.material) ? child.material : [child.material]))
+                    material.dispose();
+            }
+        });
+        this.getMesh().clear();
+    }
+    processMesh() {
+        // Clear old mesh/materials
+        this.dispose();
+
+        // Load new mesh
         if (this.mesh != null) { // GLTF URL
             Pawn.gltfLoader.load(this.mesh, (gltf) => {
                 gltf.scene.traverse((child) => {
@@ -133,19 +154,6 @@ export class Pawn {
         } else { // Don't load GLTF
             this.updateMeshTransform();
         }
-
-        // Add to scene
-        window.manager.scene.add(this.getMesh());
-        this.initialized = true;
-    }
-    dispose() {
-        this.getMesh().traverse((child) => {
-            if (child instanceof Mesh) {
-                child.geometry.dispose();
-                for (let material of (Array.isArray(child.material) ? child.material : [child.material]))
-                    material.dispose();
-            }
-        });
     }
 
     tick(position, rotation) {
@@ -254,6 +262,10 @@ export class Pawn {
     }
     
     menu() {
+        let tintInput = document.createElement("input");
+        tintInput.setAttribute("type", "color");
+        tintInput.value = "#" + new Color(this.tint).getHexString();
+
         let entries = [
             [
                 [this.name],
@@ -265,6 +277,11 @@ export class Pawn {
             ],
         ];
         let hostEntries = [
+            ["Tint", tintInput, (color) => {
+                this.tint = new Color().setStyle(color).getHex();
+                this.dirty.add("tint");
+                this.processMesh();
+            }],
             ["Clone", () => {
                 let tempClone = this.clone();
                 tempClone.position.add(new Vector3(

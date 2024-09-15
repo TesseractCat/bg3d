@@ -139,7 +139,6 @@ end
 
 -- Lobby extensions
 
-lobby_ext = lobby_ext or {}
 function lobby_ext:schedule(co)
     local alive, ticks = coroutine.resume(co)
     if type(ticks) ~= "number" then

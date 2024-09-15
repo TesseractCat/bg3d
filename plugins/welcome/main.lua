@@ -5,7 +5,13 @@ function game.chat(user, message)
         lobby:schedule(coroutine.create(function()
             while true do
                 coroutine.yield(20)
+                bird.mesh = 'generic/minibird.gltf'
                 bird.position.y = bird.position.y + 1
+                if bird.tint ~= nil then
+                    bird.tint = bird.tint + 50
+                else
+                    bird.tint = tonumber("0x888888")
+                end
             end
         end))
     end
@@ -111,7 +117,7 @@ function game.start()
         data = SnapPointData:new{}
     }
 
-    local mini = {
+    local mini = Pawn:new{
         name = "Mini Bird",
         tint = 0xdd2222,
         mesh = 'generic/minibird.gltf'
@@ -157,9 +163,9 @@ function game.start()
     }
 
     lobby:create_pawn{
-        name = 'Die',
+        name = 'D6',
         position = vec3(4,1,3),
-        mesh = 'generic/die.gltf',
+        mesh = 'generic/d6.gltf',
         data = DiceData:new{
             roll_rotations = {
                 quat.from_euler(0, 0, 0),

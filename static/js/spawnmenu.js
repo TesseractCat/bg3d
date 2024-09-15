@@ -13,6 +13,10 @@ export default class SpawnMenu extends HTMLElement {
 
         this.shadowRoot = this.attachShadow({ mode: 'open' });
 
+        let help = document.createElement("i");
+        help.innerText = "Click and drag an object to place it down";
+        this.shadowRoot.appendChild(help);
+
         this.search = document.createElement("input");
         this.search.id = "search";
         this.search.setAttribute("placeholder", "Filter objects...")
@@ -38,6 +42,7 @@ export default class SpawnMenu extends HTMLElement {
             pointer-events: none;
         }
         #search {
+            display: none;
             flex-grow: 1;
             border-radius: var(--half-radius);
             border: 1px solid gray;

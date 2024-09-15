@@ -128,6 +128,7 @@ export default class Manager extends EventTarget {
     composer;
     controls;
     plane;
+    gridMaterial;
 
     socket;
     
@@ -378,6 +379,14 @@ export default class Manager extends EventTarget {
 
         if (serializedPawn.hasOwnProperty('name')) {
             pawn.name = serializedPawn.name;
+        }
+        if (serializedPawn.hasOwnProperty('mesh')) {
+            pawn.mesh = serializedPawn.mesh;
+            pawn.processMesh();
+        }
+        if (serializedPawn.hasOwnProperty('tint')) {
+            pawn.tint = serializedPawn.tint;
+            pawn.processMesh();
         }
         if (serializedPawn.hasOwnProperty('selected')) {
             if (pawn.networkSelected && !serializedPawn.selected) {
@@ -646,16 +655,19 @@ export default class Manager extends EventTarget {
         //material.transparent = true;
         material.lights = true;
         material.uniforms = ShaderLib.shadow.uniforms;
+        material.uniforms.dots = { value: true };
+        material.uniforms.gridSize = { value: 1.0 };
         material.vertexShader = `varying vec4 worldPos;\n` + ShaderLib.shadow.vertexShader.replace("main() {", `
         main() {
             worldPos = modelMatrix * vec4(position, 1.0);
         `);
         material.fragmentShader = `
         #define GRID_THICKNESS 0.05
-        #define GRID_SIZE 1.0
         #define FADE_DISTANCE 40.0
 
         varying vec4 worldPos;
+        uniform bool dots;
+        uniform float gridSize;
         
         #include <common>
         #include <packing>
@@ -665,24 +677,35 @@ export default class Manager extends EventTarget {
         #include <shadowmap_pars_fragment>
         #include <shadowmask_pars_fragment>
 
-        // https://iquilezles.org/articles/distfunctions2d/
-        // float sdBox(vec2 p, vec2 b) {
-        //     vec2 d = abs(p)-b;
-        //     return length(max(d,0.0)) + min(max(d.x,d.y),0.0);
-        // }
+        // https://iquilezles.org/articles/filterableprocedurals/
+        float filteredGrid( in vec2 p, in vec2 dpdx, in vec2 dpdy )
+        {
+            const float N = 1.0/GRID_THICKNESS;
+            vec2 w = max(abs(dpdx), abs(dpdy));
+            vec2 a = p + 0.5*w;                        
+            vec2 b = p - 0.5*w;           
+            vec2 i = (floor(a)+min(fract(a)*N,1.0)-
+                    floor(b)-min(fract(b)*N,1.0))/(N*w);
+            return (1.0-i.x)*(1.0-i.y);
+        }
 
         void main() {
-            bool grid = distance(fract(worldPos.xz * GRID_SIZE), vec2(0.5)) < GRID_THICKNESS;
+            vec2 gridPos = worldPos.xz * gridSize;
+            bool grid = distance(fract(gridPos), vec2(0.5)) < GRID_THICKNESS;
 
             float fade = 1.0 - clamp(distance(worldPos.xyz, cameraPosition)/FADE_DISTANCE, 0.0, 1.0);
-            //float boxAmount = (abs(sdBox(worldPos.xz, vec2(40))) < 0.05 ? 0.2 : 0.0) * fade;
+            float boxAmount = (1.0 - filteredGrid(gridPos, dFdx(gridPos), dFdy(gridPos))) * 0.2 * fade;
             float dotAmount = (grid ? 0.2 : 0.0) * fade;
             float shadowAmount = 1.0 - getShadowMask();
 
-            gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0 /* + boxAmount */);
-            //gl_FragColor = vec4(vec3(dotAmount - shadowAmount/4.0), dotAmount + shadowAmount/4.0);
+            if (dots) {
+                gl_FragColor = vec4(vec3(0), dotAmount + shadowAmount/4.0);
+            } else {
+                gl_FragColor = vec4(vec3(0), boxAmount + shadowAmount/4.0);
+            }
         }
         `;
+        this.gridMaterial = material;
         this.plane = new Mesh(geom, material);
         this.plane.position.y = 0;
         this.plane.receiveShadow = true;
@@ -832,8 +855,10 @@ export default class Manager extends EventTarget {
                     this.addUser(u.id, u.color)
                 });
                 // Register pawns
-                Object.entries(msg.registered_pawns).forEach(([path, pawn]) => {
-                    this.spawnMenu.registerPawn(path, pawn);
+                Object.entries(msg.registered_pawns).forEach(([path, pawns]) => {
+                    for (let pawn of pawns) {
+                        this.spawnMenu.registerPawn(path, pawn);
+                    }
                 });
                 // Assign host
                 assignHost(msg.host);

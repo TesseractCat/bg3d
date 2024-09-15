@@ -32,29 +32,56 @@ export default class ContextMenu extends HTMLElement {
             user-select:none;
         }
         
-        button, p {
+        button, p, label {
             margin: 0px;
 
-            display:block;
-            box-sizing:border-box;
+            display: block;
+            box-sizing: border-box;
 
             width: 100%;
             padding-left: 15%;
             font-family: inherit;
         }
-        button {
-            font-size:0.9em;
+        button, label {
+            font-size: 0.9em;
             border: none;
-            border-radius:0px;
+            border-radius: 0px;
             background-color: transparent;
             text-align: left;
         }
-        button:hover {
+        button:hover, label:hover {
             background-color: rgba(0,0,0,0.2);
         }
         p {
             font-style: italic;
             text-transform: capitalize;
+        }
+        label {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        input[type="color"] {
+            width: 10px;
+            height: 10px;
+            border: 1px solid gray;
+            border-radius: 5px;
+
+            padding: 0;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+            border: none;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: none;
         }
         `;
         this.shadowRoot.appendChild(style);
@@ -78,22 +105,42 @@ export default class ContextMenu extends HTMLElement {
         // Create buttons
         for (let [i, section] of menu.entries()) {
             for (let entry of section) {
-                if (entry.length == 1) {
+                if (entry.length == 1) { // Label, i.e. for the pawn name
                     let text = document.createElement("p");
                     text.innerText = entry[0];
 
                     this.element.appendChild(text);
-                } else if (entry.length == 2) {
-                    let [name, action] = entry;
+                } else if (entry.length > 1) { // Buttons or inputs
+                    let name, input, action;
+                    if (entry[1] instanceof HTMLElement) {
+                        [name, input, action] = entry;
+                    } else {
+                        [name, action] = entry;
+                    }
 
-                    let button = document.createElement("button");
-                    button.innerText = name;
-                    button.addEventListener("click", () => {
-                        this.hide();
-                        action();
-                    });
+                    let elem;
+                    if (input) {
+                        elem = document.createElement("label");
+                        elem.innerText = name;
+                        elem.prepend(input);
+                    } else {
+                        elem = document.createElement("button");
+                        elem.innerText = name;
+                    }
 
-                    this.element.appendChild(button);
+                    if (input) {
+                        input.addEventListener("change", (e) => {
+                            this.hide();
+                            action(e.target.value);
+                        });
+                    } else {
+                        elem.addEventListener("click", () => {
+                            this.hide();
+                            action();
+                        });
+                    }
+
+                    this.element.appendChild(elem);
                 }
             }
 

@@ -65,7 +65,7 @@ pub struct Lobby {
     pub users: HashMap<UserId, User>, // FIXME: Make these both u16
     pub pawns: HashMap<PawnId, Pawn>,   // - Collision probability?
     pub assets: HashMap<String, Asset>,
-    pub registered_pawns: HashMap<String, Pawn>,
+    pub registered_pawns: HashMap<String, Vec<Pawn>>,
 
     pub world: PhysicsWorld,
     pub abort_token: Option<bool>,
@@ -315,6 +315,8 @@ impl mlua::UserData for Lobby {
 impl Lobby {
     // -- LUA EVENTS --
     pub fn reset_lua(&mut self) {
+        self.scheduled_lua_funcs = HashMap::new();
+
         let lua = Lua::new_with(
             mlua::StdLib::MATH | mlua::StdLib::TABLE | mlua::StdLib::STRING,
             mlua::LuaOptions::new()
@@ -337,6 +339,7 @@ impl Lobby {
         }
 
         lua.globals().set("game", lua.create_table().unwrap()).expect("Failed while initializing globals");
+        lua.globals().set("lobby_ext", lua.create_table().unwrap()).expect("Failed while initializing globals");
 
         // Seed random
         lua.globals().get::<_, mlua::Table>("math").unwrap()
@@ -497,7 +500,7 @@ impl Lobby {
                             ..Default::default()
                         };
                     }
-                } else { // If a user hasn't selected this pawn
+                }/* else { // If a user hasn't selected this pawn
                     if !update.selected.is_some_and(|x| x) {
                         // and we try to update it without setting selected to true
                         println!("User <{user_id:?}> trying to update non-owned pawn");
@@ -506,7 +509,7 @@ impl Lobby {
                             ..Default::default()
                         };
                     }
-                }
+                }*/
             }
 
             if !pawn.moveable {
@@ -554,6 +557,10 @@ impl Lobby {
             if pawn.moveable {
                 let rb_handle = pawn.rigid_body.ok_or("Pawn missing rigidbody")?;
                 let rb = self.world.rigid_body_set.get_mut(rb_handle).ok_or("Rigidbody handle invalid")?;
+                // Update mesh colliders
+                if update.mesh.is_some() {
+                    todo!("Update mesh colliders");
+                }
                 // Don't simulate selected pawns
                 rb.set_body_type(if pawn.selected_user.is_none() {
                     RigidBodyType::Dynamic
@@ -902,7 +909,11 @@ impl Lobby {
             &Event::RegisterPawn { path: &path, pawn: Cow::Borrowed(&pawn) }
         )?;
 
-        self.registered_pawns.insert(path, pawn);
+        if !self.registered_pawns.contains_key(&path) {
+            self.registered_pawns.insert(path.clone(), Vec::new());
+        }
+        self.registered_pawns.get_mut(&path).unwrap().push(pawn);
+
         Ok(())
     }
 
