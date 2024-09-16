@@ -1,48 +1,48 @@
-local bird
-function game.chat(user, message)
-    --lobby:system_chat("ECHO: " .. user .. " said '" .. message .. "'")
-    if message == "/test" then
-        lobby:schedule(coroutine.create(function()
-            while true do
-                coroutine.yield(20)
-                bird.mesh = 'generic/minibird.gltf'
-                bird.position.y = bird.position.y + 1
-                if bird.tint ~= nil then
-                    bird.tint = bird.tint + 50
-                else
-                    bird.tint = tonumber("0x888888")
-                end
-            end
-        end))
-    end
-end
+-- local bird
+-- function game.chat(user, message)
+--     --lobby:system_chat("ECHO: " .. user .. " said '" .. message .. "'")
+--     if message == "/test" then
+--         lobby:schedule(coroutine.create(function()
+--             while true do
+--                 coroutine.yield(20)
+--                 bird.mesh = 'generic/minibird.gltf'
+--                 bird.position.y = bird.position.y + 1
+--                 if bird.tint ~= nil then
+--                     bird.tint = bird.tint + 50
+--                 else
+--                     bird.tint = tonumber("0x888888")
+--                 end
+--             end
+--         end))
+--     end
+-- end
 
-local test
-function game.page(path)
-    local path, query = parseurl(path)
-    if path == "/" then
-        checkbox = query.test == "on"
-        return string.format([[
-            <style>
-            html, body { height: fit-content; }
-            </style>
-            <script>
-            addEventListener("load", () => {
-                const onResize = () => {
-                    window.parent.postMessage(getComputedStyle(document.documentElement).height, "*");
-                };
-                new ResizeObserver(onResize).observe(document.documentElement);
-                onResize();
-            });
-            </script>
+-- local test
+-- function game.page(path)
+--     local path, query = parseurl(path)
+--     if path == "/" then
+--         checkbox = query.test == "on"
+--         return string.format([[
+--             <style>
+--             html, body { height: fit-content; }
+--             </style>
+--             <script>
+--             addEventListener("load", () => {
+--                 const onResize = () => {
+--                     window.parent.postMessage(getComputedStyle(document.documentElement).height, "*");
+--                 };
+--                 new ResizeObserver(onResize).observe(document.documentElement);
+--                 onResize();
+--             });
+--             </script>
 
-            <form id="form" action="">
-                <input type="checkbox" name="test" %s>
-                <button>Submit</button>
-            </form>
-        ]], checkbox and "checked" or "")
-    end
-end
+--             <form id="form" action="">
+--                 <input type="checkbox" name="test" %s>
+--                 <button>Submit</button>
+--             </form>
+--         ]], checkbox and "checked" or "")
+--     end
+-- end
 
 local pawn
 function game.start()
@@ -51,14 +51,14 @@ function game.start()
         position = vec3(-1.6,2.8,-1.8),
         rotation = quat.from_euler(0, math.pi/6, 0),
         mesh = 'generic/bird.glb',
-        on_release = function(user)
-            lobby:system_chat("USER " .. user .. " RELEASED BIRD")
-        end
+        -- on_release = function(user)
+        --     lobby:system_chat("USER " .. user .. " RELEASED BIRD")
+        -- end
     }
 
-    bird.on_grab = function(user)
-        lobby:system_chat("USER " .. user .. " GRABBED BIRD")
-    end
+    -- bird.on_grab = function(user)
+    --     lobby:system_chat("USER " .. user .. " GRABBED BIRD")
+    -- end
 
     local stand = lobby:create_pawn{
         name = "Stand",
@@ -177,26 +177,6 @@ function game.start()
             }
         }
     }
-    lobby:create_pawn{
-        name = 'D10',
-        position = vec3(4,2,4),
-        tint = tonumber("0xFFFDF5"),
-        mesh = 'generic/dice/d10.glb',
-        data = DiceData:new{
-            roll_rotations = {
-                quat.from_euler(0, 0, 0),
-                quat.from_euler(math.pi/2, 0, 0),
-                quat.from_euler(math.pi, 0, 0),
-                quat.from_euler(-math.pi/2, 0, 0),
-                quat.from_euler(0, 0, math.pi/2),
-                quat.from_euler(0, 0, -math.pi/2)
-            }
-        }
-    }
-end
-
-function game.settings()
-
 end
 
 -- local last_time
