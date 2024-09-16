@@ -1,5 +1,5 @@
-use gltf::{Gltf, mesh::BoundingBox};
-use rapier3d::{prelude::{Vector, Rotation, Translation, Isometry, ColliderBuilder}, na::Quaternion};
+use gltf::{buffer::Data, mesh::BoundingBox, Document, Gltf};
+use rapier3d::{math::Point, na::Quaternion, prelude::{ColliderBuilder, Isometry, Rotation, Translation, Vector}};
 use std::vec::IntoIter;
 
 fn merge_bounding_boxes(mut a: BoundingBox, b: BoundingBox) -> BoundingBox {
@@ -9,10 +9,10 @@ fn merge_bounding_boxes(mut a: BoundingBox, b: BoundingBox) -> BoundingBox {
 }
 
 pub trait GltfExt {
-    fn colliders(&self) -> IntoIter<ColliderBuilder>;
+    fn colliders(&self, buffers: &[Data]) -> IntoIter<ColliderBuilder>;
 }
-impl GltfExt for Gltf {
-    fn colliders(&self) -> IntoIter<ColliderBuilder> {
+impl GltfExt for Document {
+    fn colliders(&self, buffers: &[Data]) -> IntoIter<ColliderBuilder> {
         let colliders: Vec<_> = self
             .nodes()
             .filter_map(|node| {
@@ -46,9 +46,18 @@ impl GltfExt for Gltf {
                     "cylinder" => {
                         ColliderBuilder::cylinder(half.y, half.x).position(isometry)
                     },
-                    _ => {
+                    "box" => {
                         ColliderBuilder::cuboid(half.x, half.y, half.z).position(isometry)
                     },
+                    "convex" => {
+                        let primitive = node.mesh()?.primitives().next()?;
+                        let reader = primitive.reader(|buffer: gltf::Buffer| Some(&buffers[buffer.index()]));
+                        let points: Vec<Point<f32>> = reader.read_positions()?.map(|p| Point::new(p[0], p[1], p[2])).collect();
+                        ColliderBuilder::convex_hull(points.as_slice())?.position(isometry)
+                    },
+                    _ => {
+                        ColliderBuilder::ball(1.0)
+                    }
                 };
 
                 Some(collider)

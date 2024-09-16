@@ -6,12 +6,13 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::SystemTime;
 use data_url::DataUrl;
+use gltf::buffer::Data;
 use indexmap::IndexMap;
 use random_color::Color;
 use tokio::time::Instant;
 use include_dir::{Dir, include_dir};
 
-use gltf::Gltf;
+use gltf::{Document, Gltf};
 use rapier3d::prelude::*;
 use rapier3d::dynamics::{RigidBodyBuilder, RigidBodyType};
 use rapier3d::geometry::{Collider, ColliderHandle};
@@ -413,14 +414,16 @@ impl Lobby {
                     let static_path = Path::new("./static/games").canonicalize()?;
                     let path = static_path.join(Path::new(mesh)).canonicalize();
 
-                    let gltf: Option<Gltf> = if let Ok(path) = path {
-                        if path.starts_with(static_path) { Gltf::open(path).ok() } else { None }
+                    let gltf_data: Option<(Document, Vec<Data>)> = if let Ok(path) = path {
+                        if path.starts_with(static_path) {
+                            Some(gltf::import(path).map(|(d, b, _)| (d,b))?)
+                        } else { None }
                     } else if let Some(asset) = self.assets.get(&format!("/{}", mesh)) {
-                        Gltf::from_slice(asset.data.as_slice()).ok()
+                        Some(gltf::import_slice(asset.data.as_slice()).map(|(d, b, _)| (d,b))?)
                     } else { None };
 
-                    if let Some(gltf) = gltf {
-                        Box::new(gltf.colliders().map(|collider| {
+                    if let Some((gltf_document, gltf_buffers)) = gltf_data {
+                        Box::new(gltf_document.colliders(gltf_buffers.as_slice()).map(|collider| {
                             collider
                                 .friction(0.7).mass(0.01)
                                 .active_events(ActiveEvents::COLLISION_EVENTS).build()

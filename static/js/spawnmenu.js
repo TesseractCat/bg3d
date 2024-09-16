@@ -56,6 +56,7 @@ export default class SpawnMenu extends HTMLElement {
             gap: 4px;
         }
         #results div {
+            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -67,7 +68,8 @@ export default class SpawnMenu extends HTMLElement {
 
             cursor: pointer;
 
-            transition: background-color 0.1s;
+            transition: background-color 0.1s, bottom 0.1s;
+            bottom: 0px;
         }
         #results .pawn {
             cursor: grab;
@@ -82,6 +84,9 @@ export default class SpawnMenu extends HTMLElement {
         }
         #results div:hover {
             background-color: var(--bg-top);
+        }
+        #results .pawn:hover {
+            bottom: 2px;
         }
         `;
         this.shadowRoot.appendChild(style);

@@ -26,7 +26,7 @@ tower-http = { version = "0.5", features = ["fs", "compression-gzip"] }
 data-url = { version = "0.1.1" }
 
 rapier3d = { version = "0.22", features = [ "simd-stable" ] }
-gltf = { version = "1.1.0", features = [ "extras" ] }
+gltf = { version = "1.4.1", features = [ "extras" ] }
 
 mlua = { version = "0.9.9", features = ["luajit", "vendored", "send", "macros", "unstable"] }
 include_dir = "0.7.4"

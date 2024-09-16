@@ -177,6 +177,22 @@ function game.start()
             }
         }
     }
+    lobby:create_pawn{
+        name = 'D10',
+        position = vec3(4,2,4),
+        tint = tonumber("0xFFFDF5"),
+        mesh = 'generic/dice/d10.glb',
+        data = DiceData:new{
+            roll_rotations = {
+                quat.from_euler(0, 0, 0),
+                quat.from_euler(math.pi/2, 0, 0),
+                quat.from_euler(math.pi, 0, 0),
+                quat.from_euler(-math.pi/2, 0, 0),
+                quat.from_euler(0, 0, math.pi/2),
+                quat.from_euler(0, 0, -math.pi/2)
+            }
+        }
+    }
 end
 
 function game.settings()

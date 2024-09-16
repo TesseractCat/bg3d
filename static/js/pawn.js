@@ -110,8 +110,12 @@ export class Pawn {
                     child.castShadow = true;
                     child.receiveShadow = true;
 
+                    if (child.userData.hasOwnProperty("skip")) {
+                        child.removeFromParent();
+                        return;
+                    }
+
                     if (child instanceof Mesh) {
-                        child.material.color.multiply(new Color(this.tint));
 
                         if (child.material.map !== null) {
                             child.material.map.anisotropy = 4;
@@ -124,10 +128,14 @@ export class Pawn {
                         }
 
                         let mat = new MeshPhongMaterial();
-                        mat.color = child.material.color;
+                        if (child.material.userData.hasOwnProperty("notint")) {
+                            mat.color = child.material.color;
+                        } else {
+                            mat.color = child.material.color.multiply(new Color(this.tint));
+                        }
                         mat.map = child.material.map;
                         mat.normalMap = child.material.normalMap;
-                        mat.shininess = (1 - child.material.roughness) * 60;
+                        mat.shininess = (1 - child.material.roughness) * 100;
                         mat.transparent = true;
                         mat.side = DoubleSide;
                         mat.forceSinglePass = true;
@@ -537,8 +545,15 @@ export class Dice extends Pawn {
 
     roll() {
         this.selectAndRun(() => {
-            let value = Math.floor(Math.random() * this.data.rollRotations.length);
-            this.selectRotation.copy(this.data.rollRotations[value]);
+            if (this.data.rollRotations.length > 0) {
+                let value = Math.floor(Math.random() * this.data.rollRotations.length);
+                this.selectRotation.copy(this.data.rollRotations[value]);
+            } else {
+                this.selectRotation.setFromAxisAngle(
+                    new Vector3().randomDirection(),
+                    Math.random() * 2 * Math.PI
+                );
+            }
             this.dirty.add("selectRotation");
         });
     }

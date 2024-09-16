@@ -79,7 +79,7 @@ return {
     },
     dice = {
         Pawn:new{
-            name = 'D6',
+            name = 'D6 (Dots)',
             mesh = 'generic/d6.gltf',
             data = DiceData:new{
                 roll_rotations = {
@@ -91,7 +91,37 @@ return {
                     quat.from_euler(0, 0, -math.pi/2)
                 }
             }
-        }
+        },
+        Pawn:new{
+            name = 'D4',
+            mesh = 'generic/dice/d4.glb',
+            tint = tonumber("0xD0B771"),
+            data = DiceData:new{ roll_rotations = {} }
+        },
+        Pawn:new{
+            name = 'D6',
+            mesh = 'generic/dice/d6.glb',
+            tint = tonumber("0xD9BB68"),
+            data = DiceData:new{ roll_rotations = {} }
+        },
+        Pawn:new{
+            name = 'D10',
+            mesh = 'generic/dice/d10.glb',
+            tint = tonumber("0xE3BF5F"),
+            data = DiceData:new{ roll_rotations = {} }
+        },
+        Pawn:new{
+            name = 'D12',
+            mesh = 'generic/dice/d12.glb',
+            tint = tonumber("0xECC455"),
+            data = DiceData:new{ roll_rotations = {} }
+        },
+        Pawn:new{
+            name = 'D20',
+            mesh = 'generic/dice/d20.glb',
+            tint = tonumber("0xEEC553"),
+            data = DiceData:new{ roll_rotations = {} }
+        },
     },
     checkers = {
         Pawn:new{

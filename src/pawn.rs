@@ -262,6 +262,6 @@ impl Pawn {
         diff
     }
     pub fn flipped(&self) -> bool {
-        (self.select_rotation.x - std::f64::consts::PI).abs() < 0.01
+        (Rotation::from(&self.select_rotation).transform_vector(&Vector::new(0., 1., 0.))).y < 0.
     }
 }
