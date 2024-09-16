@@ -94,31 +94,31 @@ return {
         },
         Pawn:new{
             name = 'D4',
-            mesh = 'generic/dice/d4.glb',
+            mesh = 'generic/dice/D4.glb',
             tint = tonumber("0xD0B771"),
             data = DiceData:new{ roll_rotations = {} }
         },
         Pawn:new{
             name = 'D6',
-            mesh = 'generic/dice/d6.glb',
+            mesh = 'generic/dice/D6.glb',
             tint = tonumber("0xD9BB68"),
             data = DiceData:new{ roll_rotations = {} }
         },
         Pawn:new{
             name = 'D10',
-            mesh = 'generic/dice/d10.glb',
+            mesh = 'generic/dice/D10.glb',
             tint = tonumber("0xE3BF5F"),
             data = DiceData:new{ roll_rotations = {} }
         },
         Pawn:new{
             name = 'D12',
-            mesh = 'generic/dice/d12.glb',
+            mesh = 'generic/dice/D12.glb',
             tint = tonumber("0xECC455"),
             data = DiceData:new{ roll_rotations = {} }
         },
         Pawn:new{
             name = 'D20',
-            mesh = 'generic/dice/d20.glb',
+            mesh = 'generic/dice/D20.glb',
             tint = tonumber("0xEEC553"),
             data = DiceData:new{ roll_rotations = {} }
         },
