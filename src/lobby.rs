@@ -46,7 +46,7 @@ pub struct GameInfo {
 
     pub rotation_increment: Option<f64>,
 }
-#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LobbySettings {
     #[serde(default)]
@@ -55,6 +55,15 @@ pub struct LobbySettings {
     pub show_card_counts: bool,
     #[serde(default)]
     pub hide_chat: bool,
+}
+impl Default for LobbySettings {
+    fn default() -> Self {
+        Self {
+            spawn_permission: false,
+            show_card_counts: true,
+            hide_chat: false
+        }
+    }
 }
 
 pub struct Lobby {

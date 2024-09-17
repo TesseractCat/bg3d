@@ -2,7 +2,11 @@ import {
     SphereGeometry, MeshBasicMaterial, Vector3, Quaternion, Mesh, Vector2, Matrix4, Raycaster, AudioListener,
     Scene, DirectionalLight, AmbientLight, PlaneGeometry, ShaderMaterial, ShaderLib, PerspectiveCamera,
     WebGLRenderer, PCFShadowMap, PCFSoftShadowMap, Euler, Cache, Color,
-    LinearFilter
+    LinearFilter,
+    Object3D,
+    MeshPhongMaterial,
+    DoubleSide,
+    TextureLoader
 } from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
@@ -23,6 +27,8 @@ const COMPRESSED = true;
 class User {
     static gltfLoader = new GLTFLoader()
         .setPath(window.location.origin + '/static/');
+    static textureLoader = new TextureLoader()
+        .setPath(window.location.origin + '/static/');
 
     id;
 
@@ -36,6 +42,9 @@ class User {
     headTransform;
     handObject;
 
+    cardDisplayParent;
+    cardDisplayMaterial;
+
     constructor(id, color, self, cardTextElement, playerTextElement) {
         this.id = id;
         this.color = color;
@@ -45,6 +54,12 @@ class User {
         this.headObject = null;
         this.headTransform = new NetworkedTransform(new Vector3(), new Quaternion());
         this.cursorTransform = new NetworkedTransform(new Vector3(), new Quaternion());
+        
+        this.cardDisplayParent = new Object3D();
+        this.cardDisplayMaterial = new MeshPhongMaterial({color: 0xFAFAFA, side: DoubleSide, alphaTest: 0.5});
+        User.textureLoader.load("games/generic/unknown_card.png", (tex) => {
+            this.cardDisplayMaterial.map = tex;
+        });
 
         if (!self) {
             const cursorGeometry = new SphereGeometry(0.32, 12, 12);
@@ -92,6 +107,9 @@ class User {
                 gltf.scene.visible = false;
                 window.manager.scene.add(gltf.scene);
                 this.headObject = gltf.scene;
+
+                this.headObject.add(this.cardDisplayParent);
+                this.cardDisplayParent.position.set(0, -0.75, 1.75);
             });
         }
     }
@@ -111,6 +129,21 @@ class User {
                 this.handObject.quaternion.copy(this.headTransform.rotation);
                 // this.handObject.visible = true;
             }
+        }
+    }
+
+    updateCardCount(count) {
+        this.cardDisplayParent.clear();
+
+        const width = count <= 2 ? 0.5 : 1.5;
+        const rotAmount = count <= 2 ? 0.3 : 0.7;
+        for (let i = 0; i < count; i++) {
+            const p = count == 1 ? 0.5 : i/(count-1);
+            const geometry = new PlaneGeometry(0.9, 1.25);
+            const plane = new Mesh(geometry, this.cardDisplayMaterial);
+            plane.position.set(p * width - width/2, 0.1 * Math.sin(Math.PI * p), p * 0.05);
+            plane.setRotationFromEuler(new Euler(0, 0, (p - 0.5) * -rotAmount));
+            this.cardDisplayParent.add(plane);
         }
     }
 }
@@ -430,8 +463,10 @@ export default class Manager extends EventTarget {
         cardTextElement.innerText = "[0 cards]";
         playerElement.appendChild(cardTextElement);
 
-        if (id == this.id)
-            playerTextElement.innerText = "(You)";
+        if (id == this.id) {
+            playerTextElement.innerText = "YOU";
+            playerElement.classList.add("you");
+        }
         
         let playerList = document.querySelector("#player-entries");
         for (let entryNode of playerList.children) {
@@ -764,9 +799,9 @@ export default class Manager extends EventTarget {
                 document.querySelector("#settings #lobby-settings").removeAttribute("disabled");
                 // document.querySelector("#settings #plugin-settings").removeAttribute("disabled");
                 this.host = true;
-                this.users.get(id).playerTextElement.innerText = "(You/Host)";
+                this.users.get(id).playerTextElement.innerText = "HOST\nYOU";
             } else {
-                this.users.get(id).playerTextElement.innerText = "(Host)";
+                this.users.get(id).playerTextElement.innerText = "HOST";
             }
         }
         const updateSettings = (settings) => {
@@ -781,7 +816,10 @@ export default class Manager extends EventTarget {
                 settings.spawnPermission ? this.spawnMenu.removeAttribute("disabled") : this.spawnMenu.setAttribute("disabled", "");
             }
             let playerEntriesElem = document.querySelector("#player-entries");
-            settings.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
+            //settings.showCardCounts ? delete playerEntriesElem.dataset.hideCardCounts : playerEntriesElem.dataset.hideCardCounts = '';
+            if (!settings.showCardCounts) {
+                this.users.values().forEach(user => user.updateCardCount(0));
+            }
 
             let chatElem = document.querySelector("bird-chat");
             !settings.hideChat ? delete chatElem.dataset.hidden : chatElem.dataset.hidden = '';
@@ -893,7 +931,8 @@ export default class Manager extends EventTarget {
                 if (!this.hand.cards.has(msg.pawn.id))
                     this.hand.pushCard(deserializePawn(msg.pawn), false);
             } else if (type == "hand_count") {
-                this.users.get(msg.id).cardTextElement.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
+                //this.users.get(msg.id).cardTextElement.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
+                this.users.get(msg.id).updateCardCount(msg.count);
             } else if (type == "connect") {
                 // Add the connected player to the player list
                 this.addUser(msg.id, msg.color);

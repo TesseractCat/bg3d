@@ -51,12 +51,12 @@ div:not(#hidden) {
 
     box-shadow: -10px 10px 20px rgb(0 0 0 / 30%);
 
-    transition: opacity 0.2s;
+    transition: border 0.2s;
 
     background: url(static/games/generic/alpha.png);
 }
 :host([grabbed]) div {
-    opacity: 0.5;
+    /*opacity: 0.5;*/
 }
 #flipped {
     position: absolute;

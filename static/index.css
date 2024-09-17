@@ -1,4 +1,4 @@
-@import "variables.css?v=7ed94df";
+@import "variables.css?v=fd95db5";
 
 /* @font-face { */
 /*     font-family: 'Bayon'; */
@@ -151,9 +151,25 @@ bird-tabbar img {
 #player-entries .player {
     display: flex;
     justify-content: center;
+    align-items: center;
+
+    border: 1px solid gray;
+    background-color: var(--bg-top);
+    padding: 4px;
+    border-radius: var(--half-radius);
+}
+#player-entries .player.you {
+    cursor: pointer;
 }
 #player-entries .player h3 {
     display: inline-block;
+}
+#player-entries .player .text {
+    font-size: 0.6em;
+    font-family: arial;
+    font-weight: 900;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
 }
 #player-entries .player svg {
     display: inline-block;
@@ -167,6 +183,10 @@ bird-tabbar img {
 #player-entries[data-hide-card-counts] .player .cards {
     display: none;
 }
+#player-entries .player[data-turn] {
+    background-color: var(--accent-button);
+}
+
 #piece-combo {
     font-size:0px;
 }
