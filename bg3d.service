@@ -1,0 +1,11 @@
+[Unit]
+Description=BG3D
+
+[Service]
+Type=simple
+WorkingDirectory=/home/fedora/bg3d
+ExecStart=/home/fedora/bg3d/target/release/BG3D https://birdga.me:9095
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
