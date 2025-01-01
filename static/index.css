@@ -1,4 +1,4 @@
-@import "variables.css?v=59beab6";
+@import "variables.css?v=ea12a7a";
 
 /* @font-face { */
 /*     font-family: 'Bayon'; */
@@ -149,14 +149,17 @@ bird-tabbar img {
     justify-content: center;
 }
 #player-entries .player {
-    display: flex;
-    justify-content: center;
+    display: grid;
     align-items: center;
+
+    grid-template-columns: 1fr 1fr;
+    width: 60px;
+    grid-template-rows: 1fr auto;
 
     border: 1px solid gray;
     background-color: var(--bg-top);
-    padding: 4px;
     border-radius: var(--half-radius);
+    overflow: hidden;
 }
 #player-entries .player.you {
     cursor: pointer;
@@ -170,11 +173,25 @@ bird-tabbar img {
     font-weight: 900;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
+    margin: 3px;
+    margin-left: 0px;
+}
+#player-entries .player .name {
+    font-size: 0.75em;
+    font-family: arial;
+    grid-column: 1 / 3;
+    background-color: lightgray;
+
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 2px;
 }
 #player-entries .player svg {
     display: inline-block;
     width: 25px;
     height: 25px;
+    margin: 2px;
 }
 #player-entries .player .cards:before {
     content: "•";

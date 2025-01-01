@@ -828,8 +828,7 @@ impl Lobby {
     pub fn register_game(&mut self, user_id: UserId, info: Cow<'_, GameInfo>, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
         if user_id != self.host { return Err("Failed to register game".into()); }
 
-        println!("User <{user_id:?}> registering game \"{}\" for lobby [{}]",
-                info.name, self.name);
+        println!("User <{user_id:?}> registering game \"{}\"", info.name);
 
         self.info = Some(info.into_owned());
 
@@ -844,7 +843,7 @@ impl Lobby {
     pub fn register_assets(&mut self, user_id: UserId, assets: HashMap<String, String>) -> Result<(), Box<dyn Error>> {
         if user_id != self.host || self.assets.len() >= 256 { return Err("Failed to register asset".into()); }
 
-        println!("User <{user_id:?}> registering assets for lobby [{}]:", self.name);
+        println!("User <{user_id:?}> registering assets:");
         let mut processed_assets: HashMap<String, Asset> = HashMap::new();
         for (name, data) in assets.into_iter() {
             if processed_assets.values().fold(0, |acc, a| acc + a.data.len()) > 1024 * 1024 * 40 { return Err("Attempting to register >40 MiB of assets".into()); }

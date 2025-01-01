@@ -458,6 +458,10 @@ export default class Manager extends EventTarget {
         playerTextElement.classList.add("text");
         playerTextElement.innerText = "";//id;
         playerElement.appendChild(playerTextElement);
+        let playerNameElement = document.createElement("h3");
+        playerNameElement.classList.add("name");
+        playerNameElement.innerText = "TEST";
+        playerElement.appendChild(playerNameElement);
         let cardTextElement = document.createElement("h3");
         cardTextElement.classList.add("cards");
         cardTextElement.innerText = "[0 cards]";

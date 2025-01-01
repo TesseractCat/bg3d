@@ -51,36 +51,56 @@ use events::*;
 const PHYSICS_RATE: f32 = 1.0/45.0;
 const CURSOR_RATE: f32 = 1.0/10.0;
 
-//TODO: Replace this with Dashmap?
-type Lobbies = Arc<RwLock<HashMap<String, Arc<Mutex<Lobby>>>>>;
-
 #[tokio::main]
 async fn main() {
-    let base_uri: Uri = Uri::try_from(env::args().nth(1).unwrap_or("http://localhost:8080".to_string())).expect("Invalid Uri provided");
-    let port = base_uri.port_u16().unwrap_or(80);
+    let port = env::args().nth(1).expect("Missing port").parse::<u16>().expect("Invalid port");
+    let lobby_name = env::args().nth(2).expect("Missing name");
     
-    // Define our lobbies HashMap
-    let lobbies = Lobbies::default();
+    // Create lobby
+    let lobby: Arc<Mutex<Lobby>> = Arc::new(Mutex::new(Lobby::new()));
+    {
+        let mut lobby = lobby.lock().await;
+        lobby.name = lobby_name.clone();
+    }
+    // Start thread to step physics
+    let lobby_physics_clone = lobby.clone();            
+    std::thread::spawn(move || {
+        let physics_rate_duration = Duration::from_secs_f32(PHYSICS_RATE);
 
-    let lobbies_index_clone = lobbies.clone();
-    let lobbies_assets_clone = lobbies.clone();
-    let lobbies_ws_clone = lobbies.clone();
-    let lobbies_page_clone = lobbies.clone();
-    let lobbies_page_path_clone = lobbies.clone();
-    let lobbies_dashboard_clone = lobbies.clone();
+        let mut tick: u32 = 0;
+        loop {
+            let start = Instant::now();
+            {
+                let mut lobby_wl = lobby_physics_clone.blocking_lock();
+                if let Some(true) = lobby_wl.abort_token {
+                    return;
+                }
+                lobby_wl.step(tick % 3 == 0).ok();
+            }
+            let _elapsed = Instant::now() - start;
+
+            // println!("Physics time: {}", elapsed.as_millis());
+            tick += 1;
+            std::thread::sleep(physics_rate_duration.saturating_sub(_elapsed));
+        }
+    });
+
+    let lobby_index_clone = lobby.clone();
+    let lobby_assets_clone = lobby.clone();
+    let lobby_ws_clone = lobby.clone();
+    let lobby_page_clone = lobby.clone();
+    let lobby_page_path_clone = lobby.clone();
 
     // Routing
     // FIXME: Re-add cache headers
     let lobby_routes = Router::new()
-        .route("/", get(|AxumPath(lobby): AxumPath<String>, request: Request<Body>| async move {
-            let lobbies = lobbies_index_clone.clone();
-            if let Some(lobby) = lobbies.read().await.get(&lobby) {
-                if lobby.lock().await.users.len() >= 32 {
-                    return (
-                        [(header::CACHE_CONTROL, "no-cache")],
-                        ServeFile::new("static/full.html").oneshot(request).await
-                    );
-                }
+        .route("/", get(|request: Request<Body>| async move {
+            let lobby = lobby_index_clone.clone();
+            if lobby.lock().await.users.len() >= 32 {
+                return (
+                    [(header::CACHE_CONTROL, "no-cache")],
+                    ServeFile::new("static/full.html").oneshot(request).await
+                );
             }
             return (
                 [(header::CACHE_CONTROL, "no-cache")],
@@ -88,94 +108,62 @@ async fn main() {
             );
         }))
         .nest_service("/assets", ServeDir::new("static/games").fallback(get(
-            move |AxumPath(lobby): AxumPath<String>, uri: Uri| {
-                let lobbies = lobbies_assets_clone.clone();
-                println!("Someone requested asset path \"{}\" for lobby [{lobby}]", uri.path());
-
-                retrieve_asset(lobbies, lobby, uri)
+            move |uri: Uri| {
+                let lobby = lobby_assets_clone.clone();
+                println!("Someone requested asset path \"{}\"", uri.path());
+                retrieve_asset(lobby, uri)
             }
         )))
         .route("/page/", get(
-            move |AxumPath(lobby): AxumPath<String>, RawQuery(query): RawQuery| {
-                let lobbies = lobbies_page_clone.clone();
+            move |RawQuery(query): RawQuery| {
+                let lobby = lobby_page_clone.clone();
                 let query = query.map(|q| format!("?{q}")).unwrap_or("".to_string());
-                serve_page(lobbies, lobby, format!("/{query}"))
+                serve_page(lobby, format!("/{query}"))
             }
         ))
         .route("/page/*path", get(
-            move |AxumPath((lobby, path)): AxumPath<(String, String)>, RawQuery(query): RawQuery| {
-                let lobbies = lobbies_page_path_clone.clone();
+            move |AxumPath((_, path)): AxumPath<(String, String)>, RawQuery(query): RawQuery| {
+                let lobby = lobby_page_path_clone.clone();
                 let query = query.map(|q| format!("?{q}")).unwrap_or("".to_string());
-                serve_page(lobbies, lobby, format!("/{path}{query}"))
+                serve_page(lobby, format!("/{path}{query}"))
             }
         ))
         .route("/ws", get(
-            |AxumPath(lobby): AxumPath<String>, ws: WebSocketUpgrade, headers: HeaderMap| async move {
-                let lobbies = lobbies_ws_clone.clone();
+            |ws: WebSocketUpgrade, headers: HeaderMap| async move {
+                let lobby = lobby_ws_clone.clone();
                 ws.on_upgrade(move |socket| async {
-                    if let Err(err) = user_connected(socket, lobby, lobbies, headers).await {
+                    if let Err(err) = user_connected(socket, lobby, headers).await {
                         println!("Error encountered in websocket connection: {:?}", err);
                     }
                 })
             }
         ));
-    let index_routes = Router::new()
-        .route_service("/", ServeFile::new("static/frontpage/index.html"))
-        .route("/index.html", get(|| async { Redirect::to("/") }));
 
-    let app = index_routes
-        .route("/dashboard", get(move || {
-            let lobbies = lobbies_dashboard_clone.clone();
-            dashboard(lobbies)
-        }))
-        .nest_service("/static",
-                      ServeDir::new("static").append_index_html_on_directories(false))
-        .nest_service("/plugins",
-                      ServeDir::new("plugins").append_index_html_on_directories(false))
-        .nest("/:lobby", lobby_routes)
+    let app = lobby_routes
         .layer(CompressionLayer::new());
     
     // Relay user statuses (cursors, head, etc)
-    let lobbies_clone = lobbies.clone();
+    let lobby_clone = lobby.clone();
     tokio::task::spawn(async move  {
         let mut interval = interval(Duration::from_secs_f32(CURSOR_RATE));
         loop {
             {
-                let lobbies_rl = lobbies_clone.read().await;
-                for lobby in lobbies_rl.values() {
-                    let lobby = lobby.lock().await;
-                    lobby.relay_user_statuses().ok();
-                }
+                let lobby = lobby_clone.lock().await;
+                lobby.relay_user_statuses().ok();
             }
             interval.tick().await;
         }
     });
 
-    println!("Starting BG3D at [{base_uri}]...");
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    println!("{}", listener.local_addr().expect("Failed to bind").port());
 
     axum::serve(listener, app).await.unwrap();
+    println!("Listening...");
 }
-async fn dashboard(lobbies: Lobbies) -> String {
-    let lobbies = lobbies.read().await;
-
-    let mut lobbies_text = String::new();
-    for (name, lobby) in lobbies.iter() {
-        let lobby = lobby.lock().await;
-        lobbies_text += &format!(" - '{}' [{} user(s)]\n", name, lobby.users.len());
-    }
-
-    format!(
-        include_str!("../static/dashboard.html"),
-        lobby_count = lobbies.len(),
-        lobbies = lobbies_text
-    )
-}
-async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::response::Result<impl IntoResponse> {
-    let lobbies_rl = lobbies.read().await;
-
-    let lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.lock().await;
+async fn retrieve_asset(lobby: Arc<Mutex<Lobby>>, path: Uri) -> axum::response::Result<impl IntoResponse> {
+    let lobby = lobby.lock().await;
     let asset = lobby.assets.get(path.path()).ok_or(StatusCode::NOT_FOUND)?;
 
     axum::response::Result::Ok((
@@ -186,10 +174,8 @@ async fn retrieve_asset(lobbies: Lobbies, lobby: String, path: Uri) -> axum::res
         asset.data.clone()
     ))
 }
-async fn serve_page(lobbies: Lobbies, lobby: String, path: String) -> axum::response::Result<impl IntoResponse> {
-    let lobbies_rl = lobbies.read().await;
-
-    let mut lobby = lobbies_rl.get(&lobby).ok_or(StatusCode::NOT_FOUND)?.lock().await;
+async fn serve_page(lobby: Arc<Mutex<Lobby>>, path: String) -> axum::response::Result<impl IntoResponse> {
+    let mut lobby = lobby.lock().await;
 
     let content: mlua::Result<Result<String, StatusCode>> = lobby.lua_scope(|lua, _scope, _| { // Call physics callback
         if let Some(res) = Lobby::run_lua_callback::<_, String>(lua, "page", path) {
@@ -218,7 +204,7 @@ async fn serve_page(lobbies: Lobbies, lobby: String, path: String) -> axum::resp
     ))
 }
 
-async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, headers: HeaderMap) -> Result<(), Box<dyn Error>> {
+async fn user_connected(ws: WebSocket, lobby: Arc<Mutex<Lobby>>, headers: HeaderMap) -> Result<(), Box<dyn Error>> {
     let (mut tx, mut rx) = ws.split();
     
     let (buffer_tx, buffer_rx) = mpsc::unbounded_channel::<Message>();
@@ -243,47 +229,8 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
     
     // Track user
     let user_id = {
-        let mut host: bool = false;
-
-        // Create lobby if it doesn't exist
-        if lobbies.read().await.get(&lobby_name).is_none() {
-            let mut lobbies_wl = lobbies.write().await;
-
-            let mut lobby = Lobby::new();
-            lobby.name = lobby_name.clone();
-
-            let lobby_arc = Arc::new(Mutex::new(lobby));
-
-            // Start thread to step physics
-            let lobby_physics_clone = lobby_arc.clone();            
-            std::thread::spawn(move || {
-                let physics_rate_duration = Duration::from_secs_f32(PHYSICS_RATE);
-
-                let mut tick: u32 = 0;
-                loop {
-                    let start = Instant::now();
-                    {
-                        let mut lobby_wl = lobby_physics_clone.blocking_lock();
-                        if let Some(true) = lobby_wl.abort_token {
-                            return;
-                        }
-                        lobby_wl.step(tick % 3 == 0).ok();
-                    }
-                    let _elapsed = Instant::now() - start;
-
-                    // println!("Physics time: {}", elapsed.as_millis());
-                    tick += 1;
-                    std::thread::sleep(physics_rate_duration.saturating_sub(_elapsed));
-                }
-            });
-            lobby_arc.lock().await.abort_token = Some(false);
-
-            lobbies_wl.insert(lobby_name.clone(), lobby_arc);
-            host = true;
-        }
-
-        let lobbies_rl = lobbies.read().await;
-        let mut lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?.lock().await;
+        let mut lobby = lobby.lock().await;
+        let host = lobby.users.len() == 0;
         let user_id = lobby.next_user_id();
 
         if host { lobby.host = user_id; }
@@ -321,9 +268,6 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
                 continue;
             }
         }
-
-        let lobbies_rl = lobbies.read().await;
-        let lobby = lobbies_rl.get(&lobby_name).ok_or("Lobby missing")?;
 
         let message_bytes = message.into_data();
         let mut d = Decompress::new(false);
@@ -372,7 +316,7 @@ async fn user_connected(ws: WebSocket, lobby_name: String, lobbies: Lobbies, hea
 
     buffer_task_handle.abort();
     keep_alive_task_handle.abort();
-    user_disconnected(user_id, &lobby_name, &lobbies).await
+    user_disconnected(user_id, lobby).await
 }
 
 
@@ -382,8 +326,8 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
     // Get user
     let user = lobby.users.get(&user_id).ok_or("Invalid user id")?;
     
-    println!("User <{:?}> joined lobby [{}] with {} users and {} pawns:",
-        user_id, lobby.name, lobby.users.len(), lobby.pawns.len());
+    println!("User <{:?}> joined lobby with {} users and {} pawns:",
+        user_id, lobby.users.len(), lobby.pawns.len());
     println!(" - Referrer: {:?}", referrer);
     println!(" - Lang: {:?}", headers.get(header::ACCEPT_LANGUAGE));
     println!(" - UA: {:?}", headers.get(header::USER_AGENT));
@@ -415,10 +359,9 @@ fn user_joined(user_id: UserId, lobby: &Lobby, referrer: &str, headers: HeaderMa
         })
 }
 
-async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies) -> Result<(), Box<dyn Error>> {
-    let lobbies_rl = lobbies.read().await;
-    let mut lobby = lobbies_rl.get(lobby_name).ok_or("Missing lobby")?.lock().await;
-    
+async fn user_disconnected(user_id: UserId, lobby: Arc<Mutex<Lobby>>) -> Result<(), Box<dyn Error>> {
+    let mut lobby = lobby.lock().await;
+
     // Tell all other users that this user has disconnected
     lobby.users.values()
         .filter(|u| u.id != user_id)
@@ -474,18 +417,10 @@ async fn user_disconnected(user_id: UserId, lobby_name: &str, lobbies: &Lobbies)
             // Tell the new host
             lobby.users.get(&lobby.host).unwrap().send_event(&Event::AssignHost { id: lobby.host })?;
 
-            println!("Host of lobby [{lobby_name}] left, reassigning <{user_id:?}> -> <{:?}>", lobby.host);
+            println!("Host of lobby left, reassigning <{user_id:?}> -> <{:?}>", lobby.host);
         }
     } else { // Otherwise, delete lobby if last user
-        //lobby.physics_handle.as_ref().ok_or("Attempting to remove lobby without physics handle")?.abort();
-        lobby.abort_token = Some(true);
-        drop(lobby);
-        drop(lobbies_rl);
-
-        let mut lobbies_wl = lobbies.write().await;
-        lobbies_wl.remove(lobby_name);
-
-        println!("Lobby [{lobby_name}] removed");
+        // FIXME: Delete lobby? Keep it around?
     }
     Ok(())
 }

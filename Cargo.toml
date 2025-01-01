@@ -21,6 +21,9 @@ tokio-stream = { version = "0.1.7" }
 
 #axum-macros = { version = "0.3.0-rc.3" }
 axum = { version = "0.7.4", features = ["ws", "macros"] }
+hyper = { version = "1.5.1" }
+hyper-util =  { version = "0.1.10", features = ["client", "client-legacy", "http1"] }
+tokio-tungstenite = "0.24.0"
 tower = "0.4.13"
 tower-http = { version = "0.5", features = ["fs", "compression-gzip"] }
 data-url = { version = "0.1.1" }
@@ -36,7 +39,12 @@ indexmap = { version = "2.5.0", features = ["serde"] }
 name = "bg3d"
 
 [[bin]]
-name = "BG3D"
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "router"
+path = "src/router.rs"
 
 [profile.release]
 codegen-units = 1
