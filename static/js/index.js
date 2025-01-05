@@ -223,5 +223,5 @@ window.onload = () => {
     });
 };
 window.onresize = () => {
-    manager.resize();
+    if (manager !== undefined) manager.resize();
 };

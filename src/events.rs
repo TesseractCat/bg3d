@@ -58,7 +58,6 @@ pub enum Event<'a> {
         #[serde(skip_serializing_if = "Option::is_none")]
         collisions: Option<Vec<CollisionAudioInfo>>,
     },
-    AddPawnToHand { pawn: Cow<'a, Pawn> },
     HandCount { id: UserId, count: u64 },
 
     // 'Extracting' a pawn and 'taking' a pawn are different
@@ -70,4 +69,5 @@ pub enum Event<'a> {
     UpdateUserStatuses { updates: Vec<UserStatusUpdate> },
 
     Chat { id: Option<UserId>, content: Cow<'a, String> },
+    DesyncCheck { hash: u32 },
 }

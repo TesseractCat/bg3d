@@ -160,13 +160,21 @@ export class Deck extends Pawn {
 
             super.release(false);
 
-            window.manager.removePawn(this.id);
-            window.manager.hand.pushCard(this, true);
             window.manager.sendSocket({
                 type: "store_pawn",
                 from_id: this.id,
                 into_id: {type: "user", id: window.manager.id},
             });
+            const onStore = (e) => {
+                let imageElement = window.manager.hand.querySelector(`[data-id="${e.detail.from_id}"]`)
+                let {x, y, width, height} = imageElement.getBoundingClientRect();
+                imageElement.dispatchEvent(new PointerEvent('pointerdown', {
+                    clientX: x + width/2,
+                    clientY: y + height/2,
+                }));
+                window.manager.removeEventListener("store_pawn", onStore);
+            };
+            window.manager.addEventListener("store_pawn", onStore);
 
             // 'Release' pointer on OrbitControls
             // Note, call this after super.release(false) to prevent merging
@@ -199,8 +207,6 @@ export class Deck extends Pawn {
         if (e.key == "g" && this.data.contents.length == 1) {
             super.release(false);
 
-            window.manager.removePawn(this.id);
-            window.manager.hand.pushCard(this, false);
             window.manager.sendSocket({
                 type: "store_pawn",
                 from_id: this.id,
@@ -269,7 +275,8 @@ export class Deck extends Pawn {
             this.insert(this.flipped(), rhs.data.contents);
 
             let previewMesh = rhs.getMesh().clone();
-            window.manager.removePawn(rhs.id);
+            // Only remove the visuals because the pawn isn't really gone yet.
+            window.manager.removePawnVisuals(rhs.id);
 
             window.manager.scene.add(previewMesh);
             const start = performance.now();
@@ -514,7 +521,7 @@ export class Container extends Pawn {
         }
 
         let previewMesh = rhs.getMesh().clone();
-        window.manager.removePawn(rhs.id);
+        window.manager.removePawnVisuals(rhs.id);
 
         window.manager.scene.add(previewMesh);
         const start = performance.now();

@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::Path;
 use std::sync::atomic::{Ordering, AtomicU64};
 use std::error::Error;
@@ -397,6 +398,44 @@ impl Lobby {
         })
     }
 
+    // -- MISC EVENTS --
+
+    pub fn desync_check(&self) -> Result<(), Box<dyn Error>> {
+        // FNV-1a (https://thimbleby.gitlab.io/algorithm-wiki-site/wiki/fowler-noll-vo_hash_function/)
+        fn fnv_hash(bytes: impl Iterator<Item=u8>) -> u32 {
+            let mut hash: u32 = 2166136261;
+            let prime: u32 = 16777619;
+
+            bytes.for_each(|byte| {
+                hash ^= byte as u32;
+                hash = hash.wrapping_mul(prime);
+            });
+
+            hash
+        }
+
+        let pawn_keys_sorted: Vec<_> = {
+            let mut keys: Vec<_> = self.pawns.keys().map(|id| id.0).collect();
+            keys.sort();
+            keys
+        };
+
+        for user in self.users.values() {
+            let hand_keys_sorted: Vec<_> = {
+                let mut keys: Vec<_> = user.hand.keys().map(|id| id.0).collect();
+                keys.sort();
+                keys
+            };
+            let hash = fnv_hash(
+                pawn_keys_sorted.iter().chain(hand_keys_sorted.iter())
+                    .flat_map(|id| id.to_le_bytes())
+            );
+            user.send_event(&Event::DesyncCheck { hash })?;
+        }
+
+        Ok(())
+    }
+
     // -- PAWN EVENTS --
 
     pub fn add_pawn(&mut self, mut pawn: Pawn) -> Result<(), Box<dyn Error>> {
@@ -455,7 +494,7 @@ impl Lobby {
         // Add pawn to lobby
         self.pawns.insert(pawn.id, pawn);
 
-        Ok(())
+        self.desync_check()
     }
     pub fn remove_pawn(&mut self, id: PawnId) -> Option<Pawn> {
         // Remove rigidbody first
@@ -473,7 +512,8 @@ impl Lobby {
             self.remove_pawn(*id);
         }
         
-        self.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })
+        self.users.values().send_event(&Event::RemovePawns { ids: pawn_ids })?;
+        self.desync_check()
     }
     pub fn clear_pawns(&mut self) -> Result<(), Box<dyn Error>> {
         // Remove pawn rigidbodies from lobby
@@ -492,7 +532,8 @@ impl Lobby {
             self.users.values().send_event(&Event::HandCount { id, count: 0 })?;
         }
         
-        self.users.values().send_event(&Event::ClearPawns {})
+        self.users.values().send_event(&Event::ClearPawns {})?;
+        self.desync_check()
     }
     pub fn update_pawns(&mut self, user_id: Option<UserId>, mut updates: Vec<PawnUpdate>) -> Result<(), Box<dyn Error>> {
         // Iterate through and update pawns, sanitize updates when relaying:
@@ -615,7 +656,8 @@ impl Lobby {
         // Relay to other users that these pawns were changed
         self.users.values()
             .filter(|u| !user_id.is_some_and(|user_id| u.id == user_id))
-            .send_event(&Event::UpdatePawns { updates, collisions: None })
+            .send_event(&Event::UpdatePawns { updates, collisions: None })?;
+        self.desync_check()
     }
     pub fn extract_pawns(&mut self, _user_id: UserId, from_id: PawnId, new_id: PawnId, into_id: Option<UserId>, count: Option<u64>) -> Result<(), Box<dyn Error>> {
         if self.pawns.contains_key(&new_id) { return Err("Attempting to extract with existing ID".into()); }
@@ -694,7 +736,8 @@ impl Lobby {
                 self.store_pawn(new_id, PawnOrUser::User(into_id))
             },
             None => self.add_pawn(to),
-        }
+        }?;
+        self.desync_check()
     }
     pub fn store_pawn(&mut self, from_id: PawnId, into_id: PawnOrUser) -> Result<(), Box<dyn Error>> {
         if !match into_id {
@@ -760,8 +803,8 @@ impl Lobby {
                 let into = self.users.get_mut(&into_id).unwrap();
                 into.hand.insert(from_id, from);
 
-                into.send_event(&Event::AddPawnToHand {
-                    pawn: Cow::Borrowed(into.hand.get(&from_id).unwrap())
+                into.send_event(&Event::StorePawn {
+                    from_id, into_id: PawnOrUser::User(into_id)
                 })?;
 
                 if self.settings.show_card_counts {
@@ -772,7 +815,8 @@ impl Lobby {
                 }
             }
         }
-        self.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })
+        self.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })?;
+        self.desync_check()
     }
     pub fn take_pawn(&mut self, user_id: UserId, from_id: UserId, target_id: PawnId, position_hint: Option<Vec3>) -> Result<(), Box<dyn Error>> {
         if user_id != from_id { return Err("Attempting to take pawn from non-self user".into()); }
@@ -793,7 +837,11 @@ impl Lobby {
             taken_pawn.position = position_hint;
         }
 
-        self.add_pawn(taken_pawn)
+        self.users.get(&from_id).unwrap().send_event(&Event::TakePawn {
+            from_id, target_id, position_hint
+        })?;
+        self.add_pawn(taken_pawn)?;
+        self.desync_check()
     }
 
     // -- USER STATUS EVENTS --

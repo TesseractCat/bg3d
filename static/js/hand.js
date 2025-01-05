@@ -162,8 +162,10 @@ div:not(#hidden) {
 export default class Hand extends HTMLElement {
     cards = new Map();
     shadowRoot;
-    element;
+    cardSlot;
     tip;
+
+    grabbedCard = null;
     
     constructor() {
         super();
@@ -174,15 +176,15 @@ export default class Hand extends HTMLElement {
         this.tip.innerText = "Drag cards here";
         this.shadowRoot.appendChild(this.tip);
 
-        this.element = document.createElement("div");
-        this.shadowRoot.appendChild(this.element);
+        this.cardSlot = document.createElement("slot");
+        this.shadowRoot.appendChild(this.cardSlot);
 
         const style = document.createElement('style');
         style.textContent = `
         :host {
             pointer-events: none;
         }
-        bird-card {
+        ::slotted(bird-card) {
             cursor: pointer;
             height: 200px;
 
@@ -192,16 +194,16 @@ export default class Hand extends HTMLElement {
             pointer-events:auto;
             user-select:none;
         }
-        bird-card:first-child {
+        ::slotted(bird-card:first-child) {
             margin-left: 0px;
         }
-        bird-card:hover {
+        ::slotted(bird-card:hover) {
             margin-bottom: var(--offset);
             margin-right: var(--offset);
             margin-left: 0px;
         }
 
-        div {
+        slot {
             height: 200px;
             margin-bottom: calc(-2 * var(--offset));
 
@@ -212,7 +214,7 @@ export default class Hand extends HTMLElement {
             
             transition: background 0.2s;
         }
-        :host([minimized]) div {
+        :host([minimized]) slot {
             margin-bottom: calc(-3 * var(--offset));
             pointer-events: none;
         }
@@ -235,6 +237,10 @@ export default class Hand extends HTMLElement {
     
     pushCard(deck, grab=false) {
         let serialized = deck.serialize();
+        if (this.cards.has(serialized.id)) {
+            console.warn("Attempting to add duplicate pawn to hand");
+            return;
+        }
         this.cards.set(serialized.id, serialized);
         let card = this.cards.get(serialized.id);
         console.assert(card.data.contents.length == 1);
@@ -247,54 +253,68 @@ export default class Hand extends HTMLElement {
         imageElement.style.borderRadius = `${deck.data.cornerRadius}in`;
         imageElement.style.aspectRatio = `${deck.data.size.x}/${deck.data.size.y}`;
 
+        imageElement.addEventListener("pointermove", (e) => {
+            if (this.grabbedCard === null)
+                return;
+
+            let {left, width} = e.target.getBoundingClientRect();
+            let middle = left + width/2;
+            let before = e.clientX < middle;
+
+            if (before) {
+                if (this.grabbedCard.nextSibling !== e.target) {
+                    this.insertBefore(this.grabbedCard, e.target);
+                }
+            } else {
+                if (this.grabbedCard !== e.target.nextSibling) {
+                    this.insertBefore(this.grabbedCard, e.target.nextSibling);
+                }
+            }
+        });
+
         imageElement.addEventListener('pointerdown', (e) => {
             let offset = [imageElement.getBoundingClientRect().x - e.clientX,
                           imageElement.getBoundingClientRect().y - e.clientY];
             imageElement.grabbed = true;
+            this.grabbedCard = imageElement;
 
             const cardDrop = () => {
                 document.removeEventListener('pointerup', cardDrop);
                 document.removeEventListener('pointermove', cardMove);
-                this.element.querySelectorAll('bird-card').forEach((e) => {
-                    e.removeEventListener('pointermove', cardHover);
-                });
+
+                this.grabbedCard = null;
 
                 imageElement.grabbed = false;
                 display.focus(); // Otherwise focus goes to <body> for some reason...
             }
             const cardMove = (e) => {
                 if (e.clientY < (window.innerHeight - 200)) {
-                    cardDrop();
-                    this.takeCard(card.id);
+                    // cardDrop();
+                    // this.takeCard(card.id);
+                    let hint = window.manager.getHintPosition();
+                    window.manager.sendSocket({
+                        type: "take_pawn",
+                        from_id: window.manager.id,
+                        target_id: card.id,
+                        position_hint: hint
+                    });
+                    // const onAddPawn = (e) => {
+                    //     if (e.detail.pawn.id == card.id) {
+                    //         window.manager.removeEventListener("add_pawn", onAddPawn);
+                    //     }
+                    // };
+                    // window.manager.addEventListener("add_pawn", onAddPawn);
                     return;
                 }
                 imageElement.position = [e.clientX + offset[0], e.clientY + offset[1]];
             }
-            const cardHover = (e) => {
-                let {left, width} = e.target.getBoundingClientRect();
-                let middle = left + width/2;
-                let before = e.clientX < middle;
-
-                if (before) {
-                    if (imageElement.nextSibling !== e.target) {
-                        this.element.insertBefore(imageElement, e.target);
-                    }
-                } else {
-                    if (e.target.nextSibling !== imageElement) {
-                        this.element.insertBefore(imageElement, e.target.nextSibling);
-                    }
-                }
-            }
 
             document.addEventListener('pointerup', cardDrop);
             document.addEventListener('pointermove', cardMove);
-            this.element.querySelectorAll(`bird-card:not([data-id="${card.id}"])`).forEach((e) => {
-                e.addEventListener('pointermove', cardHover);
-            });
         });
         imageElement.oncontextmenu = function() { return false; }
 
-        this.element.appendChild(imageElement);
+        this.appendChild(imageElement);
         imageElement.reset();
         if (grab) {
             let {x, y, height} = imageElement.getBoundingClientRect();
@@ -311,7 +331,7 @@ export default class Hand extends HTMLElement {
             if (serializedCard.hasOwnProperty('data')) {
                 card.data = serializedCard.data;
 
-                let imageElement = this.element.querySelector(`bird-card[data-id="${card.id}"]`);
+                let imageElement = this.querySelector(`bird-card[data-id="${card.id}"]`);
                 imageElement.src = `${window.location.pathname}/assets/${card.data.contents[0]}`;
                 imageElement.style.borderRadius = `${card.data.cornerRadius}in`;
                 imageElement.style.aspectRatio = `${card.data.size.x}/${card.data.size.y}`;
@@ -319,18 +339,15 @@ export default class Hand extends HTMLElement {
         }
     }
     takeCard(id) {
-        let card = this.cards.get(id);
+        if (this.grabbedCard !== null && parseInt(this.grabbedCard.dataset.id) == id)
+            this.grabbedCard = null;
         this.cards.delete(id);
-        this.element.querySelector(`bird-card[data-id="${id}"]`)?.remove();
-
-        this.dispatchEvent(new CustomEvent("take", {
-            detail: card
-        }));
+        [...this.querySelectorAll(`bird-card[data-id="${id}"]`)].forEach((e) => e.remove());
     }
     clear() {
         // Remove children
-        while (this.element.firstChild) {
-            this.element.firstChild.remove();
+        while (this.firstChild) {
+            this.firstChild.remove();
         }
         this.cards.clear();
     }

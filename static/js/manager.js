@@ -16,7 +16,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { deserializePawn, Pawn, SnapPoint, Dice, Deck, Container  } from './pawns';
 import { NetworkedTransform } from './transform';
 
-import { serializationFixedFloatMixin, serializationReplacer, serializationThreeTypesMixin, UniqueId } from './utils.js';
+import { numberToBytes, serializationFixedFloatMixin, serializationReplacer, serializationThreeTypesMixin, UniqueId } from './utils.js';
 
 import { deflateSync, inflateSync } from 'fflate';
 
@@ -219,35 +219,6 @@ export default class Manager extends EventTarget {
                 content: e.detail
             });
         });
-        this.hand.addEventListener("take", (e) => {
-            let card = e.detail;
-
-            if ([...this.pawns.values()].filter(p => p.selected).length != 0)
-                return;
-
-            let raycastableObjects = [...this.pawns.values()].map(x => x.getMesh());
-            raycastableObjects.push(this.plane);
-            let hits = this.raycaster.intersectObjects(raycastableObjects, true);
-            
-            if (hits.length >= 1) {
-                let hitPoint = hits[0].point.clone();
-                let hint = hitPoint.add(new Vector3(0, 2, 0));
-                
-                const grabHandler = (e) => {
-                    if (e.detail.pawn.id == card.id) {
-                        this.pawns.get(card.id).grab(0);
-                        this.removeEventListener("add_pawn", grabHandler);
-                    }
-                };
-                this.addEventListener("add_pawn", grabHandler);
-                this.sendSocket({
-                    type: "take_pawn",
-                    from_id: this.id,
-                    target_id: card.id,
-                    position_hint: hint
-                });
-            }
-        });
         this.spawnMenu.addEventListener("spawn", (e) => {
             e.detail.position.copy(new Vector3(0, 1, 0));
             e.detail.id = UniqueId();
@@ -362,6 +333,20 @@ export default class Manager extends EventTarget {
         this.buildWebSocket(callback);
     }
     
+    getHintPosition() {
+        if ([...this.pawns.values()].filter(p => p.selected).length != 0)
+            return;
+
+        let raycastableObjects = [...this.pawns.values()].map(x => x.getMesh());
+        raycastableObjects.push(this.plane);
+        let hits = this.raycaster.intersectObjects(raycastableObjects, true);
+        
+        if (hits.length >= 1) {
+            let hitPoint = hits[0].point.clone();
+            let hint = hitPoint.add(new Vector3(0, 2, 0));
+            return hint;
+        }
+    }
     clearPawns() {
         [...this.pawns.keys()].forEach(id => {
             this.scene.remove(this.pawns.get(id).getMesh());
@@ -387,6 +372,10 @@ export default class Manager extends EventTarget {
     }
     sendAddPawn(pawn) {
         this.sendSocket({ type: "add_pawn", pawn: pawn.serialize() });
+    }
+    removePawnVisuals(id) {
+        if (this.pawns.has(id))
+            this.scene.remove(this.pawns.get(id).getMesh());
     }
     removePawn(id) {
         if (this.pawns.has(id)) {
@@ -444,6 +433,27 @@ export default class Manager extends EventTarget {
     }
     sendUpdatePawn(pawn) {
         this.sendSocket({type: "update_pawns", pawns: [pawn.serialize()]});
+    }
+
+    desyncCheck(correctHash) {
+        let hash = 2166136261;
+        let prime = 16777619;
+
+        let ids = [...this.pawns.keys()].sort((a,b) => a-b);
+        ids = ids.concat([...this.hand.cards.keys()].sort((a,b) => a-b));
+        for (const id of ids) {
+            for (const byte of numberToBytes(id)) {
+                hash ^= byte;
+                hash = Math.imul(hash, prime);
+            }
+        }
+        hash = hash >>> 0;
+
+        if (correctHash == hash) {
+            console.log(`DESYNC CHECK PASSED`);
+        } else {
+            console.log(`DESYNC CHECK FAILED: ${correctHash}, got ${hash}`);
+        }
     }
     
     addUser(id, color) {
@@ -931,9 +941,29 @@ export default class Manager extends EventTarget {
                 //     console.log(msg.collisions);
             } else if (type == "clear_pawns") {
                 this.clearPawns();
-            } else if (type == "add_pawn_to_hand") {
-                if (!this.hand.cards.has(msg.pawn.id))
-                    this.hand.pushCard(deserializePawn(msg.pawn), false);
+            } else if (type == "store_pawn") {
+                if (msg.into_id.type == "user" && msg.into_id.id == this.id) {
+                    let pawn = this.pawns.get(msg.from_id).serialize();
+                    this.hand.pushCard(deserializePawn(pawn), false);
+                    this.removePawn(msg.from_id);
+                } else {
+                    console.warn("Got a store pawn for a different user!")
+                }
+            } else if (type == "take_pawn") {
+                if (msg.from_id == this.id) {
+                    this.hand.takeCard(msg.target_id);
+                    const onAddPawn = (e) => {
+                        if (e.detail.pawn.id == msg.target_id) {
+                            this.pawns.get(msg.target_id).grab(0);
+                            this.removeEventListener("add_pawn", onAddPawn);
+                        }
+                    };
+                    this.addEventListener("add_pawn", onAddPawn);
+                } else {
+                    console.warn("Got a take pawn for a different user!")
+                }
+            } else if (type == "desync_check") {
+                this.desyncCheck(msg.hash);
             } else if (type == "hand_count") {
                 //this.users.get(msg.id).cardTextElement.innerText = `[${msg.count} card${msg.count == 1 ? '' : 's'}]`;
                 this.users.get(msg.id).updateCardCount(msg.count);

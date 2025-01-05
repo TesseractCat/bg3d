@@ -27,6 +27,22 @@ export function UniqueId() {
     // return (BigInt(upper) << BigInt(32)) | BigInt(lower);
 }
 
+export function numberToBytes(num) {
+    if (num > Number.MAX_SAFE_INTEGER || num < 0) {
+        throw new RangeError("Input must be a non-negative number less than or equal to Number.MAX_SAFE_INTEGER.");
+    }
+
+    const bigIntValue = BigInt(num);
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    const lowBits = Number(bigIntValue & 0xFFFFFFFFn); // Lower 32 bits
+    const highBits = Number(bigIntValue >> 32n & 0xFFFFFFFFn); // Upper 32 bits
+    view.setUint32(0, lowBits, true); // Low 32 bits
+    view.setUint32(4, highBits, true); // High 32 bits
+
+    return new Uint8Array(buffer);
+}
+
 export function serializationThreeTypesMixin(key, value) {
     if (value?.isVector3) {
         return {x: value.x, y: value.y, z: value.z}
