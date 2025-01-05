@@ -803,10 +803,6 @@ impl Lobby {
                 let into = self.users.get_mut(&into_id).unwrap();
                 into.hand.insert(from_id, from);
 
-                into.send_event(&Event::StorePawn {
-                    from_id, into_id: PawnOrUser::User(into_id)
-                })?;
-
                 if self.settings.show_card_counts {
                     let count = into.hand.len() as u64;
                     self.users.values().send_event(&Event::HandCount {
@@ -815,6 +811,9 @@ impl Lobby {
                 }
             }
         }
+        self.users.values().send_event(&Event::StorePawn {
+            from_id, into_id
+        })?;
         self.users.values().send_event(&Event::RemovePawns { ids: vec![from_id] })?;
         self.desync_check()
     }

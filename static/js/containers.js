@@ -272,30 +272,6 @@ export class Deck extends Pawn {
     }
     merge(rhs) {
         if (rhs instanceof Deck && rhs.name == this.name && rhs.flipped() == this.flipped()) {
-            this.insert(this.flipped(), rhs.data.contents);
-
-            let previewMesh = rhs.getMesh().clone();
-            // Only remove the visuals because the pawn isn't really gone yet.
-            window.manager.removePawnVisuals(rhs.id);
-
-            window.manager.scene.add(previewMesh);
-            const start = performance.now();
-            const startPosition = previewMesh.position.clone();
-            const startRotation = new Quaternion().setFromEuler(previewMesh.rotation.clone());
-            const animatePreview = (now) => {
-                if ((now - start)/250 < 1) {
-                    previewMesh.position.copy(startPosition.lerp(this.getMesh().position, (now - start)/250));
-                    previewMesh.rotation.setFromQuaternion(startRotation.slerp(
-                        new Quaternion().setFromEuler(this.getMesh().rotation),
-                        (now - start)/250
-                    ));
-                    requestAnimationFrame(animatePreview);
-                } else {
-                    window.manager.scene.remove(previewMesh);
-                }
-            };
-            animatePreview(start);
-
             window.manager.sendSocket({
                 type: "store_pawn",
                 from_id: rhs.id,
@@ -313,7 +289,7 @@ export class Deck extends Pawn {
             this.grabCards();
         }
     }
-    
+
     #updateMaterials(faceTexture, backTexture) {
         // Dispose of old materials
         for (let material of [this.#backMaterial, this.#faceMaterial, this.#sideMaterial]) {

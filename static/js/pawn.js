@@ -470,6 +470,28 @@ export class Pawn {
         return pawn;
     }
     processData() { }
+
+    doMergeEffect(targetPosition, targetRotation) {
+        let previewMesh = this.getMesh().clone(true);
+        window.manager.scene.add(previewMesh);
+
+        const start = performance.now();
+        const startPosition = previewMesh.position.clone();
+        const startRotation = previewMesh.quaternion.clone();
+        const animatePreview = (now) => {
+            if ((now - start)/250 < 1) {
+                previewMesh.position.copy(startPosition.lerp(targetPosition, (now - start)/250));
+                previewMesh.setRotationFromQuaternion(startRotation.slerp(
+                    targetRotation,
+                    (now - start)/250
+                ));
+                requestAnimationFrame(animatePreview);
+            } else {
+                window.manager.scene.remove(previewMesh);
+            }
+        };
+        animatePreview(start);
+    }
 }
 
 export class SnapPoint extends Pawn {

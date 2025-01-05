@@ -867,6 +867,8 @@ export default class Manager extends EventTarget {
                 msg = JSON.parse(e.data);
             }
             let type = msg.type;
+
+            this.dispatchEvent(new CustomEvent(`before_${type}`, { detail: msg }));
             
             if (type == "start") {
                 // We have initiated a connection
@@ -947,7 +949,34 @@ export default class Manager extends EventTarget {
                     this.hand.pushCard(deserializePawn(pawn), false);
                     this.removePawn(msg.from_id);
                 } else {
-                    console.warn("Got a store pawn for a different user!")
+                    if (msg.into_id.type == "pawn") {
+                        let from_pawn = this.pawns.get(msg.from_id);
+                        let into_pawn = this.pawns.get(msg.into_id.id);
+                        const onBeforeRemovePawns = (e) => {
+                            for (let id of e.detail.pawns) {
+                                if (id == from_pawn.id) {
+                                    from_pawn.doMergeEffect(into_pawn.position.clone(), into_pawn.rotation.clone());
+                                    this.removeEventListener("before_remove_pawns", onBeforeRemovePawns);
+                                }
+                            }
+                        };
+                        this.addEventListener("before_remove_pawns", onBeforeRemovePawns);
+                    } else if (msg.into_id.type == "user") {
+                        let from_pawn = this.pawns.get(msg.from_id);
+                        let into_user = this.users.get(msg.into_id.id);
+                        let into_head = into_user.headObject;
+                        const onBeforeRemovePawns = (e) => {
+                            for (let id of e.detail.pawns) {
+                                if (id == from_pawn.id) {
+                                    from_pawn.doMergeEffect(into_head.position.clone().sub(
+                                        into_head.up.clone().multiplyScalar(2)
+                                    ), new Quaternion());
+                                    this.removeEventListener("before_remove_pawns", onBeforeRemovePawns);
+                                }
+                            }
+                        };
+                        this.addEventListener("before_remove_pawns", onBeforeRemovePawns);
+                    }
                 }
             } else if (type == "take_pawn") {
                 if (msg.from_id == this.id) {
@@ -960,7 +989,18 @@ export default class Manager extends EventTarget {
                     };
                     this.addEventListener("add_pawn", onAddPawn);
                 } else {
-                    console.warn("Got a take pawn for a different user!")
+                    /*let from_user = this.users.get(msg.from_id);
+                    let from_head = from_user.headObject;
+                    const onAddPawn = (e) => {
+                        if (e.detail.pawn.id == msg.into_id) {
+                            let into_pawn = this.pawns.get(msg.into_id);
+                            into_pawn.doMergeEffect(from_head.position.clone().sub(
+                                from_head.up.clone().multiplyScalar(2)
+                            ), new Quaternion());
+                            this.removeEventListener("add_pawn", onAddPawn);
+                        }
+                    };
+                    this.addEventListener("add_pawn", onAddPawn);*/
                 }
             } else if (type == "desync_check") {
                 this.desyncCheck(msg.hash);
